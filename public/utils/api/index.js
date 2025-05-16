@@ -9,6 +9,6 @@
 export { get, post, put, remove } from './client.js';
 
 // Domain-specific API modules
-export { getAddressInfo } from './address.js';
+export { getAddressInfo } from './checks/address.js';
 // export other modules as needed, e.g.:
 // export { createSubscription, cancelSubscription } from './subscription.js';
