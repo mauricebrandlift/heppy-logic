@@ -7,11 +7,11 @@
  * document.addEventListener('DOMContentLoaded', () => initAdressCheckForm());
  */
 
-import { initAddresCheckForm } from '../forms/address/addressCheckForm.js';
+import { initAddressCheckForm } from '../forms/address/addressCheckForm.js';
 
 // Initialisatie bij pagina-load
 document.addEventListener('DOMContentLoaded', () => {
-  initAddresCheckForm();
+  initAddressCheckForm();
 });
 
 // Luister op voltooiing van de adrescheck (formuliernaam: postcode-form)
