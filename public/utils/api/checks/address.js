@@ -15,5 +15,5 @@ import { post } from './client.js';
  * @throws {Error} On network or HTTP errors
  */
 export async function getAddressInfo(data) {
-  return post('/checks/addressCheck', data);
+  return post('/addressCheck', data);
 }
