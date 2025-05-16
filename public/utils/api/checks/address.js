@@ -2,7 +2,7 @@
  * Domain-specific API for address-related endpoints.
  * Retrieves coverage status and full address information including coordinates.
  *
- * @module public/utils/api/address
+ * @module public/utils/api/checks/address
  * @version 1.1.1
  */
 
