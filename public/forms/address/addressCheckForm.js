@@ -9,11 +9,11 @@
  *
  * Ondersteunt optioneel een `group` voor gedeelde data uit formSchema.
  *
- * @module public/forms/adress/adressCheckForm
+ * @module public/forms/address/addressCheckForm
  * @version 1.0.0
  * @example
  * import { initAddressCheckForm } from './addressCheckForm.js';
- * document.addEventListener('DOMContentLoaded', () => initAdresCheckForm());
+ * document.addEventListener('DOMContentLoaded', () => initAddressCheckForm());
  */
 
 import { formSchemas } from '../schemas/formSchema.js';
@@ -29,7 +29,7 @@ const formEl = document.querySelector(`[data-form-name="${FORM_NAME}"]`);
 const submitBtn = document.querySelector(`[data-form-button="${FORM_NAME}"]`);
 const { fields: schemaFields = {}, group: schemaGroup } = formSchemas[FORM_NAME] || {};
 
-export function initAdresCheckForm() {
+export function initAddressCheckForm() {
   if (!formEl || !submitBtn) return;
 
   // 1) Prefill: laad opgeslagen data voor group of form
