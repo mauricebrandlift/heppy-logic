@@ -1,0 +1,45 @@
+# Node.js dependencies
+node_modules/
+.npm
+
+# Vercel output
+.vercel/
+
+# Omgevingsvariabelen
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Editor folders
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Documentation folder
+docs/
+
+# Build directories
+dist/
+build/
+
+# Cache directories
+.cache/
+.next/
+
+# Test coverage
+coverage/
+
+# Debug bestanden
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+debug.log
