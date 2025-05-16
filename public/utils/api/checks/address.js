@@ -6,7 +6,7 @@
  * @version 1.1.1
  */
 
-import { post } from './client.js';
+import { post } from '..client.js';
 
 /**
  * Retrieves coverage and complete address details from the backend.
@@ -15,5 +15,5 @@ import { post } from './client.js';
  * @throws {Error} On network or HTTP errors
  */
 export async function getAddressInfo(data) {
-  return post('/addressCheck', data);
+  return post('/checks/addressCheck', data);
 }
