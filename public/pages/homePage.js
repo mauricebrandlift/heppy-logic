@@ -3,8 +3,8 @@
  * @module public/pages/homePage
  * @version 1.0.0
  * @example
- * import { initAdressCheckForm } from '../forms/adress/adressCheckForm.js';
- * document.addEventListener('DOMContentLoaded', () => initAdressCheckForm());
+ * import { initAddressCheckForm } from '../forms/address/addressCheckForm.js';
+ * document.addEventListener('DOMContentLoaded', () => initAddressCheckForm());
  */
 
 import { initAddressCheckForm } from '../forms/address/addressCheckForm.js';
