@@ -21,18 +21,16 @@ const formHandler = {
       return;
     }
 
-    // Initialize form data and state
-    // The existing loadFormData from formStorage.js was: loadFormData(schema.fields)
-    // The refactored formStorage.js has loadFormData(formId) which returns all data for that form.
-    // We need to adapt or decide how to map this to individual fields if schema.fields is the primary driver.
-    // For now, let's assume loadFormData(this.currentSchema.formName) gets all data for the form.
-    const allLoadedData = loadFormData(this.currentSchema.formName); 
+    // Correctly pass both formName and fields schema to loadFormData
+    const allLoadedData = loadFormData(this.currentSchema.formName, this.currentSchema.fields);
+    
     this.currentFormData = {};
     this.initialFormData = {};
     
-    Object.keys(schema.fields).forEach(fieldName => {
-      this.currentFormData[fieldName] = allLoadedData[fieldName] || schema.fields[fieldName].defaultValue || '';
-      this.initialFormData[fieldName] = allLoadedData[fieldName] || schema.fields[fieldName].defaultValue || '';
+    Object.keys(this.currentSchema.fields).forEach(fieldName => {
+      const fieldConfig = this.currentSchema.fields[fieldName];
+      this.currentFormData[fieldName] = allLoadedData[fieldName] !== undefined ? allLoadedData[fieldName] : (fieldConfig.defaultValue || '');
+      this.initialFormData[fieldName] = allLoadedData[fieldName] !== undefined ? allLoadedData[fieldName] : (fieldConfig.defaultValue || '');
       this.currentFormState[fieldName] = { isTouched: false, isDirty: false };
     });
 
