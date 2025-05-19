@@ -70,7 +70,7 @@ const formHandler = {
       console.warn(`Field name attribute missing or no schema found for field:`, event.target);
       return;
     }
-    const fieldSchema = this.currentSchema.fields[fieldName];
+    const fieldSchema = this.currentSchema.fields[fieldName]; // This is the fieldSchema for the current field
 
     this.currentFormState[fieldName].isTouched = true;
 
@@ -88,8 +88,8 @@ const formHandler = {
       formUi.clearFieldError(this.currentFormElement, fieldName, fieldSchema);
     }
 
-    // Save field data using the refactored formStorage.js `saveFieldData(fieldName, value, formId)`
-    saveFieldData(fieldName, sanitizedValue, this.currentSchema.formName);
+    // Corrected arguments for saveFieldData: (formName, fieldSchema, value)
+    saveFieldData(this.currentSchema.formName, fieldSchema, sanitizedValue);
     // console.log(`Saved ${fieldName} (value: ${sanitizedValue}) to localStorage for form ${this.currentSchema.formName}`);
 
     this._updateFormValidityAndButtonState();
