@@ -21,7 +21,7 @@ import { validateField, validateForm, validateFull } from '../validators/formVal
 import { sanitize, collect } from '../logic/formInputSanitizer.js';
 import { getPrefillData, setPrefillData, getFormData, setFormData } from '../logic/formStorage.js';
 import * as ui from '../ui/formUi.js';
-import { getAddressInfo } from '../../utils/api';
+import { getAddressInfo } from '../../utils/api/index.js';
 
 // Constanten en selectors
 const FORM_NAME = 'postcode-form';
