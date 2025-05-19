@@ -1,6 +1,6 @@
 // public/forms/logic/formHandler.js
 import { loadFormData, saveFieldData } from './formStorage.js'; 
-import { formUi } from '../ui/formUI.js';
+import { formUi } from '../ui/formUi.js';
 import { formInputSanitizer } from './formInputSanitizer.js';
 import { formValidator } from '../validators/formValidator.js';
 
