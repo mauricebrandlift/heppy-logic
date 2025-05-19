@@ -90,7 +90,7 @@ export const formUi = {
       console.warn(`FormUI: Error element [data-error-for="${fieldSchema.dataFieldName}"] not found for field: ${fieldName} when clearing error.`);
     }
     }
-  }
+  },
 
   /**
    * Displays a global error message for the form.
