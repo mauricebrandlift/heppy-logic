@@ -58,12 +58,10 @@ export const formUi = {
     }
 
     if (inputElement) {
-      // inputElement.classList.add('input-error'); // Removed
-      // inputElement.setAttribute('aria-invalid', 'true'); // Removed
+
       if (errorElement) { // Only set aria-describedby if the error element exists
         const errorElementId = `${fieldSchema.dataFieldName}-error-message`; // Ensure unique ID
         errorElement.id = errorElementId;
-        // inputElement.setAttribute('aria-describedby', errorElementId); // Removed
       }
     } else {
       console.warn(`FormUI: Input element not found for field: ${fieldSchema.dataFieldName}`);
@@ -88,16 +86,11 @@ export const formUi = {
       errorElement.innerHTML = ''; // Clear the message
       errorElement.classList.add('hide'); // Add 'hide' class to hide it
     }
-    // else {
-    //   console.warn(`FormUI: Error element [data-error-for="${fieldSchema.dataFieldName}"] not found for field: ${fieldName} when clearing error.`);
-    // }
-
-    if (inputElement) {
-      // inputElement.classList.remove('input-error'); // Removed
-      // inputElement.removeAttribute('aria-invalid'); // Removed
-      // inputElement.removeAttribute('aria-describedby'); // Removed
+    else {
+      console.warn(`FormUI: Error element [data-error-for="${fieldSchema.dataFieldName}"] not found for field: ${fieldName} when clearing error.`);
     }
-  },
+    }
+  }
 
   /**
    * Displays a global error message for the form.
