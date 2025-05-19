@@ -6,7 +6,7 @@
  * @version 1.1.1
  */
 
-import { post } from '../client.js';
+import { post } from './client.js';
 
 /**
  * Retrieves coverage and complete address details from the backend.
