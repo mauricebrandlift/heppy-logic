@@ -35,47 +35,38 @@ export const formUi = {
 
   /**
    * Displays an error message for a specific form field.
-   * Assumes an error message element exists within a container for the field.
-   * Example structure: <div data-field-container="fieldName"><input ...><div class="form-field-error"></div></div>
+   * Assumes an error message element exists with a `data-error-for` attribute matching the input's `data-field-name`.
+   * The error element should have a 'hide' class to be removed when showing the error.
    * @param {HTMLElement} formElement - The form DOM element.
-   * @param {string} fieldName - The schema name of the field (e.g., 'postcode').
+   * @param {string} fieldName - The schema name of the field (e.g., 'postcode'). Used for console warnings if needed.
    * @param {string} errorMessage - The error message to display.
-   * @param {object} fieldSchema - The schema configuration for this specific field.
+   * @param {object} fieldSchema - The schema configuration for this specific field, containing `dataFieldName`.
    */
   showFieldError: function(formElement, fieldName, errorMessage, fieldSchema) {
     if (!formElement || !fieldName || !errorMessage || !fieldSchema || !fieldSchema.dataFieldName) {
       console.warn('FormUI: Missing required parameters for showFieldError.');
       return;
     }
-    const fieldContainer = formElement.querySelector(`[data-field-container="${fieldName}"]`);
     const inputElement = formElement.querySelector(`[data-field-name="${fieldSchema.dataFieldName}"]`);
+    const errorElement = formElement.querySelector(`[data-error-for="${fieldSchema.dataFieldName}"]`);
 
-    if (fieldContainer) {
-      let errorElement = fieldContainer.querySelector('.form-field-error-message');
-      if (!errorElement) {
-        errorElement = document.createElement('div');
-        errorElement.className = 'form-field-error-message';
-        // Insert error message after the input or at the end of the container
-        const inputForError = fieldContainer.querySelector(`[data-field-name="${fieldSchema.dataFieldName}"]`);
-        if (inputForError && inputForError.nextSibling) {
-            fieldContainer.insertBefore(errorElement, inputForError.nextSibling);
-        } else {
-            fieldContainer.appendChild(errorElement);
-        }
-      }
-      errorElement.textContent = errorMessage;
-      errorElement.style.display = 'block';
+    if (errorElement) {
+      errorElement.innerHTML = errorMessage; // Or innerText, depending on whether HTML is allowed in messages
+      errorElement.classList.remove('hide');
     } else {
-      console.warn(`FormUI: Field container not found for field: ${fieldName}`);
+      console.warn(`FormUI: Error element with [data-error-for="${fieldSchema.dataFieldName}"] not found for field: ${fieldName}`);
     }
 
     if (inputElement) {
-      inputElement.classList.add('input-error'); // Add a class to style the input itself
-      inputElement.setAttribute('aria-invalid', 'true');
-      inputElement.setAttribute('aria-describedby', `${fieldSchema.dataFieldName}-error`);
-      if(fieldContainer && fieldContainer.querySelector('.form-field-error-message')) {
-        fieldContainer.querySelector('.form-field-error-message').id = `${fieldSchema.dataFieldName}-error`;
+      // inputElement.classList.add('input-error'); // Removed
+      // inputElement.setAttribute('aria-invalid', 'true'); // Removed
+      if (errorElement) { // Only set aria-describedby if the error element exists
+        const errorElementId = `${fieldSchema.dataFieldName}-error-message`; // Ensure unique ID
+        errorElement.id = errorElementId;
+        // inputElement.setAttribute('aria-describedby', errorElementId); // Removed
       }
+    } else {
+      console.warn(`FormUI: Input element not found for field: ${fieldSchema.dataFieldName}`);
     }
   },
 
@@ -90,24 +81,21 @@ export const formUi = {
       console.warn('FormUI: Missing required parameters for clearFieldError.');
       return;
     }
-    const fieldContainer = formElement.querySelector(`[data-field-container="${fieldName}"]`);
     const inputElement = formElement.querySelector(`[data-field-name="${fieldSchema.dataFieldName}"]`);
+    const errorElement = formElement.querySelector(`[data-error-for="${fieldSchema.dataFieldName}"]`);
 
-    if (fieldContainer) {
-      const errorElement = fieldContainer.querySelector('.form-field-error-message');
-      if (errorElement) {
-        errorElement.textContent = '';
-        errorElement.style.display = 'none';
-      }
+    if (errorElement) {
+      errorElement.innerHTML = ''; // Clear the message
+      errorElement.classList.add('hide'); // Add 'hide' class to hide it
     }
     // else {
-    //   console.warn(`FormUI: Field container not found for field: ${fieldName} when clearing error.`);
+    //   console.warn(`FormUI: Error element [data-error-for="${fieldSchema.dataFieldName}"] not found for field: ${fieldName} when clearing error.`);
     // }
 
     if (inputElement) {
-      inputElement.classList.remove('input-error');
-      inputElement.removeAttribute('aria-invalid');
-      inputElement.removeAttribute('aria-describedby');
+      // inputElement.classList.remove('input-error'); // Removed
+      // inputElement.removeAttribute('aria-invalid'); // Removed
+      // inputElement.removeAttribute('aria-describedby'); // Removed
     }
   },
 
