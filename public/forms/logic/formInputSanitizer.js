@@ -19,15 +19,19 @@ const sanitizers = {
   },
   postcode: value => {
     if (typeof value !== 'string') return value;
-    let sanitized = value.toUpperCase().replace(/\s+/g, '');
-    if (/^[1-9][0-9]{3}[A-Z]{2}$/.test(sanitized)) {
-      sanitized = sanitized.slice(0,4) + ' ' + sanitized.slice(4);
-    }
-    return sanitized;
+    // Forceer hoofdletters en haal alle niet-alfanumerieke tekens weg
+    let sanitized = value.toUpperCase().replace(/[^0-9A-Z]/g, '');
+    // Pak maximaal 4 cijfers
+    const digits = sanitized.slice(0, 4).replace(/[^0-9]/g, '');
+    // Pak maximaal 2 letters
+    const letters = sanitized.slice(4, 6).replace(/[^A-Z]/g, '');
+    // Voeg spatie toe als er letters zijn
+    return letters ? `${digits} ${letters}` : digits;
   },
   huisnummer: value => {
-    if (value == null) return '';
-    return String(value).trim();
+    if (value === null || typeof value === 'undefined') return '';
+    // Verwijder alle niet-cijfers
+    return String(value).replace(/\D/g, '');
   },
   email: value => {
     if (typeof value !== 'string') return value;
