@@ -98,7 +98,8 @@ const formHandler = {
     }
 
     // Save prefill
-    saveFieldData(this.currentSchema.formName, fieldName, clean);
+    const fieldSchema = this.currentSchema.fields[fieldName];
+    saveFieldData(this.currentSchema.formName, fieldSchema, clean);
     console.log(`💾 [FormHandler] Saved prefill for '${fieldName}':`, clean);
 
     this._updateFormValidityAndButtonState();
@@ -142,8 +143,6 @@ const formHandler = {
     }
     console.log('✅ [FormHandler] Full validation passed');
 
-    // Save final data
-    saveFieldData(this.currentSchema.formName, null, data);
     console.log('💾 [FormHandler] Final form data saved:', data);
 
     showGlobalError(this.currentFormElement, 'Form submitted successfully.');
