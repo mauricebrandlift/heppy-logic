@@ -90,25 +90,20 @@ export const formHandler = {
       fieldEl.addEventListener('input', (e) => this.handleInput(fieldName, e));
     });
 
+    // Bind click op custom submit-knop
     const submitBtn = this.formElement.querySelector('[data-form-button]');
     if (!submitBtn) {
-      console.error(
-        `❌ [FormHandler] Submit button [data-form-button] niet gevonden in ${schema.selector}`
-      );
+      console.error(`❌ [FormHandler] Submit button [data-form-button] niet gevonden in ${schema.selector}`);
     } else {
       submitBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        const { isFormValid, fieldErrors } = validateForm(
-          this.formData,
-          this.schema,
-          this.formState
-        );
+        const { isFormValid, fieldErrors } = validateForm(this.formData, this.schema, this.formState);
         if (!isFormValid) {
-          // Bepaal prioriteit: verplichte velden eerst
-          const hasRequiredError = Object.entries(fieldErrors).some(
-            ([f, msg]) => this.schema.fields[f].validators.includes('required') && msg
+          // Check op lege verplichte velden
+          const hasEmptyRequired = Object.entries(this.schema.fields).some(([f, cfg]) =>
+            cfg.validators.includes('required') && (!this.formData[f] || String(this.formData[f]).trim() === '')
           );
-          const message = hasRequiredError
+          const message = hasEmptyRequired
             ? 'Niet alle verplichte velden ingevuld.'
             : 'Niet alle velden correct ingevuld.';
           clearGlobalError(this.formElement);
