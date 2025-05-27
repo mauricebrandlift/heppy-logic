@@ -49,7 +49,7 @@ export const formHandler = {
 
     // Voor elk veld: zet value, init state en bind input-event
     Object.keys(schema.fields).forEach((fieldName) => {
-      const fieldEl = this.formElement.querySelector(`[name="${fieldName}"]`);
+      const fieldEl = this.formElement.querySelector(`[data-field-name="${fieldName}"]`);
       if (!fieldEl) {
         console.warn(`⚠️ [FormHandler] Veld '${fieldName}' niet gevonden in DOM`);
         return;
