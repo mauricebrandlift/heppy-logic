@@ -6,58 +6,28 @@ import { commonFields } from './commonFields.js';
  * Database van form schemas.
  * Elk schema beschrijft:
  *  - name: unieke naam
- *  - selector: CSS-selector van het form-element
+ *  - selector: CSS-selector van het form-element (meestal via data-form-name)
  *  - fields: definitie van elk veld incl. sanitizers, validators en messages
- *  - submit (optioneel): API-configuratie en callbacks
  *  - triggers (optioneel): globale triggers op veld-combinaties
  */
 export function getFormSchema(name) {
   const schemas = {
     'postcode-form': {
       name: 'postcode-form',
-      selector: '#postcode-form',
+      selector: '[data-form-name="postcode-form"]',
       fields: {
         postcode: commonFields.postcode,
         huisnummer: commonFields.huisnummer,
         toevoeging: commonFields.toevoeging,
       },
-      submit: {
-        endpoint: '/api/submit-postcode',
-        method: 'POST',
-        onSuccess: () => { alert('Adres succesvol opgeslagen!'); },
+      globalMessages: {
+        NETWORK_ERROR:    'Geen verbinding. Controleer je internet.',
+        OUT_OF_AREA:      'Deze postcode valt niet binnen ons gebied.',
+        DEFAULT:          'Er is iets misgegaan. Probeer het later opnieuw.',
       },
+      // Geen submit-logica hier; wordt in addressCheckForm.js toegevoegd
       // Geen triggers in dit formulier; simpel postcodeschema
     },
-
-    // Voorbeeld ander formulier met multi-veld trigger:
-    // 'address-lookup': {
-    //   name: 'address-lookup',
-    //   selector: '#address-lookup-form',
-    //   fields: {
-    //     postcode: commonFields.postcode,
-    //     huisnummer: commonFields.huisnummer,
-    //     toevoeging: commonFields.toevoeging,
-    //   },
-    //   triggers: [
-    //     {
-    //       when: 'fieldsValid',
-    //       fields: ['postcode', 'huisnummer'],
-    //       action: async (data, update) => {
-    //         // voorbeeld action: fetch address
-    //         const res = await fetch(`/api/address?postcode=${data.postcode}&huisnummer=${data.huisnummer}`);
-    //         if (res.ok) {
-    //           const json = await res.json();
-    //           update({ straat: json.street, plaats: json.city });
-    //         }
-    //       },
-    //     },
-    //   ],
-    //   submit: {
-    //     endpoint: '/api/submit-address-lookup',
-    //     method: 'POST',
-    //     onSuccess: () => { /* success */ },
-    //   },
-    // },
   };
 
   return schemas[name] || null;

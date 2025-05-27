@@ -13,7 +13,7 @@ import { saveFormData, loadFormData } from './formStorage.js';
  *  - Validatie: veld- en formulier-validatie met veld- en globale fouten
  *  - Opslag: persisteren en herladen van formulierdata in localStorage
  *  - UI-updates: tonen van loaders, uitschakelen van velden en tonen van fouten
- *  - Submit flow: optionele API-call en success-/error-afhandeling
+ *  - Submit flow: optionele custom action en success-/error-afhandeling
  */
 export const formHandler = {
   schema: null,       // Formulier schema met velden, validatie en submit-configuratie
@@ -148,7 +148,7 @@ export const formHandler = {
    *  3. show loader en disable velden
    *  4. valideren van alle velden en verzamel field + global errors
    *  5. bij fouten: toon field en globale fouten, reset UI
-   *  6. bij succes: optioneel fetch naar endpoint en onSuccess callback
+   *  6. bij succes: voer custom action uit en onSuccess callback
    * 
    * @param {Event} event - Submit-event van het formulier
    */
@@ -161,46 +161,42 @@ export const formHandler = {
     toggleFields(this.formElement, false);
 
     // Valideer compleet formulier
-    const { isFormValid, fieldErrors, allErrors } = validateForm(this.formData, this.schema, this.formState);
+    const { isFormValid, fieldErrors, allErrors } = validateForm(
+      this.formData,
+      this.schema,
+      this.formState
+    );
     if (!isFormValid) {
       console.warn(`❌ [FormHandler] Form validatie failed:`, allErrors);
       hideLoader(event.submitter);
       toggleFields(this.formElement, true);
-      // Toon field errors per veld
       showFieldErrors(this.formElement, fieldErrors);
-      // Toon globale foutmeldingen
       const messages = allErrors.map((e) => e.message);
       showGlobalError(this.formElement, messages);
       return;
     }
 
     try {
-      let response;
-      // Alleen als schema een endpoint specificeert, voer fetch uit
-      if (this.schema.submit && this.schema.submit.endpoint) {
-        console.log(`🌐 [FormHandler] Fetch naar ${this.schema.submit.method || 'POST'} ${this.schema.submit.endpoint}`);
-        response = await fetch(this.schema.submit.endpoint, {
-          method: this.schema.submit.method || 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(this.formData),
-        });
-        if (!response.ok) throw new Error(`Server returned ${response.status}`);
-        console.log(`✅ [FormHandler] Server responded OK (${response.status})`);
+      // Voer custom action uit als gedefinieerd in schema
+      if (this.schema.submit && typeof this.schema.submit.action === 'function') {
+        await this.schema.submit.action(this.formData);
       }
-
-      // Sluit loader en heractiveer velden
       hideLoader(event.submitter);
       toggleFields(this.formElement, true);
       console.log(`✅ [FormHandler] Submit succesvolle voor ${this.schema.name}`);
-      // Optionele callback bij succes (bijv. redirect, toast)
-      if (this.schema.submit && this.schema.submit.onSuccess) {
-        this.schema.submit.onSuccess(response);
+      if (this.schema.submit && typeof this.schema.submit.onSuccess === 'function') {
+        this.schema.submit.onSuccess();
       }
     } catch (err) {
       console.error(`❌ [FormHandler] Submit error:`, err);
       hideLoader(event.submitter);
       toggleFields(this.formElement, true);
-      showGlobalError(this.formElement, err.message || 'Er is iets misgegaan.');
+      // Gebruik globalMessages uit schema voor nette fout
+      const gm = this.schema.globalMessages || {};
+      const code = err.code || (err.name === 'TypeError' ? 'NETWORK_ERROR' : 'DEFAULT');
+      const message =
+        gm[code] || gm.DEFAULT || err.message || 'Er is iets misgegaan.';
+      showGlobalError(this.formElement, message);
     }
   },
 };
