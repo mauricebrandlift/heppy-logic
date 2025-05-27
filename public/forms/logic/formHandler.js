@@ -87,7 +87,7 @@ export const formHandler = {
       this.formState[fieldName] = { isTouched: false };
 
       // Bind input event: sanitize, valideer, sla op, update UI
-      fieldEl.addEventListener('input', (e) => this.handleInput(fieldName, e));
+      fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
     });
 
     // Bind click op custom submit-knop
