@@ -48,7 +48,7 @@ export const formHandler = {
 
     // Bind veld-events
     Object.keys(schema.fields).forEach((fieldName) => {
-      const fieldEl = this.formElement.querySelector(`[name="${fieldName}"]`);
+      const fieldEl = this.formElement.querySelector(`[data-field-name="${fieldName}"]`);
       if (!fieldEl) {
         console.warn(`⚠️ [FormHandler] Veld '${fieldName}' niet gevonden`);
         return;
