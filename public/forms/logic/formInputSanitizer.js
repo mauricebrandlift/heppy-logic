@@ -1,8 +1,3 @@
-/**
- * Form Input Sanitization (formInputSanitizer.js)
- * Provides functions to sanitize and normalize form input values.
- */
-
 const sanitizers = {
   /**
    * Generic text sanitizer.

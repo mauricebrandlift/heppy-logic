@@ -1,8 +1,14 @@
 // public/forms/logic/formHandler.js
-import { loadFormData, saveFieldData } from './formStorage.js'; 
-import { formUi } from '../ui/formUi.js';
+import { loadFormData, saveFieldData } from './formStorage.js';
 import { formInputSanitizer } from './formInputSanitizer.js';
-import { formValidator } from '../validators/formValidator.js';
+import * as formValidator from '../validators/formValidator.js';
+import {
+  populateFields,
+  setButtonState,
+  showFieldError,
+  clearFieldError,
+  showGlobalError
+} from '../ui/formUi.js';
 
 const formHandler = {
   currentSchema: null,
@@ -21,150 +27,167 @@ const formHandler = {
       return;
     }
 
-    // Correctly pass both formName and fields schema to loadFormData
+    // Load stored data
     const allLoadedData = loadFormData(this.currentSchema.formName, this.currentSchema.fields);
-    
     this.currentFormData = {};
     this.initialFormData = {};
-    
+
     Object.keys(this.currentSchema.fields).forEach(fieldName => {
       const fieldConfig = this.currentSchema.fields[fieldName];
-      this.currentFormData[fieldName] = allLoadedData[fieldName] !== undefined ? allLoadedData[fieldName] : (fieldConfig.defaultValue || '');
-      this.initialFormData[fieldName] = allLoadedData[fieldName] !== undefined ? allLoadedData[fieldName] : (fieldConfig.defaultValue || '');
+      const stored = allLoadedData[fieldName];
+      const value = stored !== undefined ? stored : (fieldConfig.defaultValue || '');
+      this.currentFormData[fieldName] = value;
+      this.initialFormData[fieldName] = value;
       this.currentFormState[fieldName] = { isTouched: false, isDirty: false };
     });
 
-    console.log('Initial FormData based on schema and storage:', this.currentFormData);
+    console.log('Initial FormData:', this.currentFormData);
     console.log('Initial FormState:', this.currentFormState);
 
-    formUi.populateFields(this.currentFormElement, schema.fields, this.currentFormData);
+    // Prefill UI
+    populateFields(this.currentFormElement, this.currentFormSchema.fields, this.currentFormData);
     this.setupEventListeners();
-
     this._updateFormValidityAndButtonState();
   },
 
   _updateFormValidityAndButtonState: function() {
     if (!this.currentSchema || !this.currentFormElement) return;
 
-    const validationResult = formValidator.validateForm(this.currentFormData, this.currentSchema, this.currentFormState);
-    const submitButton = this.currentFormElement.querySelector(this.currentSchema.submitButtonSelector);
-    
-    if (submitButton) {
-      formUi.setButtonState(submitButton, validationResult.isFormValid);
-    } else {
-      console.warn(`Submit button not found with selector: ${this.currentSchema.submitButtonSelector}`);
-    }
+    const validationResult = formValidator.validateForm(
+      this.currentFormData,
+      this.currentSchema,
+      this.currentFormState
+    );
+    const submitButton = this.currentFormElement.querySelector(
+      this.currentSchema.submitButtonSelector
+    );
 
-    // Optionally, display global form errors if any (not directly from validateForm in current setup)
-    // formUi.clearGlobalError(this.currentFormElement);
-    // if (validationResult.globalErrors && validationResult.globalErrors.length > 0) {
-    //   formUi.showGlobalError(this.currentFormElement, validationResult.globalErrors.join(' '));
-    // }
+    if (submitButton) {
+      setButtonState(submitButton, validationResult.isFormValid);
+    } else {
+      console.warn(
+        `Submit button not found with selector: ${this.currentSchema.submitButtonSelector}`
+      );
+    }
   },
 
-  handleInput: function(event) { 
+  handleInput: function(event) {
     const fieldName = event.target.dataset.fieldName;
-    const rawValue = event.target.value;
-    
     if (!fieldName || !this.currentSchema.fields[fieldName]) {
-      console.warn(`Field name attribute missing or no schema found for field:`, event.target);
+      console.warn('No schema for field:', fieldName);
       return;
     }
-    const fieldSchema = this.currentSchema.fields[fieldName]; // This is the fieldSchema for the current field
+    const rawValue = event.target.value;
 
     this.currentFormState[fieldName].isTouched = true;
+    const sanitized = formInputSanitizer.sanitizeField(
+      rawValue,
+      this.currentSchema.fields[fieldName],
+      fieldName
+    );
+    this.currentFormData[fieldName] = sanitized;
+    this.currentFormState[fieldName].isDirty =
+      sanitized !== this.initialFormData[fieldName];
 
-    const sanitizedValue = formInputSanitizer.sanitizeField(rawValue, fieldSchema, fieldName);
-    // console.log(`Field: ${fieldName}, Raw: "${rawValue}", Sanitized: "${sanitizedValue}"`);
+    // Field-level validation
+    const result = formValidator.validateField(
+      sanitized,
+      this.currentSchema.fields[fieldName],
+      fieldName,
+      this.currentFormState[fieldName]
+    );
 
-    this.currentFormData[fieldName] = sanitizedValue;
-    this.currentFormState[fieldName].isDirty = (sanitizedValue !== (this.initialFormData[fieldName] === undefined ? '' : this.initialFormData[fieldName]));
-
-    const validationResult = formValidator.validateField(sanitizedValue, fieldSchema, fieldName, this.currentFormState[fieldName]);
-
-    if (!validationResult.isValid) {
-      formUi.showFieldError(this.currentFormElement, fieldName, validationResult.errorMessages.join(' '), fieldSchema);
+    if (!result.isValid) {
+      showFieldError(
+        this.currentFormElement,
+        fieldName,
+        result.errorMessages.join(' '),
+        this.currentSchema.fields[fieldName]
+      );
     } else {
-      formUi.clearFieldError(this.currentFormElement, fieldName, fieldSchema);
+      clearFieldError(
+        this.currentFormElement,
+        fieldName,
+        this.currentSchema.fields[fieldName]
+      );
     }
 
-    // Corrected arguments for saveFieldData: (formName, fieldSchema, value)
-    saveFieldData(this.currentSchema.formName, fieldSchema, sanitizedValue);
-    // console.log(`Saved ${fieldName} (value: ${sanitizedValue}) to localStorage for form ${this.currentSchema.formName}`);
-
+    saveFieldData(
+      this.currentSchema.formName,
+      this.currentSchema.fields[fieldName],
+      sanitized
+    );
     this._updateFormValidityAndButtonState();
   },
 
-  setupEventListeners: function() { 
+  setupEventListeners: function() {
     Object.keys(this.currentSchema.fields).forEach(fieldName => {
-      const inputElement = this.currentFormElement.querySelector(`[data-field-name="${fieldName}"]`);
-      
-      if (inputElement) {
-        inputElement.addEventListener('input', (event) => this.handleInput(event));
-        inputElement.addEventListener('blur', (event) => {
-            if (!this.currentFormState[fieldName].isTouched) {
-                this.currentFormState[fieldName].isTouched = true;
-            }
-            // Re-run handleInput logic on blur to catch cases like tabbing away from an empty required field
-            this.handleInput(event); 
-        });
+      const selector = `[data-field-name="${fieldName}"]`;
+      const inputEl = this.currentFormElement.querySelector(selector);
+      if (inputEl) {
+        inputEl.addEventListener('input', event => this.handleInput(event));
+        inputEl.addEventListener('blur', event => this.handleInput(event));
       } else {
-        console.warn(`Input element not found for field: ${fieldName} with selector [data-field-name="${fieldName}"]`);
+        console.warn('Input not found for:', fieldName);
       }
     });
 
-    // Submit listener
-    if (this.currentFormElement) {
-        this.currentFormElement.addEventListener('submit', (event) => this.handleSubmit(event));
-    }
+    this.currentFormElement.addEventListener(
+      'submit',
+      event => this.handleSubmit(event)
+    );
   },
 
   handleSubmit: function(event) {
-    event.preventDefault(); // Prevent default form submission
+    event.preventDefault();
     console.log('Form submission initiated for:', this.currentSchema.formName);
 
-    // Mark all fields as touched to ensure all validations run (e.g., for required fields not yet interacted with)
+    // Touch all fields
     Object.keys(this.currentFormState).forEach(fieldName => {
-        this.currentFormState[fieldName].isTouched = true;
+      this.currentFormState[fieldName].isTouched = true;
     });
 
-    // Re-validate the whole form
-    const validationResult = formValidator.validateForm(this.currentFormData, this.currentSchema, this.currentFormState);
-    
-    // Update all field error UI based on full form validation
+    const validationResult = formValidator.validateForm(
+      this.currentFormData,
+      this.currentSchema,
+      this.currentFormState
+    );
+
+    // Show per-field errors
     Object.keys(this.currentSchema.fields).forEach(fieldName => {
-        const fieldSch = this.currentSchema.fields[fieldName];
-        const errors = validationResult.fieldErrors[fieldName];
-        if (errors && errors.length > 0) {
-            formUi.showFieldError(this.currentFormElement, fieldName, errors.join(' '), fieldSch);
-        } else {
-            formUi.clearFieldError(this.currentFormElement, fieldName, fieldSch);
-        }
+      const errors = validationResult.fieldErrors[fieldName] || [];
+      if (errors.length) {
+        showFieldError(
+          this.currentFormElement,
+          fieldName,
+          errors.join(' '),
+          this.currentSchema.fields[fieldName]
+        );
+      } else {
+        clearFieldError(
+          this.currentFormElement,
+          fieldName,
+          this.currentSchema.fields[fieldName]
+        );
+      }
     });
 
-    this._updateFormValidityAndButtonState(); // Update button based on final validation
+    this._updateFormValidityAndButtonState();
 
     if (validationResult.isFormValid) {
-      console.log('Form is valid. Sanitized Data:', this.currentFormData);
-      // TODO: Implement actual submission logic (e.g., API call)
-      // Access this.currentFormData for the data to submit.
-      // Example: this.submitData(this.currentFormData);
-      formUi.showGlobalError(this.currentFormElement, 'Form submitted successfully (simulation)!', 'success'); // Example success message
-      
-      // Optionally, clear prefill data after successful submission if desired
-      // import { clearFormPrefillData } from './formStorage.js';
-      // clearFormPrefillData(this.currentSchema.formName);
-      // console.log(`Cleared prefill data for form: ${this.currentSchema.formName}`);
-      
-      // Optionally, reset the form to initial state or clear it
-      // this.resetForm(); 
+      console.log('Form valid, data:', this.currentFormData);
+      showGlobalError(
+        this.currentFormElement,
+        'Form submitted successfully.'
+      );
     } else {
-      console.warn('Form is invalid. Please check errors.');
-      formUi.showGlobalError(this.currentFormElement, 'Please correct the errors in the form.');
+      console.warn('Form invalid, please fix errors.');
+      showGlobalError(
+        this.currentFormElement,
+        'Please correct the errors in the form.'
+      );
     }
   }
-  // Placeholder for resetForm if needed
-  // resetForm: function() { ... }
 };
 
 export { formHandler };

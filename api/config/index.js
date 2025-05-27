@@ -1,11 +1,3 @@
-/**
- * Backend configuration loader for environment variables and service settings.
- * Geen externe SDKs; gebruikt environment-variables voor supabase REST API.
- *
- * @module api/config/index
- * @version 1.0.1
- */
-
 // Laad noodzakelijke omgevingsvariabelen
 const {
   SUPABASE_URL,

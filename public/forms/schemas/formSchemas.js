@@ -1,10 +1,3 @@
-// Filepath: c:\Users\mauri\OneDrive\MIJN BEDRIJF BRANDLIFT 2.0\KLANTEN\Heppy world\CODEREN 2\heppy-logic\public\forms\schemas\formSchemas.js
-
-/**
- * Consolidated Form Schemas
- * Defines the structure, validation rules, and other configurations for all forms in the application.
- * Each field should ideally have a 'validatorType' that maps to a validator in formValidator.js.
- */
 export const allFormSchemas = {
   'postcode-form': { // This is the formName
     formName: 'postcode-form', // Repeating formName inside for consistency with how schema might be passed around
