@@ -1,66 +1,60 @@
+// public/forms/ui/formUi.js
+
+// Vul formuliervelden in met opgeslagen data
+export function prefillFields(formEl, data) {
+  Object.entries(data).forEach(([field, value]) => {
+    const input = formEl.querySelector(`[data-field-name="${field}"]`);
+    if (input) input.value = value;
+  });
+}
+
+// Maak alle foutplaceholders leeg
 export function clearErrors(formEl) {
-  console.log('[UI] clearErrors');
-  const errorPlaceholders = formEl.querySelectorAll('[data-error-for]');
-  errorPlaceholders.forEach(placeholder => {
-    const key = placeholder.getAttribute('data-error-for');
-    console.log(`[UI] clearing error placeholder for: ${key}`);
-    placeholder.textContent = '';
+  formEl.querySelectorAll('[data-error-for]').forEach(el => {
+    el.textContent = '';
   });
 }
 
-export function showErrors(formEl, errorList) {
-  console.log('[UI] showErrors', errorList);
-  clearErrors(formEl);
-  if (!Array.isArray(errorList)) {
-    console.warn('[UI] showErrors expects an array of errors');
-    return;
-  }
-  errorList.forEach(err => {
-    if (err.field) {
-      console.log(`[UI] field error for ${err.field}: ${err.message}`);
-      showFieldError(formEl, err.field, err.message);
-    } else {
-      console.log(`[UI] global error: ${err.message}`);
-      showGlobalError(formEl, err.message);
-    }
-  });
+// Maak foutplaceholder voor één veld leeg
+export function clearFieldError(formEl, fieldName) {
+  const placeholder = formEl.querySelector(`[data-error-for="${fieldName}"]`);
+  if (placeholder) placeholder.textContent = '';
 }
 
-function showFieldError(formEl, fieldName, message) {
-  const selector = `[data-error-for="${fieldName}"]`;
-  const placeholder = formEl.querySelector(selector);
-  if (placeholder) {
-    console.log(`[UI] setting error for field ${fieldName}: ${message}`);
-    placeholder.textContent = message;
-  } else {
-    console.error(`[UI] no placeholder found for field error: ${fieldName}`);
-  }
+// Toon foutmelding voor één veld
+export function showFieldError(formEl, fieldName, message) {
+  const placeholder = formEl.querySelector(`[data-error-for="${fieldName}"]`);
+  if (placeholder) placeholder.textContent = message;
 }
 
+// Toon globale foutmelding
 export function showGlobalError(formEl, message) {
   const placeholder = formEl.querySelector('[data-error-for="global"]');
-  if (placeholder) {
-    console.log(`[UI] setting global error: ${message}`);
-    placeholder.textContent = message;
-  } else {
-    console.error('[UI] no placeholder found for global error');
-  }
+  if (placeholder) placeholder.textContent = message;
 }
 
+// Toon meerdere fouten; clear eerst alles
+export function showErrors(formEl, errorList) {
+  clearErrors(formEl);
+  if (!Array.isArray(errorList)) return;
+  errorList.forEach(err => {
+    if (err.field) showFieldError(formEl, err.field, err.message);
+    else showGlobalError(formEl, err.message);
+  });
+}
+
+// Toggle submit-knop
 export function toggleButton(buttonEl, isEnabled) {
-  console.log(`[UI] toggleButton: setting enabled=${isEnabled}`);
   buttonEl.disabled = !isEnabled;
 }
 
+// Schakel alle velden in/uit
 export function toggleFields(formEl, enabled) {
-  console.log(`[UI] toggleFields: enabled=${enabled}`);
-  Array.from(formEl.elements).forEach(el => {
-    el.disabled = !enabled;
-  });
+  Array.from(formEl.elements).forEach(el => el.disabled = !enabled);
 }
 
+// Toon loader op knop
 export function showLoader(buttonEl) {
-  console.log('[UI] showLoader');
   const original = buttonEl.textContent;
   buttonEl.setAttribute('data-original-text', original);
   buttonEl.textContent = '';
@@ -70,8 +64,8 @@ export function showLoader(buttonEl) {
   buttonEl.disabled = true;
 }
 
+// Verberg loader en herstel tekst
 export function hideLoader(buttonEl) {
-  console.log('[UI] hideLoader');
   const original = buttonEl.getAttribute('data-original-text');
   if (original !== null) {
     buttonEl.textContent = original;

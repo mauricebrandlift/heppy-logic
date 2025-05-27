@@ -1,21 +1,25 @@
-// public/forms/logic/formHandler.js
 import { loadFormData, saveFieldData } from './formStorage.js';
-import { formInputSanitizer } from './formInputSanitizer.js';
+import { sanitize, collect } from './formInputSanitizer.js';
 import * as formValidator from '../validators/formValidator.js';
 import {
-  populateFields,
-  setButtonState,
-  showFieldError,
+  prefillFields,
+  clearErrors,
   clearFieldError,
-  showGlobalError
+  showFieldError,
+  showErrors,
+  showGlobalError,
+  toggleButton,
+  toggleFields,
+  showLoader,
+  hideLoader
 } from '../ui/formUi.js';
 
 const formHandler = {
   currentSchema: null,
   currentFormElement: null,
   currentFormData: {},
-  currentFormState: {}, // Stores { isTouched: boolean, isDirty: boolean } for each field
-  initialFormData: {}, // To compare for isDirty state
+  currentFormState: {},
+  initialFormData: {},
 
   init: function(schema) {
     console.log('Form handler init called for form:', schema.formName);
@@ -45,7 +49,7 @@ const formHandler = {
     console.log('Initial FormState:', this.currentFormState);
 
     // Prefill UI
-    populateFields(this.currentFormElement, this.currentFormSchema.fields, this.currentFormData);
+    prefillFields(this.currentFormElement, this.currentFormData);
     this.setupEventListeners();
     this._updateFormValidityAndButtonState();
   },
@@ -53,21 +57,18 @@ const formHandler = {
   _updateFormValidityAndButtonState: function() {
     if (!this.currentSchema || !this.currentFormElement) return;
 
-    const validationResult = formValidator.validateForm(
-      this.currentFormData,
-      this.currentSchema,
-      this.currentFormState
+    const isValid = formValidator.validateForm(
+      this.currentSchema.fields,
+      this.currentFormElement
     );
     const submitButton = this.currentFormElement.querySelector(
-      this.currentSchema.submitButtonSelector
+      `[data-form-button="${this.currentSchema.formName}"]`
     );
 
     if (submitButton) {
-      setButtonState(submitButton, validationResult.isFormValid);
+      toggleButton(submitButton, isValid);
     } else {
-      console.warn(
-        `Submit button not found with selector: ${this.currentSchema.submitButtonSelector}`
-      );
+      console.warn(`Submit button not found for form: ${this.currentSchema.formName}`);
     }
   },
 
@@ -80,43 +81,25 @@ const formHandler = {
     const rawValue = event.target.value;
 
     this.currentFormState[fieldName].isTouched = true;
-    const sanitized = formInputSanitizer.sanitizeField(
-      rawValue,
-      this.currentSchema.fields[fieldName],
-      fieldName
-    );
-    this.currentFormData[fieldName] = sanitized;
-    this.currentFormState[fieldName].isDirty =
-      sanitized !== this.initialFormData[fieldName];
+    const clean = sanitize(rawValue);
+    this.currentFormData[fieldName] = clean;
+    this.currentFormState[fieldName].isDirty = clean !== this.initialFormData[fieldName];
 
     // Field-level validation
-    const result = formValidator.validateField(
-      sanitized,
-      this.currentSchema.fields[fieldName],
+    const fieldErrors = formValidator.validateField(
+      this.currentSchema.fields,
       fieldName,
-      this.currentFormState[fieldName]
+      clean
     );
 
-    if (!result.isValid) {
-      showFieldError(
-        this.currentFormElement,
-        fieldName,
-        result.errorMessages.join(' '),
-        this.currentSchema.fields[fieldName]
-      );
+    if (fieldErrors.length) {
+      showFieldError(this.currentFormElement, fieldName, fieldErrors[0].message);
     } else {
-      clearFieldError(
-        this.currentFormElement,
-        fieldName,
-        this.currentSchema.fields[fieldName]
-      );
+      clearFieldError(this.currentFormElement, fieldName);
     }
 
-    saveFieldData(
-      this.currentSchema.formName,
-      this.currentSchema.fields[fieldName],
-      sanitized
-    );
+    // Save prefill
+    saveFieldData(this.currentSchema.formName, { localStorageKey: fieldName }, clean);
     this._updateFormValidityAndButtonState();
   },
 
@@ -126,66 +109,36 @@ const formHandler = {
       const inputEl = this.currentFormElement.querySelector(selector);
       if (inputEl) {
         inputEl.addEventListener('input', event => this.handleInput(event));
-        inputEl.addEventListener('blur', event => this.handleInput(event));
       } else {
         console.warn('Input not found for:', fieldName);
       }
     });
 
-    this.currentFormElement.addEventListener(
-      'submit',
-      event => this.handleSubmit(event)
-    );
+    this.currentFormElement.addEventListener('submit', event => this.handleSubmit(event));
   },
 
-  handleSubmit: function(event) {
+  async handleSubmit(event) {
     event.preventDefault();
     console.log('Form submission initiated for:', this.currentSchema.formName);
 
-    // Touch all fields
-    Object.keys(this.currentFormState).forEach(fieldName => {
-      this.currentFormState[fieldName].isTouched = true;
-    });
+    showLoader(event.submitter);
+    toggleFields(this.currentFormElement, false);
 
-    const validationResult = formValidator.validateForm(
-      this.currentFormData,
-      this.currentSchema,
-      this.currentFormState
+    const data = collect(this.currentFormElement);
+    const errors = await formValidator.validateFull(
+      this.currentSchema.fields,
+      data,
+      { fetchAddressValidation: null }
     );
 
-    // Show per-field errors
-    Object.keys(this.currentSchema.fields).forEach(fieldName => {
-      const errors = validationResult.fieldErrors[fieldName] || [];
-      if (errors.length) {
-        showFieldError(
-          this.currentFormElement,
-          fieldName,
-          errors.join(' '),
-          this.currentSchema.fields[fieldName]
-        );
-      } else {
-        clearFieldError(
-          this.currentFormElement,
-          fieldName,
-          this.currentSchema.fields[fieldName]
-        );
-      }
-    });
-
-    this._updateFormValidityAndButtonState();
-
-    if (validationResult.isFormValid) {
-      console.log('Form valid, data:', this.currentFormData);
-      showGlobalError(
-        this.currentFormElement,
-        'Form submitted successfully.'
-      );
+    if (errors.length) {
+      showErrors(this.currentFormElement, errors);
+      hideLoader(event.submitter);
+      toggleFields(this.currentFormElement, true);
     } else {
-      console.warn('Form invalid, please fix errors.');
-      showGlobalError(
-        this.currentFormElement,
-        'Please correct the errors in the form.'
-      );
+      saveFieldData(this.currentSchema.formName, null, data);
+      console.log('Form data saved:', data);
+      showGlobalError(this.currentFormElement, 'Form submitted successfully.');
     }
   }
 };
