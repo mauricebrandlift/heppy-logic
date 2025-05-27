@@ -7,14 +7,16 @@ export const allFormSchemas = {
         localStorageKey: 'shared.postcode',
         required: true,
         validatorType: 'postcode', // Explicitly link to 'postcode' validator
-        displayName: 'Postcode'    // Added for better error messages
+        displayName: 'Postcode',    // Added for better error messages
+        sanitizerType: 'postcode'
       },
       huisnummer: {
         dataFieldName: 'huisnummer',
         localStorageKey: 'shared.huisnummer',
         required: true,
         validatorType: 'huisnummer', // Explicitly link to 'huisnummer' validator
-        displayName: 'Huisnummer' // Added for better error messages
+        displayName: 'Huisnummer', // Added for better error messages
+        sanitizerType: 'huisnummer'
       },
       toevoeging: {
         dataFieldName: 'toevoeging',
