@@ -75,7 +75,13 @@ export const formHandler = {
 
     // Bind submit event: verwerk via handleSubmit
     this.formElement.addEventListener('submit', (e) => this.handleSubmit(e));
-    console.log(`✅ [FormHandler] Event listeners gebonden voor ${schema.name}`);
+    // Bind click op custom submit-knop
+    const submitBtn = this.formElement.querySelector('[data-form-button]');
+    if (!submitBtn) {
+      console.error(`❌ [FormHandler] Submit button [data-form-button] niet gevonden in ${schema.selector}`);
+    } else {
+      submitBtn.addEventListener('click', (e) => this.handleSubmit(e));
+    }
 
     // Nadat velden klaar zijn, update submit-knop (enabled/disabled)
     this.updateSubmitState();
@@ -145,7 +151,6 @@ export const formHandler = {
   updateSubmitState() {
     const { isFormValid } = validateForm(this.formData, this.schema, this.formState);
     const btn = this.formElement.querySelector('[data-form-button]');
-    console.log(btn);
     toggleButton(btn, isFormValid);
     console.log(`🔄 [FormHandler] Submit button ${isFormValid ? 'enabled ✅' : 'disabled ❌'}`);
   },
