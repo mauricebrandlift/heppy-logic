@@ -1,17 +1,8 @@
 // public/forms/logic/formHandler.js
 
 import { sanitizeField } from './formInputSanitizer.js';
-import { validateForm } from '../validators/formValidator.js';
-import {
-  showFieldErrors,
-  showGlobalError,
-  clearGlobalError,
-  clearErrors,
-  toggleButton,
-  toggleFields,
-  showLoader,
-  hideLoader,
-} from '../ui/formUi.js';
+import { validateForm, validateField } from '../validators/formValidator.js';
+import { showFieldErrors, showGlobalError, clearGlobalError, clearErrors, toggleButton, toggleFields, showLoader, hideLoader } from '../ui/formUi.js';
 import { saveFormData, loadFormData } from './formStorage.js';
 
 /**
@@ -25,23 +16,16 @@ import { saveFormData, loadFormData } from './formStorage.js';
  *  - Submit flow: optionele custom action en success-/error-afhandeling
  */
 export const formHandler = {
-  schema: null, // Formulier schema met velden, validatie en submit-configuratie
-  formElement: null, // DOM-element van het formulier
-  formData: {}, // Huidige waarden van alle velden
-  formState: {}, // State per veld (bijv. isTouched)
+  schema: null,       // Formulier schema met velden, validatie en submit-configuratie
+  formElement: null,  // DOM-element van het formulier
+  formData: {},       // Huidige waarden van alle velden
+  formState: {},      // State per veld (bijv. isTouched)
 
   /**
    * 🛠️ Initialiseer de form handler met het gegeven schema.
-   *
-   * Stap 1: vind en bind het formulier in de DOM
-   * Stap 2: laad eerder opgeslagen data en zet default values
-   * Stap 3: bind events voor input en submit
-   * Stap 4: reset foutmeldingen en zet submit-knop-status
-   *
-   * @param {object} schema - Definitie van velden, validatie en submit-config
    */
   init(schema) {
-    console.log(`🚀 [FormHandler] Init formulier: ${schema.name} (selector: ${schema.selector})`);
+    console.log(`🚀 [FormHandler] Init formulier: ${schema.name}`);
     this.schema = schema;
     this.formElement = document.querySelector(schema.selector);
     if (!this.formElement) {
@@ -49,57 +33,42 @@ export const formHandler = {
       return;
     }
 
-    // Laad opgeslagen data voor dit formulier (indien aanwezig)
+    // Laad en toon prefill-data
     this.formData = loadFormData(schema.name) || {};
     this.formState = {};
     clearErrors(this.formElement);
     clearGlobalError(this.formElement);
-    console.log(`🔄 [FormHandler] Loaded data:`, this.formData);
 
-    // **Log validatie na prefill**
-    const { isFormValid, fieldErrors, allErrors } = validateForm(
-      this.formData,
-      this.schema,
-      this.formState
-    );
+    // Validatie na prefill
+    const { isFormValid, fieldErrors } = validateForm(this.formData, this.schema, this.formState);
     Object.entries(fieldErrors).forEach(([f, msg]) =>
-      console.log(`🔍 [FormHandler] Na prefill - veld '${f}' validatie fout: ${msg}`)
+      console.log(`🔍 [FormHandler] Na prefill - veld '${f}': ${msg}`)
     );
     console.log(`🔍 [FormHandler] Na prefill - formulier valid: ${isFormValid}`);
 
-    // Voor elk veld: zet value, init state en bind input-event
+    // Bind veld-events
     Object.keys(schema.fields).forEach((fieldName) => {
-      const fieldEl = this.formElement.querySelector(`[data-field-name="${fieldName}"]`);
+      const fieldEl = this.formElement.querySelector(`[name="${fieldName}"]`);
       if (!fieldEl) {
-        console.warn(`⚠️ [FormHandler] Veld '${fieldName}' niet gevonden in DOM`);
+        console.warn(`⚠️ [FormHandler] Veld '${fieldName}' niet gevonden`);
         return;
       }
-
-      // Stel opgeslagen waarde in als default
-      if (this.formData[fieldName] != null) {
-        fieldEl.value = this.formData[fieldName];
-        console.log(
-          `🔄 [FormHandler] Veld '${fieldName}' ingesteld op opgeslagen waarde: ${this.formData[fieldName]}`
-        );
-      }
-
-      // Init state (bijv. voor touched/dirty tracking)
+      // init value
+      if (this.formData[fieldName] != null) fieldEl.value = this.formData[fieldName];
       this.formState[fieldName] = { isTouched: false };
-
-      // Bind input event: sanitize, valideer, sla op, update UI
       fieldEl.addEventListener('input', (e) => this.handleInput(fieldName, e));
+      fieldEl.addEventListener('blur', (e) => this.handleBlur(fieldName, e));
     });
 
-    // Bind click op custom submit-knop
+    // Bind submit-knop click
     const submitBtn = this.formElement.querySelector('[data-form-button]');
     if (!submitBtn) {
-      console.error(`❌ [FormHandler] Submit button [data-form-button] niet gevonden in ${schema.selector}`);
+      console.error(`❌ [FormHandler] Submit button [data-form-button] niet gevonden`);
     } else {
       submitBtn.addEventListener('click', (e) => {
         e.preventDefault();
         const { isFormValid, fieldErrors } = validateForm(this.formData, this.schema, this.formState);
         if (!isFormValid) {
-          // Check op lege verplichte velden
           const hasEmptyRequired = Object.entries(this.schema.fields).some(([f, cfg]) =>
             cfg.validators.includes('required') && (!this.formData[f] || String(this.formData[f]).trim() === '')
           );
@@ -110,98 +79,61 @@ export const formHandler = {
           showGlobalError(this.formElement, message);
           return;
         }
-        // Indien valide, door naar echte submit-flow
         this.handleSubmit(e);
       });
+    }
+
+    console.log(`✅ [FormHandler] Init compleet`);
+    this.updateSubmitState();
+  },
+
+  /**
+   * 🛑 Valideer veld na blur
+   */
+  handleBlur(fieldName) {
+    const value = String(this.formData[fieldName] || '');
+    const error = validateField(fieldName, value, this.schema.fields[fieldName]);
+    clearErrors(this.formElement, fieldName);
+    if (error) {
+      showFieldErrors(this.formElement, fieldName, error);
+      console.warn(`🛑 [FormHandler] Fout na blur '${fieldName}': ${error}`);
     }
   },
 
   /**
-   * 📝 Handler voor input-events op velden.
-   *
-   * Werkwijze:
-   *  1. Sanitize raw input
-   *  2. Update formData en markeer touched
-   *  3. Persisteer waarde in localStorage
-   *  4. Valideer alleen dit veld en toon eventuele fouten
-   *  5. Voer schema-triggers uit (bv. API-call bij valide combinatie)
-   *  6. Update de submit-knop-status
-   *
-   * @param {string} fieldName - Naam van het veld
-   * @param {Event} event - Input-event met raw waarde
+   * ✏️ Valideer en log bij input
    */
   handleInput(fieldName, event) {
     const raw = event.target.value;
     const clean = sanitizeField(raw, this.schema.fields[fieldName], fieldName);
     event.target.value = clean;
-    console.log(`✏️ [FormHandler] Input '${fieldName}': raw='${raw}' → clean='${clean}'`);
+    console.log(`✏️ [FormHandler] '${fieldName}': '${raw}'→'${clean}'`);
 
-    // Update interne data en state
     this.formData[fieldName] = clean;
     this.formState[fieldName].isTouched = true;
     saveFormData(this.schema.name, this.formData);
-    console.log(`💾 [FormHandler] Saved '${fieldName}' →`, clean);
 
-    // Valideer alleen dit veld en update UI
-    const { fieldErrors } = validateForm({ [fieldName]: clean }, this.schema, this.formState);
-    const fieldError = fieldErrors[fieldName];
-    clearErrors(this.formElement, fieldName);
-    if (fieldError) {
-      showFieldErrors(this.formElement, fieldName, fieldError);
-      console.warn(`❌ [FormHandler] Validatie fout in '${fieldName}': ${fieldError}`);
-    } else {
-      console.log(`✅ [FormHandler] '${fieldName}' gevalideerd zonder fouten`);
-    }
-
-    // **Log volledige validatie na input**
-    const { isFormValid, fieldErrors: feAll } = validateForm(
-      this.formData,
-      this.schema,
-      this.formState
+    // full validation log
+    const { isFormValid, fieldErrors } = validateForm(this.formData, this.schema, this.formState);
+    Object.entries(fieldErrors).forEach(([f, msg]) =>
+      console.log(`🔄 [FormHandler] After input - '${f}': ${msg}`)
     );
-    Object.entries(feAll).forEach(([f, msg]) =>
-      console.log(`🔄 [FormHandler] Na input - veld '${f}': ${msg || 'geen fout'}`)
-    );
-    console.log(`🔄 [FormHandler] Na input - formulier valid: ${isFormValid}`);
+    console.log(`🔄 [FormHandler] After input - form valid: ${isFormValid}`);
 
-    // Voer eventuele triggers uit zoals gedefinieerd in het schema
-    if (this.schema.fields[fieldName].triggers) {
-      this.schema.fields[fieldName].triggers.forEach((trigger) => {
-        if (trigger.when === 'valid' && !fieldError) {
-          console.log(`⚙️ [FormHandler] Trigger '${trigger.action.name}' voor '${fieldName}'`);
-          trigger.action(this.formData);
-        }
-      });
-    }
-
-    // Check algemene validatie voor aan/uit zetten van submit-knop
     this.updateSubmitState();
   },
 
   /**
-   * 🔄 Controleert volledige formulier-validatie en togglet de submit-knop.
-   *
-   * Gebruikt validateForm om de globale validatie-status te bepalen.
+   * 🔄 Update submit-knop state
    */
   updateSubmitState() {
     const { isFormValid } = validateForm(this.formData, this.schema, this.formState);
     const btn = this.formElement.querySelector('[data-form-button]');
     toggleButton(btn, isFormValid);
-    console.log(`🔄 [FormHandler] Submit button ${isFormValid ? 'enabled ✅' : 'disabled ❌'}`);
   },
 
   /**
-   * 🚨 Behandel de submit van het formulier.
-   *
-   * Stappen:
-   *  1. voorkom standaard reload
-   *   2. clear alle fouten
-   *  3. show loader en disable velden
-   *  4. valideren van alle velden en verzamel field + global errors
-   *  5. bij fouten: toon field en globale fouten, reset UI
-   *  6. bij succes: voer custom action uit en onSuccess callback
-   *
-   * @param {Event} event - Submit-event van het formulier
+   * 🚨 Submit flow
    */
   async handleSubmit(event) {
     event.preventDefault();
@@ -211,14 +143,10 @@ export const formHandler = {
     toggleFields(this.formElement, false);
 
     try {
-      if (this.schema.submit && typeof this.schema.submit.action === 'function') {
-        await this.schema.submit.action(this.formData);
-      }
+      if (this.schema.submit?.action) await this.schema.submit.action(this.formData);
       hideLoader(event.target);
       toggleFields(this.formElement, true);
-      if (this.schema.submit && typeof this.schema.submit.onSuccess === 'function') {
-        this.schema.submit.onSuccess();
-      }
+      this.schema.submit?.onSuccess?.();
     } catch (err) {
       console.error(`❌ [FormHandler] Submit error:`, err);
       hideLoader(event.target);
