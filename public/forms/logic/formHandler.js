@@ -145,6 +145,7 @@ export const formHandler = {
   updateSubmitState() {
     const { isFormValid } = validateForm(this.formData, this.schema, this.formState);
     const btn = this.formElement.querySelector('[data-form-submit]');
+    console.log(btn);
     toggleButton(btn, isFormValid);
     console.log(`🔄 [FormHandler] Submit button ${isFormValid ? 'enabled ✅' : 'disabled ❌'}`);
   },
