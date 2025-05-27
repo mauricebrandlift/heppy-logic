@@ -1,40 +1,64 @@
-export const allFormSchemas = {
-  'postcode-form': { // This is the formName
-    formName: 'postcode-form', // Repeating formName inside for consistency with how schema might be passed around
-    fields: {
-      postcode: {
-        dataFieldName: 'postcode',
-        localStorageKey: 'shared.postcode',
-        required: true,
-        validatorType: 'postcode', // Explicitly link to 'postcode' validator
-        displayName: 'Postcode',    // Added for better error messages
-        sanitizerType: 'postcode'
-      },
-      huisnummer: {
-        dataFieldName: 'huisnummer',
-        localStorageKey: 'shared.huisnummer',
-        required: true,
-        validatorType: 'huisnummer', // Explicitly link to 'huisnummer' validator
-        displayName: 'Huisnummer', // Added for better error messages
-        sanitizerType: 'huisnummer'
-      },
-      toevoeging: {
-        dataFieldName: 'toevoeging',
-        localStorageKey: 'shared.toevoeging',
-        required: false,
-        validatorType: 'genericText', // Use 'genericText' for optional simple text
-        displayName: 'Toevoeging',  // Added for better error messages
-        maxLength: 10             // Example: genericText can use this
-      }
-    },
-    submitButtonSelector: '[data-form-button="postcode-form"]'
-    // We can add API endpoint details here later for external validation
-  }
-  // Add other form schemas here, e.g.:
-  // 'another-form': { ...schema for another-form... }
-};
+// public/forms/schemas/formSchemas.js
 
-// Optional: Helper function to get a specific schema
-export function getFormSchema(formName) {
-  return allFormSchemas[formName] || null;
+import { commonFields } from './commonFields.js';
+
+/**
+ * Database van form schemas.
+ * Elk schema beschrijft:
+ *  - name: unieke naam
+ *  - selector: CSS-selector van het form-element
+ *  - fields: definitie van elk veld incl. sanitizers, validators en messages
+ *  - submit (optioneel): API-configuratie en callbacks
+ *  - triggers (optioneel): globale triggers op veld-combinaties
+ */
+export function getFormSchema(name) {
+  const schemas = {
+    'postcode-form': {
+      name: 'postcode-form',
+      selector: '#postcode-form',
+      fields: {
+        postcode: commonFields.postcode,
+        huisnummer: commonFields.huisnummer,
+        toevoeging: commonFields.toevoeging,
+      },
+      submit: {
+        endpoint: '/api/submit-postcode',
+        method: 'POST',
+        onSuccess: () => { alert('Adres succesvol opgeslagen!'); },
+      },
+      // Geen triggers in dit formulier; simpel postcodeschema
+    },
+
+    // Voorbeeld ander formulier met multi-veld trigger:
+    // 'address-lookup': {
+    //   name: 'address-lookup',
+    //   selector: '#address-lookup-form',
+    //   fields: {
+    //     postcode: commonFields.postcode,
+    //     huisnummer: commonFields.huisnummer,
+    //     toevoeging: commonFields.toevoeging,
+    //   },
+    //   triggers: [
+    //     {
+    //       when: 'fieldsValid',
+    //       fields: ['postcode', 'huisnummer'],
+    //       action: async (data, update) => {
+    //         // voorbeeld action: fetch address
+    //         const res = await fetch(`/api/address?postcode=${data.postcode}&huisnummer=${data.huisnummer}`);
+    //         if (res.ok) {
+    //           const json = await res.json();
+    //           update({ straat: json.street, plaats: json.city });
+    //         }
+    //       },
+    //     },
+    //   ],
+    //   submit: {
+    //     endpoint: '/api/submit-address-lookup',
+    //     method: 'POST',
+    //     onSuccess: () => { /* success */ },
+    //   },
+    // },
+  };
+
+  return schemas[name] || null;
 }

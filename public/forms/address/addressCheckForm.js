@@ -1,21 +1,22 @@
 // public/forms/address/addressCheckForm.js
+
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 
-export function initializeAddressCheckForm() {
-  if (!formHandler || typeof formHandler.init !== 'function') {
-    console.error('formHandler or formHandler.init is not available. Ensure formHandler.js is loaded and correct.');
+const FORM_NAME = 'postcode-form';
+
+/**
+ * Initialiseert het postcode-check formulier via de generieke formHandler.
+ */
+export function initAddressCheckForm() {
+  console.log(`🚀 [addressCheckForm] Initializing form: ${FORM_NAME}`);
+
+  const schema = getFormSchema(FORM_NAME);
+  if (!schema) {
+    console.error(`❌ [addressCheckForm] Schema '${FORM_NAME}' not found`);
     return;
   }
 
-  const addressSchema = getFormSchema('postcode-form'); // Get the specific schema
-
-  if (!addressSchema) { // New check for the retrieved schema
-    console.error("Schema for 'postcode-form' not found in formSchemas.js. Ensure it's defined correctly.");
-    return;
-  }
-
-  // Pass the specific schema for the address check form to the generic handler
-  formHandler.init(addressSchema); // Use the retrieved schema
-  console.log('addressCheckForm.js: Initialization requested for postcode-form.');
+  // Start de generieke handler met het opgehaalde schema
+  formHandler.init(schema);
 }
