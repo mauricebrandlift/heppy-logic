@@ -15,6 +15,7 @@ export const commonFields = {
     inputType: 'text',
     sanitizers: ['trim', 'uppercase', 'postcodeStructure'],
     validators: ['required', 'postcode'],
+    persist: 'global', // options are global, form or none
     messages: {
       postcode: 'Gebruik 4 cijfers gevolgd door 2 letters, zonder spatie.'
     }
@@ -24,6 +25,7 @@ export const commonFields = {
     inputType: 'text',
     sanitizers: ['trim', 'numericOnly'],
     validators: ['required', 'numeric'],
+    persist: 'global',
     messages: {
       numeric: 'Huisnummer mag alleen cijfers bevatten.'
     }
@@ -33,6 +35,7 @@ export const commonFields = {
     inputType: 'text',
     sanitizers: ['trim', 'uppercase'],
     validators: ['optional', 'alphaNumeric'],
+    persist: 'global',
     messages: {
       alphaNumeric: 'Gebruik alleen letters en cijfers voor toevoeging.'
     }
@@ -42,6 +45,7 @@ export const commonFields = {
     inputType: 'text',
     sanitizers: ['trim', 'uppercase'],
     validators: ['required', 'alphaNumeric'],
+    persist: 'global',
     messages: {
       required: 'Voornaam is verplicht.',
       alphaNumeric: 'Voornaam mag alleen letters en cijfers bevatten.'
@@ -52,6 +56,7 @@ export const commonFields = {
     inputType: 'text',
     sanitizers: ['trim', 'uppercase'],
     validators: ['required', 'alphaNumeric'],
+    persist: 'global',
     messages: {
       required: 'Achternaam is verplicht.',
       alphaNumeric: 'Achternaam mag alleen letters en cijfers bevatten.'
@@ -62,6 +67,7 @@ export const commonFields = {
     inputType: 'email',
     sanitizers: ['trim', 'lowercase'],
     validators: ['required', 'email'],
+    persist: 'global',
     messages: {
       email: 'Voer een geldig e-mailadres in.'
     }
@@ -71,6 +77,7 @@ export const commonFields = {
     inputType: 'tel',
     sanitizers: ['trim', 'numericOnly'],
     validators: ['optional', 'numeric'],
+    persist: 'global',
     messages: {
       numeric: 'Gebruik alleen cijfers voor telefoonnummer.'
     }

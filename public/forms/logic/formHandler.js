@@ -93,15 +93,23 @@ export const formHandler = {
     // Bind click op custom submit-knop
     const submitBtn = this.formElement.querySelector('[data-form-button]');
     if (!submitBtn) {
-      console.error(`❌ [FormHandler] Submit button [data-form-button] niet gevonden in ${schema.selector}`);
+      console.error(
+        `❌ [FormHandler] Submit button [data-form-button] niet gevonden in ${schema.selector}`
+      );
     } else {
       submitBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        const { isFormValid, fieldErrors } = validateForm(this.formData, this.schema, this.formState);
+        const { isFormValid, fieldErrors } = validateForm(
+          this.formData,
+          this.schema,
+          this.formState
+        );
         if (!isFormValid) {
           // Check op lege verplichte velden
-          const hasEmptyRequired = Object.entries(this.schema.fields).some(([f, cfg]) =>
-            cfg.validators.includes('required') && (!this.formData[f] || String(this.formData[f]).trim() === '')
+          const hasEmptyRequired = Object.entries(this.schema.fields).some(
+            ([f, cfg]) =>
+              cfg.validators.includes('required') &&
+              (!this.formData[f] || String(this.formData[f]).trim() === '')
           );
           const message = hasEmptyRequired
             ? 'Niet alle verplichte velden ingevuld.'
@@ -139,7 +147,12 @@ export const formHandler = {
     // Update interne data en state
     this.formData[fieldName] = clean;
     this.formState[fieldName].isTouched = true;
-    saveFormData(this.schema.name, this.formData);
+    const { persist } = this.schema.fields[fieldName];
+    if (persist === 'form') {
+      saveFormData(this.schema.name, this.formData);
+    } else if (persist === 'global') {
+      saveFieldData(fieldName, clean);
+    }
     console.log(`💾 [FormHandler] Saved '${fieldName}' →`, clean);
 
     // Valideer alleen dit veld en update UI
