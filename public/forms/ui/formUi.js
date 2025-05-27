@@ -9,7 +9,8 @@
  * - tonen/verbergen van loader op button
  */
 
-/** Toon error(s) onder een specifiek veld.
+/**
+ * Toon error(s) onder een specifiek veld.
  * @param {HTMLFormElement} formEl
  * @param {string|object} field - veldnaam of object met { field: message }
  * @param {string} [message] - boodschap (bij individuele call)
@@ -21,7 +22,8 @@ export function showFieldErrors(formEl, field, message) {
       const el = formEl.querySelector(`[data-error-for="${name}"]`);
       if (el) {
         el.textContent = msg;
-        el.classList.add('visible');
+        // Toon error: verwijder 'hide' class
+        el.classList.remove('hide');
       }
     });
   } else {
@@ -29,12 +31,14 @@ export function showFieldErrors(formEl, field, message) {
     const el = formEl.querySelector(`[data-error-for="${field}"]`);
     if (el) {
       el.textContent = message;
-      el.classList.add('visible');
+      // Toon error: verwijder 'hide' class
+      el.classList.remove('hide');
     }
   }
 }
 
-/** Verberg alle field errors en global errors
+/**
+ * Verberg alle field errors en global errors
  * @param {HTMLFormElement} formEl
  * @param {string} [fieldName] - optioneel: alleen voor dit veld
  */
@@ -43,18 +47,21 @@ export function clearErrors(formEl, fieldName) {
     const el = formEl.querySelector(`[data-error-for="${fieldName}"]`);
     if (el) {
       el.textContent = '';
-      el.classList.remove('visible');
+      // Verberg error: voeg 'hide' class toe
+      el.classList.add('hide');
     }
   } else {
     // clear all field errors
     formEl.querySelectorAll('[data-error-for]').forEach((el) => {
       el.textContent = '';
-      el.classList.remove('visible');
+      // Verberg error: voeg 'hide' class toe
+      el.classList.add('hide');
     });
   }
 }
 
-/** Toon één of meerdere globale form-fouten in element met data-error-for="global"
+/**
+ * Toon één of meerdere globale form-fouten in element met data-error-for="global"
  * @param {HTMLFormElement} formEl
  * @param {string|string[]} messages
  */
@@ -68,29 +75,36 @@ export function showGlobalError(formEl, messages) {
     html = `<div>${messages}</div>`;
   }
   el.innerHTML = html;
-  el.classList.add('visible');
+  // Toon global error: verwijder 'hide' class
+  el.classList.remove('hide');
 }
 
-/** Verberg global form error
+/**
+ * Verberg global form error
  * @param {HTMLFormElement} formEl
  */
 export function clearGlobalError(formEl) {
   const el = formEl.querySelector('[data-error-for="global"]');
   if (!el) return;
   el.innerHTML = '';
-  el.classList.remove('visible');
+  // Verberg global error: voeg 'hide' class toe
+  el.classList.add('hide');
 }
 
-/** Toggle disabled-state van button
+/**
+ * Toggle disabled-state van button
  * @param {HTMLButtonElement} button
  * @param {boolean} isEnabled
  */
 export function toggleButton(button, isEnabled) {
   if (!button) return;
   button.disabled = !isEnabled;
+  // Voeg CSS klasse toe voor disabled-state
+  button.classList.toggle('is-disabled', !isEnabled);
 }
 
-/** Toggle disabled-state van alle form fields
+/**
+ * Toggle disabled-state van alle form fields
  * @param {HTMLFormElement} formEl
  * @param {boolean} isEnabled
  */
@@ -100,7 +114,8 @@ export function toggleFields(formEl, isEnabled) {
   });
 }
 
-/** Voeg loader-element toe aan button (bijv. spinner)
+/**
+ * Voeg loader-element toe aan button (bijv. spinner)
  * @param {HTMLButtonElement} button
  */
 export function showLoader(button) {
@@ -110,7 +125,8 @@ export function showLoader(button) {
   button.disabled = true;
 }
 
-/** Haal loader weg en herstel originele button text
+/**
+ * Haal loader weg en herstel originele button text
  * @param {HTMLButtonElement} button
  */
 export function hideLoader(button) {

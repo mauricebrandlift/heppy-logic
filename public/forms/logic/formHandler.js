@@ -47,9 +47,14 @@ export const formHandler = {
     clearGlobalError(this.formElement);
     console.log(`🔄 [FormHandler] Loaded data:`, this.formData);
 
+    // **Log validatie na prefill**
+    const { isFormValid, fieldErrors, allErrors } = validateForm(this.formData, this.schema, this.formState);
+    Object.entries(fieldErrors).forEach(([f, msg]) => console.log(`🔍 [FormHandler] Na prefill - veld '${f}' validatie fout: ${msg}`));
+    console.log(`🔍 [FormHandler] Na prefill - formulier valid: ${isFormValid}`);
+
     // Voor elk veld: zet value, init state en bind input-event
     Object.keys(schema.fields).forEach((fieldName) => {
-      const fieldEl = this.formElement.querySelector(`[data-field-name="${fieldName}"]`);
+      const fieldEl = this.formElement.querySelector(`[name="${fieldName}"]`);
       if (!fieldEl) {
         console.warn(`⚠️ [FormHandler] Veld '${fieldName}' niet gevonden in DOM`);
         return;
@@ -112,6 +117,11 @@ export const formHandler = {
     } else {
       console.log(`✅ [FormHandler] '${fieldName}' gevalideerd zonder fouten`);
     }
+
+    // **Log volledige validatie na input**
+    const { isFormValid, fieldErrors: feAll } = validateForm(this.formData, this.schema, this.formState);
+    Object.entries(feAll).forEach(([f, msg]) => console.log(`🔄 [FormHandler] Na input - veld '${f}': ${msg || 'geen fout'}`));
+    console.log(`🔄 [FormHandler] Na input - formulier valid: ${isFormValid}`);
 
     // Voer eventuele triggers uit zoals gedefinieerd in het schema
     if (this.schema.fields[fieldName].triggers) {
