@@ -1,26 +1,14 @@
 {
-  "version": 2,
-  "builds": [
+"version": 2,
+"headers": [
     {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": { "distDir": "public" }
-    }
-  ],
-  "routes": [
-    { "src": "/api/(.*)", "dest": "/api/$1" }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
+    "source": "/api/(.*)",
+    "headers": [
         { "key": "Access-Control-Allow-Origin", "value": "*" },
         { "key": "Access-Control-Allow-Methods", "value": "GET, POST, OPTIONS, PUT, DELETE, PATCH" },
-        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, X-Correlation-ID, Authorization" }
-      ]
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type" }
+    ]
     }
-  ],
-  "env": {
-    "NODE_VERSION": "18.x"
-  }
+]
 }
+    
