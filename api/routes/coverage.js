@@ -7,12 +7,12 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Content-Type, X-Correlation-ID' // Voeg X-Correlation-ID toe
+    'Content-Type, X-Correlation-ID, Authorization' // Match address.js by including Authorization
   );
 
   // Handel OPTIONS (preflight) request af
   if (req.method === 'OPTIONS') {
-    res.status(204).end();
+    res.status(200).end(); // Use 200 OK for the preflight response
     return;
   }
 
