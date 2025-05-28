@@ -133,8 +133,8 @@ export const formHandler = {
       fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
     });
 
-    // Bind click op custom submit-knop
-    const submitBtn = this.formElement.querySelector('[data-form-button]');
+    // Bind click op custom submit-knop specifiek voor dit formulier
+    const submitBtn = this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
     if (!submitBtn) {
       console.error(
         `❌ [FormHandler] Submit button [data-form-button] niet gevonden in ${schema.selector}`
@@ -254,9 +254,13 @@ export const formHandler = {
    */
   updateSubmitState() {
     const { isFormValid } = validateForm(this.formData, this.schema, this.formState);
-    const btn = this.formElement.querySelector('[data-form-button]');
-    toggleButton(btn, isFormValid);
-    console.log(`🔄 [FormHandler] Submit button ${isFormValid ? 'enabled ✅' : 'disabled ❌'}`);
+    const btn = this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
+    if (btn) { // Voeg een check toe of de knop bestaat voordat toggleButton wordt aangeroepen
+      toggleButton(btn, isFormValid);
+      console.log(`🔄 [FormHandler] Submit button ${isFormValid ? 'enabled ✅' : 'disabled ❌'} for form ${this.schema.name}`);
+    } else {
+      console.warn(`[FormHandler] Submit button [data-form-button="${this.schema.name}"] niet gevonden in updateSubmitState voor formulier ${this.schema.name}`);
+    }
   },
 
   /**
