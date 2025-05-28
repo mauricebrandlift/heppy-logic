@@ -23,7 +23,7 @@ export async function fetchAddressDetails(postcode, huisnummer) {
 
   // URL-concat met URLSearchParams (volgens api-guidelines.md punt 2)
   const params = new URLSearchParams({ postcode, huisnummer });
-  const endpoint = `/routes/checks/address?${params.toString()}`; // Het backend endpoint is /api/address
+  const endpoint = `/routes/address?${params.toString()}`; // Het backend endpoint is /api/address
 
   // console.debug(`[fetchAddressDetails] Calling API endpoint: ${endpoint}`);
 
