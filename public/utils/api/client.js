@@ -3,6 +3,7 @@
  * Generieke client-side fetch wrapper voor API calls.
  * Behandelt basis URL, standaard headers, en error handling.
  */
+import { API_CONFIG } from '../../config/apiConfig.js'; // Importeer de configuratie
 
 const BASE_API_PATH = '/api'; // Basispad voor alle backend API-calls
 
@@ -30,7 +31,7 @@ export class ApiError extends Error {
  * @throws {Error} Bij netwerkfouten of timeout.
  */
 export async function apiClient(endpoint, options = {}, timeout = 5000) {
-  const url = `${BASE_API_PATH}${endpoint}`;
+  const url = `${API_CONFIG.BASE_URL}${endpoint}`; // Gebruik de volledige BASE_URL
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
