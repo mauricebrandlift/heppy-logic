@@ -10,7 +10,7 @@ export { apiClient, ApiError } from './client.js';
 
 // Exporteer specifieke API functies
 export { fetchAddressDetails } from './address.js';
+export { fetchCoverageStatus } from './coverage.js'; // Nieuwe export toevoegen
 
 // Voeg hier exports toe voor andere API modules als die worden gemaakt, bijv.:
-// export * from './orders.js';
-// export * from './user.js';
+// export { fetchSomeOtherData } from './someOtherModule.js';

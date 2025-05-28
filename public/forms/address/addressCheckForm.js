@@ -3,7 +3,7 @@
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 // Importeer de nieuwe API functie en eventueel de ApiError class voor type checking
-import { fetchAddressDetails, ApiError as FrontendApiError } from '../../utils/api/index.js';
+import { fetchAddressDetails, fetchCoverageStatus, ApiError as FrontendApiError } from '../../utils/api/index.js'; // fetchCoverageStatus toegevoegd
 
 const FORM_NAME = 'postcode-form';
 
@@ -32,44 +32,50 @@ export function initAddressCheckForm() {
       console.log(`[addressCheckForm] Attempting to fetch address for Postcode: ${postcode}, Huisnummer: ${huisnummer}`);
 
       try {
-        // Roep de nieuwe API functie aan
+        // Stap 1: Adresgegevens ophalen
         const addressDetails = await fetchAddressDetails(postcode, huisnummer);
-
-        // addressDetails bevat nu het object zoals geretourneerd door /api/address
-        // bijv. { straat, plaats, postcode, huisnummer, toevoeging, latitude, longitude }
         console.log('[addressCheckForm] Successfully fetched address details:', addressDetails);
 
-        // TODO: Volgende stap - doe iets met addressDetails.
-        // Bijvoorbeeld:
-        // 1. Sla de gegevens op in een state management systeem.
-        // 2. Roep een volgende API aan om de dekking te controleren op basis van addressDetails.plaats.
-        //    const coverageStatus = await checkCoverage(addressDetails.plaats);
-        //    console.log('[addressCheckForm] Coverage status:', coverageStatus);
+        if (!addressDetails || !addressDetails.plaats) {
+          console.error('[addressCheckForm] Geen plaatsnaam ontvangen van adres API:', addressDetails);
+          // Gooi een specifieke error die de gebruiker kan begrijpen
+          throw new Error('Kon de plaatsnaam niet ophalen. Controleer postcode en huisnummer.');
+        }
+        
+        console.log(`[addressCheckForm] Attempting to check coverage for Plaats: ${addressDetails.plaats}`);
+        // Stap 2: Dekking controleren op basis van de opgehaalde plaats
+        const coverageStatus = await fetchCoverageStatus(addressDetails.plaats);
+        console.log('[addressCheckForm] Successfully fetched coverage status:', coverageStatus);
 
-        // Voor nu, loggen we het en navigeren we (zoals de oude code).
-        const nextPage = '/aanvragen/opties'; // Haal dit eventueel uit een config of state
-        console.log(`[addressCheckForm] Navigating to ${nextPage}...`);
-        //window.location.href = nextPage;
+        // Stap 3: Navigeren op basis van dekking
+        // Zorg ervoor dat coverageStatus en coverageStatus.gedekt bestaan
+        if (coverageStatus && typeof coverageStatus.gedekt === 'boolean') {
+          if (coverageStatus.gedekt) {
+            console.log(`[addressCheckForm] Plaats '${addressDetails.plaats}' is gedekt. Navigeren naar /aanvragen/opties...`);
+            window.location.href = '/aanvragen/opties'; // Pas dit pad eventueel aan
+          } else {
+            console.log(`[addressCheckForm] Plaats '${addressDetails.plaats}' is NIET gedekt. Navigeren naar /aanvragen/geen-dekking...`);
+            window.location.href = '/aanvragen/geen-dekking'; // Pas dit pad eventueel aan
+          }
+        } else {
+          // Fallback als de response van coverage check onverwacht is
+          console.error('[addressCheckForm] Ongeldige dekkingsstatus ontvangen:', coverageStatus);
+          throw new Error('Kon de dekkingsstatus niet correct bepalen.');
+        }
 
       } catch (error) {
         console.error('[addressCheckForm] Error during submit action:', error);
 
-        // Geef een duidelijke foutmelding aan de formHandler
-        // De formHandler verwacht een error object met een .message property.
-        let errorMessage = 'Er is een onbekende fout opgetreden bij het ophalen van het adres.';
+        let errorMessage = 'Er is een onbekende fout opgetreden.';
         if (error instanceof FrontendApiError) {
-          // Specifieke API fout van onze frontend client
-          errorMessage = error.message || 'Fout bij het ophalen van adresgegevens van de server.';
+          // Specifieke API fout van onze frontend client (kan van fetchAddressDetails of fetchCoverageStatus zijn)
+          errorMessage = error.message || 'Fout bij het communiceren met de server.';
         } else if (error.message) {
-          // Andere JavaScript errors
+          // Andere JavaScript errors (bijv. van de 'throw new Error' hierboven)
           errorMessage = error.message;
         }
 
-        // Gooi een nieuwe error die de formHandler kan tonen.
-        // Het is belangrijk dat de formHandler een error.message kan lezen.
         const formDisplayError = new Error(errorMessage);
-        // Je kunt de originele error bewaren voor debugging indien nodig
-        // formDisplayError.originalError = error;
         throw formDisplayError;
       }
     },
