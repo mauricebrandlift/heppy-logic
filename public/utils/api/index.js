@@ -1,0 +1,16 @@
+// public/utils/api/index.js
+/**
+ * Exporteert alle publieke API client functies en gerelateerde utilities.
+ * Dit bestand dient als het hoofd-exportpunt voor de api-module aan de client-zijde.
+ */
+
+// Exporteer de generieke apiClient en ApiError class voor eventueel direct gebruik
+// of voor gebruik in andere specifieke api modules.
+export { apiClient, ApiError } from './client.js';
+
+// Exporteer specifieke API functies
+export { fetchAddressDetails } from './address.js';
+
+// Voeg hier exports toe voor andere API modules als die worden gemaakt, bijv.:
+// export * from './orders.js';
+// export * from './user.js';

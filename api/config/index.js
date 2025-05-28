@@ -1,17 +1,26 @@
-// Laad noodzakelijke omgevingsvariabelen
-const {
-  SUPABASE_URL,
-  SUPABASE_SERVICE_ROLE_KEY,
-  ADDRESS_CHECK_TABLE = 'coverage'
-} = process.env;
+// api/config/index.js
+/**
+ * Laadt en valideert omgevingsvariabelen.
+ * Stelt configuratie beschikbaar voor de backend.
+ */
 
-if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY) {
-  throw new Error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY in environment variables');
+const { POSTCODE_API_URL, POSTCODE_API_KEY } = process.env;
+
+if (!POSTCODE_API_URL) {
+  console.warn('⚠️ [API Config] POSTCODE_API_URL is niet ingesteld in environment variabelen.');
 }
 
-// Exporteer configuratiewaarden voor gebruik in REST-calls
-export const CONFIG = {
-  supabaseUrl: SUPABASE_URL,
-  supabaseKey: SUPABASE_SERVICE_ROLE_KEY,
-  addressTable: ADDRESS_CHECK_TABLE
+if (!POSTCODE_API_KEY) {
+  console.warn('⚠️ [API Config] POSTCODE_API_KEY is niet ingesteld in environment variabelen.');
+}
+
+export const postcodeApiConfig = {
+  baseUrl: POSTCODE_API_URL,
+  apiKey: POSTCODE_API_KEY,
 };
+
+// Voeg hier andere configuraties toe indien nodig
+// export const anotherConfig = { ... };
+
+// Log dat de configuratie geladen is (optioneel, kan veel output geven)
+// console.log('✅ [API Config] Configuratie geladen.');
