@@ -110,27 +110,59 @@ export function toggleButton(button, isEnabled) {
  */
 export function toggleFields(formEl, isEnabled) {
   formEl.querySelectorAll('input, select, textarea, button').forEach((el) => {
-    if (el.type !== 'submit') el.disabled = !isEnabled;
+    el.disabled = !isEnabled;
+    // Voeg/verwijder 'is-disabled' class alleen voor buttons
+    if (el.tagName === 'BUTTON') {
+      el.classList.toggle('is-disabled', !isEnabled);
+    }
   });
 }
 
 /**
- * Voeg loader-element toe aan button (bijv. spinner)
- * @param {HTMLButtonElement} button
+ * Toon spinner in de knop, verberg het standaard icoon, en disable de knop.
+ * @param {HTMLButtonElement} button De knop waarop de loader getoond moet worden.
  */
 export function showLoader(button) {
   if (!button) return;
-  button.dataset.originalText = button.textContent;
-  button.textContent = '⏳ Wachten...';
+
+  const iconElement = button.querySelector('.is-icon'); // Standaard icoon in de knop
+  const spinnerElement = button.querySelector('.is-spinner'); // Spinner element in de knop
+
+  if (iconElement) {
+    iconElement.style.display = 'none';
+  }
+  if (spinnerElement) {
+    spinnerElement.style.display = 'inline-block'; // Of 'block', afhankelijk van je CSS voor de spinner
+  } else {
+    // Fallback als er geen .is-spinner element is.
+    // Overweeg hier de oude tekstverandering te herintroduceren indien nodig.
+    console.warn('[FormUi] Geen .is-spinner element gevonden in de knop:', button);
+  }
+
   button.disabled = true;
+  button.classList.add('is-disabled');
 }
 
 /**
- * Haal loader weg en herstel originele button text
- * @param {HTMLButtonElement} button
+ * Verberg spinner in de knop, toon het standaard icoon, en enable de knop.
+ * @param {HTMLButtonElement} button De knop waarvan de loader verborgen moet worden.
  */
 export function hideLoader(button) {
   if (!button) return;
-  button.textContent = button.dataset.originalText || button.textContent;
-  delete button.dataset.originalText;
+
+  const iconElement = button.querySelector('.is-icon'); // Standaard icoon in de knop
+  const spinnerElement = button.querySelector('.is-spinner'); // Spinner element in de knop
+
+  if (spinnerElement) {
+    spinnerElement.style.display = 'none';
+  }
+  if (iconElement) {
+    iconElement.style.display = 'inline-block'; // Of 'block', afhankelijk van je CSS
+  } else {
+    // Fallback als er geen .is-icon element is om te herstellen.
+    console.warn('[FormUi] Geen .is-icon element gevonden in de knop om te herstellen:', button);
+  }
+
+  button.disabled = false;
+  button.classList.remove('is-disabled');
 }
