@@ -5,33 +5,42 @@
  */
 import { getExternalAddressDetails } from '../checks/addressLookupService.js';
 import { handleErrorResponse } from '../utils/errorHandler.js'; // Optioneel, als je de helper gebruikt
-import { v4 as uuidv4 } from 'uuid'; // Voor correlationId
 
 export default async function handler(req, res) {
-  const correlationId = req.headers['x-correlation-id'] || uuidv4();
-  res.setHeader('X-Correlation-ID', correlationId);
-
-  // Basis CORS (Vercel handelt dit meestal al goed af via vercel.json)
-  res.setHeader('Access-Control-Allow-Origin', '*'); // Of specifieker domein
+  // Stel CORS headers in voor ALLE responses van deze functie, inclusief errors
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Of specifieker: 'https://heppy-schoonmaak.webflow.io' of je daadwerkelijke frontend domein
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Correlation-ID');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, X-Correlation-ID, Authorization' // Voeg andere headers toe die je client mogelijk stuurt
+  );
 
+  // Belangrijk: Handel de OPTIONS (preflight) request EERST af
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    res.status(204).end(); // HTTP 204 No Content
+    return;
+  }
+
+  // Haal correlationId op als de client deze meestuurt
+  const correlationId = req.headers['x-correlation-id']; 
+  if (correlationId) {
+    // Stuur de correlationId terug in de response header als deze is ontvangen
+    res.setHeader('X-Correlation-ID', correlationId);
   }
 
   if (req.method !== 'GET') {
     res.setHeader('Allow', ['GET']);
     const msg = 'Method Not Allowed. Only GET requests are accepted for this endpoint.';
-    console.warn(JSON.stringify({ correlationId, level: 'WARN', message: msg, method: req.method, url: req.url }));
-    return res.status(405).json({ correlationId, message: msg });
+    // Gebruik de correlationId (kan undefined zijn) in de log en response
+    console.warn(JSON.stringify({ correlationId: correlationId || 'not-provided', level: 'WARN', message: msg, method: req.method, url: req.url }));
+    return res.status(405).json({ correlationId: correlationId || 'not-provided', message: msg });
   }
 
   const { postcode, huisnummer } = req.query;
   const logMeta = {
-    correlationId,
-    route: '/api/address',
-    method: 'GET',
+    correlationId: correlationId || 'not-provided', // Gebruik placeholder als niet aanwezig
+    route: req.url, // Gebruik req.url voor het daadwerkelijke pad
+    method: req.method,
     postcode,
     huisnummer,
   };
@@ -41,28 +50,29 @@ export default async function handler(req, res) {
   if (!postcode || !huisnummer) {
     const msg = 'Query parameters "postcode" en "huisnummer" zijn verplicht.';
     console.warn(JSON.stringify({ ...logMeta, level: 'WARN', message: msg }));
-    return res.status(400).json({ correlationId, message: msg });
+    return res.status(400).json({ correlationId: logMeta.correlationId, message: msg });
   }
 
   try {
-    const addressDetails = await getExternalAddressDetails(postcode, String(huisnummer), correlationId); // Zorg dat huisnummer een string is
-    console.log(JSON.stringify({ ...logMeta, level: 'INFO', message: 'Adres succesvol opgehaald en verstuurd.', adres: addressDetails }));
+    const addressDetails = await getExternalAddressDetails(postcode, String(huisnummer), logMeta.correlationId); 
+    console.log(JSON.stringify({ ...logMeta, level: 'INFO', message: 'Adres succesvol opgehaald en verstuurd.' /*, adres: addressDetails*/ })); // PII in adres niet standaard loggen
     return res.status(200).json(addressDetails);
   } catch (error) {
-    // Gebruik de handleErrorResponse util als die bestaat, anders handmatige afhandeling
+    // handleErrorResponse zou de correlationId moeten kunnen ontvangen en gebruiken
     if (handleErrorResponse) {
-       handleErrorResponse(res, error, undefined, correlationId);
+       handleErrorResponse(res, error, undefined, logMeta.correlationId);
     } else {
+      // Fallback als handleErrorResponse niet correct werkt of niet is gedefinieerd
       const statusCode = typeof error.code === 'number' ? error.code : 500;
       const message = error.message || 'Interne serverfout bij het ophalen van adresgegevens.';
       console.error(JSON.stringify({
-        ...logMeta,
+        ...logMeta, // logMeta bevat al de correlationId
         level: 'ERROR',
         message: `Fout bij adres ophalen: ${message}`,
         statusCode,
-        errorDetails: { name: error.name, message: error.message, code: error.code /*, stack: error.stack*/ },
+        errorDetails: { name: error.name, message: error.message, code: error.code },
       }));
-      return res.status(statusCode).json({ correlationId, message });
+      return res.status(statusCode).json({ correlationId: logMeta.correlationId, message });
     }
   }
 }
