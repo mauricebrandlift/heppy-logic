@@ -49,7 +49,7 @@ export function initAddressCheckForm() {
         // Voor nu, loggen we het en navigeren we (zoals de oude code).
         const nextPage = '/aanvragen/opties'; // Haal dit eventueel uit een config of state
         console.log(`[addressCheckForm] Navigating to ${nextPage}...`);
-        window.location.href = nextPage;
+        //window.location.href = nextPage;
 
       } catch (error) {
         console.error('[addressCheckForm] Error during submit action:', error);
