@@ -12,7 +12,7 @@ import {
   showLoader,
   hideLoader,
 } from '../ui/formUi.js';
-import { saveFormData, loadFormData } from './formStorage.js';
+import { saveFormData, loadFormData, saveGlobalFieldData, loadGlobalFieldData } from './formStorage.js';
 
 /**
  * 🚀 Centrale handler voor elk formulier.
@@ -49,12 +49,55 @@ export const formHandler = {
       return;
     }
 
-    // Laad opgeslagen data voor dit formulier (indien aanwezig)
-    this.formData = loadFormData(schema.name) || {};
+    const formSpecificSavedData = loadFormData(schema.name) || {};
+    this.formData = {}; // Reset formData
     this.formState = {};
     clearErrors(this.formElement);
     clearGlobalError(this.formElement);
-    console.log(`🔄 [FormHandler] Loaded data:`, this.formData);
+    console.log(`🔄 [FormHandler] Initializing form data for ${schema.name}. Form-specific saved:`, formSpecificSavedData);
+
+    Object.keys(schema.fields).forEach((fieldName) => {
+      const fieldConfig = schema.fields[fieldName];
+      const fieldEl = this.formElement.querySelector(`[data-field-name="${fieldName}"]`);
+      if (!fieldEl) {
+        console.warn(`⚠️ [FormHandler] Veld '${fieldName}' niet gevonden in DOM`);
+        return;
+      }
+
+      let valueToLoad; // Gebruik undefined om te checken of er iets geladen is
+      const persistType = fieldConfig.persist;
+
+      if (persistType === 'global') {
+        const globalValue = loadGlobalFieldData(fieldName);
+        if (globalValue !== null) { // loadGlobalFieldData returns null if not found or undefined
+          valueToLoad = globalValue;
+          console.log(`🔄 [FormHandler] Veld '${fieldName}' (global): Geladen globale waarde: ${valueToLoad}`);
+        }
+      }
+
+      // Form-specifieke data overschrijft eventuele globale waarde
+      if (formSpecificSavedData[fieldName] !== undefined) {
+        valueToLoad = formSpecificSavedData[fieldName];
+        console.log(`🔄 [FormHandler] Veld '${fieldName}' (form-specific): Geladen formulierwaarde (overschrijft globaal indien aanwezig): ${valueToLoad}`);
+      }
+      
+      if (valueToLoad !== undefined) {
+        this.formData[fieldName] = valueToLoad;
+        fieldEl.value = valueToLoad;
+        console.log(
+          `🔄 [FormHandler] Veld '${fieldName}' ingesteld op geladen waarde: ${valueToLoad}`
+        );
+      } else {
+        // Als er geen waarde is geladen, gebruik de huidige waarde van het DOM-element (kan leeg zijn)
+        this.formData[fieldName] = fieldEl.value || '';
+         console.log(`🔄 [FormHandler] Veld '${fieldName}' niet in storage, gebruikt DOM waarde of leeg: '${this.formData[fieldName]}'`);
+      }
+
+      this.formState[fieldName] = { isTouched: false };
+      fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
+    });
+    
+    console.log(`🔄 [FormHandler] Initial formData state na laden:`, this.formData);
 
     // **Log validatie na prefill**
     const { isFormValid, fieldErrors, allErrors } = validateForm(
@@ -144,16 +187,29 @@ export const formHandler = {
     event.target.value = clean;
     console.log(`✏️ [FormHandler] Input '${fieldName}': raw='${raw}' → clean='${clean}'`);
 
-    // Update interne data en state
     this.formData[fieldName] = clean;
     this.formState[fieldName].isTouched = true;
-    const { persist } = this.schema.fields[fieldName];
-    if (persist === 'form') {
-      saveFormData(this.schema.name, this.formData);
-    } else if (persist === 'global') {
-      saveFieldData(fieldName, clean);
+    
+    const fieldSchema = this.schema.fields[fieldName];
+    const persistType = fieldSchema.persist;
+
+    if (persistType === 'global') {
+      saveGlobalFieldData(fieldName, clean);
+      console.log(`💾 [FormHandler] Globaal opgeslagen '${fieldName}' →`, clean);
+    } else if (persistType === 'form') {
+      const formDataToSave = {};
+      Object.keys(this.schema.fields).forEach(fName => {
+        if (this.schema.fields[fName].persist === 'form') {
+          // Zorg ervoor dat de waarde bestaat in this.formData
+          formDataToSave[fName] = this.formData.hasOwnProperty(fName) ? this.formData[fName] : '';
+        }
+      });
+      saveFormData(this.schema.name, formDataToSave);
+      console.log(`💾 [FormHandler] Formulier-specifieke opslag voor '${this.schema.name}' bijgewerkt vanwege '${fieldName}'. Opgeslagen data:`, formDataToSave);
+    } else {
+      // persistType is 'none' of niet gedefinieerd
+      console.log(`💾 [FormHandler] Veld '${fieldName}' niet opgeslagen (persist type: ${persistType}).`);
     }
-    console.log(`💾 [FormHandler] Saved '${fieldName}' →`, clean);
 
     // Valideer alleen dit veld en update UI
     const { fieldErrors } = validateForm({ [fieldName]: clean }, this.schema, this.formState);

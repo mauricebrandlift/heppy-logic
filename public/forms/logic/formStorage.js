@@ -2,6 +2,7 @@
 
 const PREFILL_DATA_KEY = 'heppyFormsPrefillData';
 const FLOW_DATA_KEY = 'heppyFormsFlowData';
+const GLOBAL_FIELDS_DATA_KEY = 'heppyFormsGlobalFields'; // Nieuwe key voor globale velden
 
 /**
  * Haalt een JSON-objekt uit localStorage en parsed het.
@@ -64,6 +65,42 @@ export function clearFormData(formName) {
   if (allPrefill[formName]) {
     delete allPrefill[formName];
     _setStorageObject(PREFILL_DATA_KEY, allPrefill);
+  }
+}
+
+/**
+ * Sla een individueel veld globaal op.
+ * @param {string} fieldName - Naam van het veld
+ * @param {*} value - Waarde van het veld
+ */
+export function saveGlobalFieldData(fieldName, value) {
+  if (!fieldName) return;
+  const globalData = _getStorageObject(GLOBAL_FIELDS_DATA_KEY);
+  globalData[fieldName] = value;
+  _setStorageObject(GLOBAL_FIELDS_DATA_KEY, globalData);
+}
+
+/**
+ * Laad een individueel globaal opgeslagen veld.
+ * @param {string} fieldName - Naam van het veld
+ * @returns {*|null} - Waarde van het veld of null
+ */
+export function loadGlobalFieldData(fieldName) {
+  if (!fieldName) return null;
+  const globalData = _getStorageObject(GLOBAL_FIELDS_DATA_KEY);
+  return globalData[fieldName] !== undefined ? globalData[fieldName] : null;
+}
+
+/**
+ * Verwijder opgeslagen globale data voor een specifiek veld.
+ * @param {string} fieldName - Unieke veldnaam
+ */
+export function clearGlobalFieldData(fieldName) {
+  if (!fieldName) return;
+  const globalData = _getStorageObject(GLOBAL_FIELDS_DATA_KEY);
+  if (globalData[fieldName] !== undefined) {
+    delete globalData[fieldName];
+    _setStorageObject(GLOBAL_FIELDS_DATA_KEY, globalData);
   }
 }
 
