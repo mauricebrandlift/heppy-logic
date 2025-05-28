@@ -119,50 +119,25 @@ export function toggleFields(formEl, isEnabled) {
 }
 
 /**
- * Toon spinner in de knop, verberg het standaard icoon, en disable de knop.
+ * Toon spinner in de knop door de 'is-loading' class toe te voegen, en disable de knop.
  * @param {HTMLButtonElement} button De knop waarop de loader getoond moet worden.
  */
 export function showLoader(button) {
   if (!button) return;
 
-  const iconElement = button.querySelector('.is-icon'); // Standaard icoon in de knop
-  const spinnerElement = button.querySelector('.is-spinner'); // Spinner element in de knop
-
-  if (iconElement) {
-    iconElement.style.display = 'none';
-  }
-  if (spinnerElement) {
-    spinnerElement.style.display = 'inline-block'; // Of 'block', afhankelijk van je CSS voor de spinner
-  } else {
-    // Fallback als er geen .is-spinner element is.
-    // Overweeg hier de oude tekstverandering te herintroduceren indien nodig.
-    console.warn('[FormUi] Geen .is-spinner element gevonden in de knop:', button);
-  }
-
+  button.classList.add('is-loading');
   button.disabled = true;
-  button.classList.add('is-disabled');
+  button.classList.add('is-disabled'); // Behoud is-disabled voor styling van de disabled state, naast de loading state.
 }
 
 /**
- * Verberg spinner in de knop, toon het standaard icoon, en enable de knop.
+ * Verberg spinner in de knop door de 'is-loading' class te verwijderen, en enable de knop.
  * @param {HTMLButtonElement} button De knop waarvan de loader verborgen moet worden.
  */
 export function hideLoader(button) {
   if (!button) return;
 
-  const iconElement = button.querySelector('.is-icon'); // Standaard icoon in de knop
-  const spinnerElement = button.querySelector('.is-spinner'); // Spinner element in de knop
-
-  if (spinnerElement) {
-    spinnerElement.style.display = 'none';
-  }
-  if (iconElement) {
-    iconElement.style.display = 'inline-block'; // Of 'block', afhankelijk van je CSS
-  } else {
-    // Fallback als er geen .is-icon element is om te herstellen.
-    console.warn('[FormUi] Geen .is-icon element gevonden in de knop om te herstellen:', button);
-  }
-
+  button.classList.remove('is-loading');
   button.disabled = false;
   button.classList.remove('is-disabled');
 }
