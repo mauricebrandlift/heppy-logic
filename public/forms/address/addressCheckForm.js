@@ -77,5 +77,5 @@ export function initAddressCheckForm() {
     // navigateTo: '/volgende-stap' // Optioneel, als je niet handmatig navigeert in de action
   };
 
-  formHandler(FORM_NAME, schema);
+  formHandler.init(schema);
 }
