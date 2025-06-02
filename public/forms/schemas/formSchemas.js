@@ -1,6 +1,8 @@
 // public/forms/schemas/formSchemas.js
 
 import { commonFields } from './commonFields.js';
+import { adresCheckApi } from '../api/adresCheckApi.js'; 
+
 
 /**
  * Database van form schemas.
