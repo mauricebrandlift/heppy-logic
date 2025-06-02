@@ -10,6 +10,7 @@ import {
   toggleButton,
   showLoader,
   hideLoader,
+  toggleFields, 
 } from '../ui/formUi.js';
 import { saveFormData, loadFormData, saveGlobalFieldData, loadGlobalFieldData } from './formStorage.js';
 import { inputFilters } from './formInputFilters.js'; // Importeer de input filters
