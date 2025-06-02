@@ -373,159 +373,28 @@ export const formHandler = {
    */
   async handleSubmit(event) {
     event.preventDefault();
-    console.log(`[FormHandler] handleSubmit aangeroepen voor formulier: ${this.schema.name}`);
-
-    // Sla een referentie naar de submit-knop op voor consistent gebruik.
-    const submitBtn = event.target.closest('[data-form-button]') || this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
-    let globalMessage = '';
-    let apiResult = null;
-    let isApiError = false;
-
-    const { isFormValid, fieldErrors } = validateForm(this.formData, this.schema, this.formState);
-
-    if (!isFormValid) {
-      console.warn('[FormHandler] Submit poging op ongeldig formulier in handleSubmit. Fouten:', fieldErrors);
-      clearErrors(this.formElement);
-      Object.entries(fieldErrors).forEach(([fName, msg]) => showFieldErrors(this.formElement, fName, msg));
-      
-      const hasEmptyRequired = Object.entries(this.schema.fields).some(
-        ([, cfg]) => cfg.validators?.includes('required') && (!this.formData[cfg.name] || String(this.formData[cfg.name]).trim() === '')
-      );
-      globalMessage = hasEmptyRequired
-        ? (this.schema.globalMessages?.REQUIRED_FIELDS_MISSING || 'Niet alle verplichte velden zijn ingevuld.')
-        : (this.schema.globalMessages?.DEFAULT_INVALID_SUBMIT || 'Controleer de invoer en probeer het opnieuw.');
-      
-      clearGlobalError(this.formElement);
-      showGlobalError(this.formElement, globalMessage, 'error');
-      if (submitBtn) toggleButton(submitBtn, false); // Houd knop disabled
-      return;
-    }
-
-    // Controleer of er een submit actie gedefinieerd is in het schema.
-    if (this.schema.submit && typeof this.schema.submit.action === 'function') {
-      if (submitBtn) showLoader(submitBtn); // Toon loader op de knop
-      // Schakel alle formuliervelden uit tijdens de API call voor een betere UX.
-      toggleFields(this.formElement, Object.keys(this.schema.fields), undefined, true); // (formEl, fieldNames, show=undefined, disable=true)
-      isApiError = false;
-
-      try {
-        console.log(`[FormHandler] API call (schema.submit.action) starten voor formulier ${this.schema.name} met data:`, this.formData);
-        // De formulier-specifieke action (bijv. uit addressCheckForm.js) is verantwoordelijk
-        // voor het gooien van een Error met een gebruikersvriendelijke message.
-        apiResult = await this.schema.submit.action(this.formData, this.formElement);
-
-        // Verwerk het resultaat van de API call.
-        if (apiResult && apiResult.success !== false) { // Behandel gevallen waar success niet expliciet true is maar ook geen error
-          globalMessage = apiResult.message || this.schema.globalMessages?.success || 'Formulier succesvol verwerkt.';
-          console.log(`[FormHandler] API call succesvol voor ${this.schema.name}. Resultaat:`, apiResult);
-          
-          // Bepaal of velden disabled moeten blijven na succes.
-          if (this.schema.submit.disableFieldsOnSuccess === true) {
-            // Velden blijven disabled (zoals ingesteld voor de API call).
-          } else if (Array.isArray(this.schema.submit.disableFieldsOnSuccess)) {
-            // Schakel specifieke velden uit, en schakel de rest in.
-            const allFieldNames = Object.keys(this.schema.fields);
-            const fieldsToEnable = allFieldNames.filter(name => !this.schema.submit.disableFieldsOnSuccess.includes(name));
-            toggleFields(this.formElement, this.schema.submit.disableFieldsOnSuccess, undefined, true); // disable specifieke
-            if (fieldsToEnable.length > 0) {
-              toggleFields(this.formElement, fieldsToEnable, undefined, false); // enable de rest
-            }
-          } else {
-            // Standaard: schakel alle velden weer in na succes.
-            toggleFields(this.formElement, Object.keys(this.schema.fields), undefined, false);
-          }
-          // TODO: Implementeer logica voor hideFieldsOnSuccess en showFields indien nodig.
-
-        } else if (apiResult && apiResult.error) {
-          // De API retourneerde een gestructureerd error object (bijv. { success: false, error: 'bericht' }).
-          globalMessage = apiResult.error;
-          isApiError = true;
-          console.warn(`[FormHandler] API call voor ${this.schema.name} gaf een gestructureerde error terug:`, apiResult.error);
-        } else {
-          // Fallback: API call was niet succesvol of gaf geen duidelijk resultaat.
-          globalMessage = this.schema.globalMessages?.DEFAULT_API_ERROR || 'Er is iets misgegaan. Probeer het later opnieuw.';
-          isApiError = true;
-          console.warn(`[FormHandler] API call voor ${this.schema.name} was niet succesvol of gaf geen duidelijk resultaat. Resultaat:`, apiResult);
-        }
-      } catch (err) {
-        // Een error werd gegooid tijdens de API call (bijv. netwerkfout, of de action gooide een error).
-        isApiError = true;
-        console.error(`❌ [FormHandler] Submit error:`, err);
-        
-        const gm = this.schema.globalMessages || {};
-        // Prioriteit voor de message van de gegooide error, die specifiek zou moeten zijn.
-        if (err && err.message) {
-          globalMessage = err.message;
-        } else if (err && err.code && gm[err.code]) {
-          // Fallback naar een gemapte code als err.message ontbreekt maar err.code wel bestaat.
-          globalMessage = gm[err.code];
-        } else {
-          // Laatste fallback naar een generieke melding.
-          globalMessage = gm.DEFAULT_API_ERROR || 'Er is iets misgegaan. Probeer het later opnieuw.';
-        }
-      } finally {
-        if (submitBtn) hideLoader(submitBtn); // Verberg loader altijd.
-        
-        // Schakel velden weer in als er een API error was, of als de API call niet succesvol was
-        // EN de velden niet expliciet disabled moeten blijven na een (mislukte) poging.
-        // Dit voorkomt dat velden disabled blijven bij een onverwachte fout.
-        if (isApiError || (apiResult && apiResult.success === false)) {
-          // Alleen enablen als disableFieldsOnSuccess niet specifiek true is voor het hele formulier.
-          // Als disableFieldsOnSuccess een array is, is het gedrag complexer en wordt het hier niet volledig afgehandeld
-          // voor het error geval; de focus ligt op het enablen bij een duidelijke error.
-          if (this.schema.submit.disableFieldsOnSuccess !== true) {
-            toggleFields(this.formElement, Object.keys(this.schema.fields), undefined, false);
-          }
-        } else if (apiResult && apiResult.success !== false) {
-          // Als het succesvol was, is de field toggle logica al afgehandeld in de try block.
-        } else {
-          // Onverwachte situatie, voor de zekerheid velden enablen als ze niet expliciet disabled moeten zijn.
-           if (this.schema.submit.disableFieldsOnSuccess !== true) {
-            toggleFields(this.formElement, Object.keys(this.schema.fields), undefined, false);
-          }
-        }
-      }
-    } else {
-      // Geen API call gedefinieerd in schema.
-      globalMessage = this.schema.globalMessages?.success || 'Formulier succesvol verwerkt (geen API call).';
-      console.log(`[FormHandler] Formulier ${this.schema.name} verwerkt (geen API call).`);
-    }
-
-    // Toon de globale boodschap (succes of fout).
+    clearErrors(this.formElement);
     clearGlobalError(this.formElement);
-    if (globalMessage) {
-      const isSuccessMessage = (apiResult && apiResult.success !== false && !isApiError);
-      showGlobalError(this.formElement, globalMessage, isSuccessMessage ? 'success' : 'error');
-    }
+    showLoader(event.target);
+    toggleFields(this.formElement, false);
 
-    // Update de status van de submit knop.
-    if (submitBtn) {
-      const shouldDisableAfterSuccess = this.schema.submit?.disableButtonOnSuccess === true;
-      if (apiResult && apiResult.success !== false && shouldDisableAfterSuccess) {
-        toggleButton(submitBtn, false); // Disable na succes indien geconfigureerd.
-      } else if (isApiError || (apiResult && apiResult.success === false)) {
-        toggleButton(submitBtn, true); // Houd knop enabled bij fout, zodat gebruiker opnieuw kan proberen.
-        this.updateSubmitState(); // Her-evalueer op basis van huidige data (kan weer disablen als form ongeldig is).
-      } else {
-        // Algemeen geval: update op basis van huidige validiteit.
-        this.updateSubmitState();
+    try {
+      if (this.schema.submit && typeof this.schema.submit.action === 'function') {
+        await this.schema.submit.action(this.formData);
       }
-    }
-
-    // Eventueel formulier resetten na succesvolle submit.
-    if (apiResult && apiResult.success !== false && !isApiError && this.schema.resetFormOnSuccess) {
-      console.log(`[FormHandler] Formulier ${this.schema.name} resetten na succesvolle submit.`);
-      this.formElement.reset();
-      Object.keys(this.formData).forEach(key => {
-        const fieldSchema = this.schema.fields[key];
-        this.formData[key] = fieldSchema?.defaultValue ?? '';
-        if (this.formState[key]) this.formState[key].isTouched = false;
-      });
-      clearErrors(this.formElement);
-      if (Object.values(this.schema.fields).some(f => f.persist === 'form')) {
-        clearFormData(this.schema.name);
+      hideLoader(event.target);
+      toggleFields(this.formElement, true);
+      if (this.schema.submit && typeof this.schema.submit.onSuccess === 'function') {
+        this.schema.submit.onSuccess();
       }
-      this.updateSubmitState();
+    } catch (err) {
+      console.error(`❌ [FormHandler] Submit error:`, err);
+      hideLoader(event.target);
+      toggleFields(this.formElement, true);
+      const gm = this.schema.globalMessages || {};
+      const code = err.code || (err.name === 'TypeError' ? 'NETWORK_ERROR' : 'DEFAULT');
+      const message = gm[code] || gm.DEFAULT || err.message || 'Er is iets misgegaan.';
+      showGlobalError(this.formElement, message);
     }
   },
 };
