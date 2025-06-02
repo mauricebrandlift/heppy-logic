@@ -37,8 +37,11 @@ export const formHandler = {
    * Stap 2: laad eerder opgeslagen data en zet default values
    * Stap 3: bind events voor input en submit
    * Stap 4: reset foutmeldingen en zet submit-knop-status
+   * Stap 5: Voer een initiële validatie uit op basis van de geladen/initiële data.
+   * Stap 6: Bind een click listener aan de submit-knop die pre-validatie uitvoert (alle fouten tonen) alvorens handleSubmit aan te roepen.
+   * Stap 7: Update de initiële staat van de submit-knop (enabled/disabled) op basis van de validatie.
    *
-   * @param {object} schema - Definitie van velden, validatie en submit-config
+   * @param {object} schema - De configuratie-object voor het formulier, inclusief naam, selector, velddefinities, en submit-logica.
    */
   init(schema) {
     console.log(`🚀 [FormHandler] Init formulier: ${schema.name} (selector: ${schema.selector})`);
@@ -146,34 +149,54 @@ export const formHandler = {
     const submitBtn = this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
     if (!submitBtn) {
       console.error(
-        `❌ [FormHandler] Submit button [data-form-button] niet gevonden in ${schema.selector}`
+        `❌ [FormHandler] Submit button [data-form-button="${this.schema.name}"] niet gevonden in ${schema.selector}`
       );
     } else {
       submitBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const { isFormValid, fieldErrors } = validateForm(
+        // Voer client-side validatie uit direct bij de klik, voordat handleSubmit wordt aangeroepen.
+        const { isFormValid: isFormCurrentlyValid, fieldErrors: currentFieldErrors } = validateForm(
           this.formData,
           this.schema,
           this.formState
         );
-        if (!isFormValid) {
-          // Check op lege verplichte velden
+
+        if (!isFormCurrentlyValid) {
+          e.preventDefault(); // Voorkom de daadwerkelijke submit en het aanroepen van handleSubmit
+          
+          // Wis alle bestaande fouten en toon de huidige set fouten
+          clearErrors(this.formElement);
+          Object.entries(currentFieldErrors).forEach(([fName, msg]) => {
+            showFieldErrors(this.formElement, fName, msg);
+          });
+
+          // Bepaal en toon een globale foutmelding
           const hasEmptyRequired = Object.entries(this.schema.fields).some(
-            ([f, cfg]) =>
-              cfg.validators.includes('required') &&
-              (!this.formData[f] || String(this.formData[f]).trim() === '')
+            ([fieldName, fieldConfig]) =>
+              fieldConfig.validators && // Zorg ervoor dat validators array bestaat
+              fieldConfig.validators.includes('required') &&
+              (!this.formData[fieldName] || String(this.formData[fieldName]).trim() === '')
           );
-          const message = hasEmptyRequired
-            ? 'Niet alle verplichte velden ingevuld.'
-            : 'Niet alle velden correct ingevuld.';
+
+          const globalMessages = this.schema.globalMessages || {}; // Haal globale messages uit schema
+          let messageToShow = globalMessages.DEFAULT_INVALID_SUBMIT || 'Niet alle velden zijn correct ingevuld.';
+
+          if (hasEmptyRequired) {
+            messageToShow = globalMessages.REQUIRED_FIELDS_MISSING || 'Niet alle verplichte velden zijn ingevuld.';
+          }
+          
           clearGlobalError(this.formElement);
-          showGlobalError(this.formElement, message);
-          return;
+          showGlobalError(this.formElement, messageToShow);
+          
+          console.warn(`🚦 [FormHandler] Submit poging geblokkeerd door click listener (formulier ongeldig). Fouten:`, currentFieldErrors);
+          return; // Stop verdere uitvoering in deze listener
         }
-        // Indien valide, door naar echte submit-flow
-        this.handleSubmit(e);
+        
+        // Als het formulier hier wel geldig is, ga dan pas naar de handleSubmit flow
+        this.handleSubmit(e); 
       });
     }
+    // Update de submit button state direct na initialisatie en het binden van alle events
+    this.updateSubmitState();
   },
 
   /**
