@@ -8,6 +8,8 @@ import {
   clearGlobalError,
   clearErrors,
   toggleButton,
+  showLoader,
+  hideLoader,
 } from '../ui/formUi.js';
 import { saveFormData, loadFormData, saveGlobalFieldData, loadGlobalFieldData } from './formStorage.js';
 import { inputFilters } from './formInputFilters.js'; // Importeer de input filters
