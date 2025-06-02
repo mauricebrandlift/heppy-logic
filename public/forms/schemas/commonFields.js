@@ -15,17 +15,22 @@ export const commonFields = {
     inputType: 'text',
     sanitizers: ['trim', 'uppercase', 'postcodeStructure'],
     validators: ['required', 'postcode'],
+    inputFilter: 'postcode', // Filter voor real-time input (NNNNLL)
     persist: 'global', // options are global, form or none
-    messages: {
-      postcode: 'Gebruik een geldige postcode.'
-    }
+    autocomplete: 'postal-code',
+    placeholder: '1234AB',
+    errorMessage: 'Voer een geldige postcode in (bijv. 1234AB).',
+    // maxLength: 6, // Wordt nu dynamisch gezet in formHandler.js bij toepassen filter
   },
   huisnummer: {
     label: 'Huisnummer',
     inputType: 'text',
     sanitizers: ['trim', 'numericOnly'],
     validators: ['required', 'numeric'],
+    inputFilter: 'digitsOnly', // Filter voor real-time input (alleen cijfers)
     persist: 'global',
+    autocomplete: 'address-line2',
+    placeholder: '10 of 10A',
     messages: {
       numeric: 'Gebruik alleen cijfers.'
     }

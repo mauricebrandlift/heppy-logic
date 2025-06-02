@@ -8,11 +8,9 @@ import {
   clearGlobalError,
   clearErrors,
   toggleButton,
-  toggleFields,
-  showLoader,
-  hideLoader,
 } from '../ui/formUi.js';
 import { saveFormData, loadFormData, saveGlobalFieldData, loadGlobalFieldData } from './formStorage.js';
+import { inputFilters } from './formInputFilters.js'; // Importeer de input filters
 
 /**
  * 🚀 Centrale handler voor elk formulier.
@@ -108,14 +106,25 @@ export const formHandler = {
       // nadat het veld de focus verliest.
       fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
 
-      // Voor specifieke elementen zoals checkboxes, radio buttons en select-boxen,
-      // is 'change' het natuurlijke event en werkt dit correct.
-      // De bovenstaande listener dekt deze al, dus een aparte check is hier niet per se nodig
-      // tenzij je een andere handler of extra logica voor die types zou willen.
-      // if (['SELECT', 'INPUT'].includes(fieldEl.tagName) && 
-      //     (fieldEl.type === 'checkbox' || fieldEl.type === 'radio' || fieldEl.tagName === 'SELECT')) {
-      //   fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
-      // }
+      // Toepassen van input filters via keydown, indien gedefinieerd in het schema
+      if (fieldConfig.inputFilter && inputFilters[fieldConfig.inputFilter]) {
+        const filterFunction = inputFilters[fieldConfig.inputFilter];
+        fieldEl.addEventListener('keydown', filterFunction);
+        console.log(`🔒 [FormHandler] Input filter '${fieldConfig.inputFilter}' toegepast op veld '${fieldName}'.`);
+
+        // Specifieke attributen instellen op basis van filtertype, indien nodig.
+        // Dit centraliseert de logica voor attributen die direct gerelateerd zijn aan het filter.
+        if (fieldConfig.inputFilter === 'postcode') {
+          fieldEl.setAttribute('maxlength', '6');
+        }
+        // Voorbeeld: als je een maxLength zou willen instellen voor 'digitsOnly' via schema:
+        // if (fieldConfig.inputFilter === 'digitsOnly' && fieldConfig.maxLength) {
+        //   fieldEl.setAttribute('maxlength', fieldConfig.maxLength.toString());
+        // }
+      } else if (fieldConfig.inputFilter) {
+        // Log een waarschuwing als een filter is opgegeven maar niet bestaat.
+        console.warn(`⚠️ [FormHandler] Input filter '${fieldConfig.inputFilter}' gedefinieerd voor veld '${fieldName}', maar niet gevonden in formInputFilters.js.`);
+      }
     });
     
     console.log(`🔄 [FormHandler] Initial formData state na laden:`, this.formData);
