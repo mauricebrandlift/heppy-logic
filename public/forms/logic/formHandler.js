@@ -95,6 +95,8 @@ export const formHandler = {
 
       this.formState[fieldName] = { isTouched: false };
       fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
+
+      this.updateSubmitState(); // Update de submit-knop status bij init
     });
     
     console.log(`🔄 [FormHandler] Initial formData state na laden:`, this.formData);
