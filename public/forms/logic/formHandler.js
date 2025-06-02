@@ -64,12 +64,12 @@ export const formHandler = {
         return;
       }
 
-      let valueToLoad; // Gebruik undefined om te checken of er iets geladen is
+      let valueToLoad; 
       const persistType = fieldConfig.persist;
 
       if (persistType === 'global') {
         const globalValue = loadGlobalFieldData(fieldName);
-        if (globalValue !== null) { // loadGlobalFieldData returns null if not found or undefined
+        if (globalValue !== null) { 
           valueToLoad = globalValue;
           console.log(`🔄 [FormHandler] Veld '${fieldName}' (global): Geladen globale waarde: ${valueToLoad}`);
         }
@@ -82,19 +82,26 @@ export const formHandler = {
       }
       
       if (valueToLoad !== undefined) {
-        this.formData[fieldName] = valueToLoad;
-        fieldEl.value = valueToLoad;
+        // Pas sanitization toe op de geladen waarde
+        this.formData[fieldName] = sanitizeField(valueToLoad, fieldConfig, fieldName);
+        fieldEl.value = this.formData[fieldName]; // Zet gesanitized waarde in DOM
         console.log(
-          `🔄 [FormHandler] Veld '${fieldName}' ingesteld op geladen waarde: ${valueToLoad}`
+          `🔄 [FormHandler] Veld '${fieldName}' ingesteld op geladen & gesanitized waarde: ${this.formData[fieldName]}`
         );
       } else {
-        // Als er geen waarde is geladen, gebruik de huidige waarde van het DOM-element (kan leeg zijn)
-        this.formData[fieldName] = fieldEl.value || '';
-         console.log(`🔄 [FormHandler] Veld '${fieldName}' niet in storage, gebruikt DOM waarde of leeg: '${this.formData[fieldName]}'`);
+        // Geen opgeslagen waarde gevonden, gebruik (en sanitize) de huidige DOM-waarde
+        const initialRawValue = fieldEl.value || ''; // Haal huidige waarde uit DOM, of '' indien falsy
+        this.formData[fieldName] = sanitizeField(initialRawValue, fieldConfig, fieldName); // Sanitize deze waarde
+        // Update het DOM-element alleen als de sanitization de waarde heeft veranderd
+        if (initialRawValue !== this.formData[fieldName]) {
+            fieldEl.value = this.formData[fieldName];
+        }
+        console.log(`🔄 [FormHandler] Veld '${fieldName}' niet in storage, gebruikt DOM waarde ('${initialRawValue}') gesanitized naar: '${this.formData[fieldName]}'`);
       }
 
       this.formState[fieldName] = { isTouched: false };
-      fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
+      // Gebruik 'input' event voor directere feedback ipv 'change'
+      fieldEl.addEventListener('input', (e) => this.handleInput(fieldName, e));
 
       this.updateSubmitState(); // Update de submit-knop status bij init
     });
