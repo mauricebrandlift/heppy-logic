@@ -30,6 +30,32 @@ export function getFormSchema(name) {
       // Geen triggers in dit formulier; simpel postcodeschema
     },
 
+    adresCheck: {
+      name: 'adresCheck',
+      selector: '#adres-check-form', // Zorg ervoor dat dit overeenkomt met je HTML
+      fields: {
+        postcode: { ...commonFields.postcode, persist: 'global' },
+        huisnummer: { ...commonFields.huisnummer, persist: 'global' },
+        toevoeging: { ...commonFields.toevoeging, persist: 'global', validators: ['huisnummerToevoeging'] }, // Toevoeging is optioneel
+      },
+      submitButtonText: 'Check adres',
+      api: adresCheckApi, // Gebruik de geïmporteerde API handler
+      globalMessages: {
+        success: 'Adres succesvol gecontroleerd en automatisch ingevuld!',
+        apiError: 'Er is een technische storing opgetreden. Probeer het later opnieuw.', // Generieke fallback
+        validationError: 'Niet alle velden zijn correct ingevuld. Controleer de rood gemarkeerde velden.',
+        requiredFieldsEmpty: 'Vul alstublieft alle verplichte velden in.',
+        // NIEUW: Mappings voor specifieke error codes van de API
+        'ADDRESS_NOT_FOUND_API': 'Adres niet gevonden. Controleer de ingevoerde postcode en huisnummer.',
+        'API_UNAUTHORIZED': 'De adrescontrole kan momenteel niet worden uitgevoerd (authenticatieprobleem). Probeer het later opnieuw.',
+        // Voeg hier eventueel andere API-specifieke error code mappings toe
+      },
+      resetFormOnSuccess: false, // Stel in op true als het formulier gereset moet worden na succes
+      // disableButtonOnSuccess: true, // Stel in op true als de knop gedisabled moet worden na succes
+      // disableFieldsOnSuccess: ['postcode', 'huisnummer', 'toevoeging'], // Velden om te disablen na succes
+      // hideFieldsOnSuccess: [], // Velden om te verbergen na succes
+    },
+
     // Andere formulieren...
   };
 

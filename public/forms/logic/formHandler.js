@@ -371,30 +371,144 @@ export const formHandler = {
    *
    * @param {Event} event - Submit-event van het formulier
    */
-  async handleSubmit(event) {
-    event.preventDefault();
-    clearErrors(this.formElement);
-    clearGlobalError(this.formElement);
-    showLoader(event.target);
-    toggleFields(this.formElement, false);
+  handleSubmit: async function (event) {
+    event.preventDefault(); // Voorkom standaard formulierinzending
+    console.log(`[FormHandler] handleSubmit aangeroepen voor formulier: ${this.schema.name}`);
 
-    try {
-      if (this.schema.submit && typeof this.schema.submit.action === 'function') {
-        await this.schema.submit.action(this.formData);
+    const submitBtn = event.target.closest('[data-form-button]') || this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
+    let globalMessage = '';
+    let apiResult = null;
+    let isApiError = false; // Vlag om bij te houden of er een API error was opgetreden
+
+    // Her-valideer het hele formulier voor de zekerheid
+    const { isFormValid, fieldErrors, allErrors } = validateForm(this.formData, this.schema, this.formState);
+
+    if (!isFormValid) {
+      console.warn('[FormHandler] Submit poging op ongeldig formulier in handleSubmit. Fouten:', fieldErrors);
+      clearErrors(this.formElement); // Wis alle bestaande (veld)fouten
+      Object.entries(fieldErrors).forEach(([fName, msg]) => showFieldErrors(this.formElement, fName, msg));
+      
+      const hasEmptyRequired = Object.entries(this.schema.fields).some(
+        ([f, cfg]) => cfg.validators?.includes('required') && (!this.formData[f] || String(this.formData[f]).trim() === '')
+      );
+      // Gebruik de juiste global message voor validatiefouten
+      globalMessage = hasEmptyRequired
+        ? (this.schema.globalMessages?.requiredFieldsEmpty || 'Niet alle verplichte velden zijn ingevuld.')
+        : (this.schema.globalMessages?.validationError || 'Niet alle velden zijn correct ingevuld.');
+      
+      clearGlobalError(this.formElement); // Wis eventuele oude globale fout
+      showGlobalError(this.formElement, globalMessage, 'error'); // Toon validatiefout
+      if (submitBtn) toggleButton(submitBtn, false); // Houd knop disabled
+      return;
+    }
+
+    // Als er een API submit functie gedefinieerd is in het schema
+    if (this.schema.api && typeof this.schema.api.submit === 'function') {
+      if (submitBtn) showLoader(submitBtn); // Toon loader op de knop
+      isApiError = false; // Reset vlag voor de API call
+
+      try {
+        console.log(`[FormHandler] API call starten voor formulier ${this.schema.name} met data:`, this.formData);
+        // De formulier-specifieke API handler (bijv. adresCheckApi.submit) is verantwoordelijk
+        // voor het correct doorgeven of transformeren van errors van de onderliggende API client (bijv. postcodeApi.getAdres).
+        apiResult = await this.schema.api.submit(this.formData, this.formElement);
+
+        if (apiResult && apiResult.success) {
+          // API call was succesvol en retourneerde { success: true }
+          globalMessage = apiResult.message || this.schema.globalMessages?.success || 'Formulier succesvol verwerkt.';
+          console.log(`[FormHandler] API call succesvol voor ${this.schema.name}. Resultaat:`, apiResult);
+          
+          // UI aanpassingen na succesvolle API call
+          if (this.schema.api.disableFieldsOnSuccess && Array.isArray(this.schema.api.disableFieldsOnSuccess)) {
+            toggleFields(this.formElement, this.schema.api.disableFieldsOnSuccess, false, true); // disable
+          }
+          if (this.schema.api.hideFieldsOnSuccess && Array.isArray(this.schema.api.hideFieldsOnSuccess)) {
+            toggleFields(this.formElement, this.schema.api.hideFieldsOnSuccess, false, false); // hide
+          }
+          if (apiResult.showFields && Array.isArray(apiResult.showFields)) {
+            toggleFields(this.formElement, apiResult.showFields, true, false); // show
+          }
+
+        } else if (apiResult && apiResult.error) {
+          // API call was niet succesvol en retourneerde een gestructureerde error (bijv. { success: false, error: 'bericht' })
+          globalMessage = apiResult.error; // Gebruik de error message van de API
+          isApiError = true;
+          console.warn(`[FormHandler] API call voor ${this.schema.name} gaf een gestructureerde error terug:`, apiResult.error);
+        } else {
+          // Fallback: API call was niet succesvol (of gaf geen {success: true} terug) maar gaf geen specifieke error message.
+          // Dit kan ook gebeuren als de API functie geen duidelijk { success: true/false } object retourneert.
+          globalMessage = this.schema.globalMessages?.apiError || 'Er is iets misgegaan. Probeer het later opnieuw.';
+          isApiError = true;
+          console.warn(`[FormHandler] API call voor ${this.schema.name} was niet succesvol of gaf geen duidelijk resultaat. Resultaat:`, apiResult);
+        }
+      } catch (error) {
+        // Een error werd gegooid tijdens de API call (bijv. netwerkfout, of de API handler gooide een error door).
+        isApiError = true;
+        console.error(`💥 [FormHandler] API Fout tijdens submit voor formulier ${this.schema.name}:`, error.message, error);
+        
+        // Probeer een specifieke, gebruikersvriendelijke boodschap te vinden in this.schema.globalMessages
+        // op basis van de error.message (die als een "error code" kan dienen, bijv. 'ADDRESS_NOT_FOUND_API').
+        if (error && error.message && this.schema.globalMessages && this.schema.globalMessages[error.message]) {
+          globalMessage = this.schema.globalMessages[error.message];
+        } else {
+          // Als geen specifieke mapping gevonden is, of error.message niet bruikbaar is,
+          // gebruik dan de generieke apiError boodschap uit het schema.
+          globalMessage = this.schema.globalMessages?.apiError || 'Er is iets misgegaan. Probeer het later opnieuw.';
+        }
+      } finally {
+        if (submitBtn) hideLoader(submitBtn); // Verberg loader altijd
       }
-      hideLoader(event.target);
-      toggleFields(this.formElement, true);
-      if (this.schema.submit && typeof this.schema.submit.onSuccess === 'function') {
-        this.schema.submit.onSuccess();
+    } else {
+      // Geen API call gedefinieerd in schema, beschouw als direct succes (indien validatie OK was).
+      globalMessage = this.schema.globalMessages?.success || 'Formulier succesvol verwerkt (geen API call).';
+      console.log(`[FormHandler] Formulier ${this.schema.name} verwerkt (geen API call).`);
+    }
+
+    // Toon de globale boodschap (succes of fout)
+    clearGlobalError(this.formElement); // Wis eerst eventuele oude globale fouten
+    if (globalMessage) {
+      // Bepaal of het een succes- of een errorboodschap is voor de styling.
+      // Een bericht wordt als 'error' beschouwd als isApiError true is,
+      // of als er geen apiResult was, of als apiResult niet expliciet .success true had.
+      const isSuccessMessage = !isApiError && (apiResult && apiResult.success);
+      showGlobalError(this.formElement, globalMessage, isSuccessMessage ? 'success' : 'error');
+    }
+
+    // Update de submit knop status.
+    if (submitBtn) {
+        const shouldDisableAfterSuccess = this.schema.api?.disableButtonOnSuccess || false;
+        if (!isApiError && apiResult && apiResult.success && shouldDisableAfterSuccess) {
+            toggleButton(submitBtn, false); // Disable na succes indien geconfigureerd
+        } else if (isApiError || (apiResult && !apiResult.success && !isFormValid)) {
+            // Bij een API error, of als API niet succesvol was en formulier nog steeds niet valide is (onwaarschijnlijk hier),
+            // houd de knop enabled (of terug naar valide staat) zodat gebruiker opnieuw kan proberen.
+            // De updateSubmitState() zorgt voor de correcte state op basis van validiteit.
+            this.updateSubmitState();
+        } else {
+            // Algemeen geval: update op basis van huidige validiteit.
+            // Als het formulier nog steeds valide is (bijv. na een niet-kritieke API fout zonder form reset),
+            // blijft de knop enabled.
+            this.updateSubmitState();
+        }
+    }
+
+    // Eventueel formulier resetten na succesvolle submit
+    if (!isApiError && apiResult && apiResult.success && this.schema.resetFormOnSuccess) {
+      console.log(`[FormHandler] Formulier ${this.schema.name} resetten na succesvolle submit.`);
+      this.formElement.reset(); // Standaard HTML reset
+      // Wis ook de opgeslagen data en interne state
+      Object.keys(this.formData).forEach(key => {
+        // Reset naar default waarde uit schema, of lege string
+        const fieldSchema = this.schema.fields[key];
+        this.formData[key] = fieldSchema && fieldSchema.hasOwnProperty('defaultValue') ? fieldSchema.defaultValue : '';
+        if (this.formState[key]) this.formState[key].isTouched = false;
+      });
+      clearErrors(this.formElement); // Wis alle veldfouten
+      // Wis opgeslagen data indien van toepassing
+      if (this.schema.fields && Object.values(this.schema.fields).some(f => f.persist === 'form')) {
+        clearFormData(this.schema.name);
       }
-    } catch (err) {
-      console.error(`❌ [FormHandler] Submit error:`, err);
-      hideLoader(event.target);
-      toggleFields(this.formElement, true);
-      const gm = this.schema.globalMessages || {};
-      const code = err.code || (err.name === 'TypeError' ? 'NETWORK_ERROR' : 'DEFAULT');
-      const message = gm[code] || gm.DEFAULT || err.message || 'Er is iets misgegaan.';
-      showGlobalError(this.formElement, message);
+      this.updateSubmitState(); // Update knopstatus na reset (zal wss. disabled worden)
     }
   },
 };
