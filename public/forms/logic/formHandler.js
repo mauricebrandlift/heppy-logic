@@ -219,24 +219,35 @@ export const formHandler = {
    *  5. Voer schema-triggers uit (bv. API-call bij valide combinatie)
    *  6. Update de submit-knop-status
    *
-   * @param {string} fieldName - Naam van het veld
-   * @param {Event} event - Input-event met raw waarde
+   * @param {string} fieldName - De naam van het veld zoals gedefinieerd in het schema.
+   * @param {Event} event - Het input- of change-event object.
    */
   handleInput(fieldName, event) {
-    const raw = event.target.value;
-    const clean = sanitizeField(raw, this.schema.fields[fieldName], fieldName);
-    event.target.value = clean;
-    console.log(`✏️ [FormHandler] Input '${fieldName}': raw='${raw}' → clean='${clean}'`);
+    // Haal de veldspecifieke schema-configuratie eenmalig op voor efficiëntie en leesbaarheid.
+    const fieldSchema = this.schema.fields[fieldName];
+    if (!fieldSchema) {
+      console.warn(`[FormHandler] Geen fieldSchema gevonden voor '${fieldName}' in handleInput. Verwerking gestopt.`);
+      return; // Stop verdere verwerking als er geen schema voor het veld is.
+    }
 
-    this.formData[fieldName] = clean;
+    const rawValue = event.target.value;
+    // Sanitize de input op basis van de (nu lokale) fieldSchema.
+    const sanitizedValue = sanitizeField(rawValue, fieldSchema, fieldName);
+    
+    if (event.target.value !== sanitizedValue) {
+      console.log(`✏️ [FormHandler] Input '${fieldName}': raw='${rawValue}' → clean='${sanitizedValue}'`);
+      event.target.value = sanitizedValue; // Update het inputveld alleen als de waarde is veranderd
+    }
+
+    this.formData[fieldName] = sanitizedValue;
     this.formState[fieldName].isTouched = true;
     
-    const fieldSchema = this.schema.fields[fieldName];
+    // Gebruik de lokale fieldSchema om het persistType te bepalen.
     const persistType = fieldSchema.persist;
 
     if (persistType === 'global') {
-      saveGlobalFieldData(fieldName, clean);
-      console.log(`💾 [FormHandler] Globaal opgeslagen '${fieldName}' →`, clean);
+      saveGlobalFieldData(fieldName, sanitizedValue);
+      console.log(`💾 [FormHandler] Globaal opgeslagen '${fieldName}' →`, sanitizedValue);
     } else if (persistType === 'form') {
       const formDataToSave = {};
       Object.keys(this.schema.fields).forEach(fName => {
@@ -253,9 +264,10 @@ export const formHandler = {
     }
 
     // Valideer alleen dit veld en update UI
-    const { fieldErrors } = validateForm({ [fieldName]: clean }, this.schema, this.formState);
+    const { fieldErrors } = validateForm({ [fieldName]: sanitizedValue }, this.schema, this.formState);
     const fieldError = fieldErrors[fieldName];
-    clearErrors(this.formElement, fieldName);
+    
+    clearErrors(this.formElement, fieldName); 
     if (fieldError) {
       showFieldErrors(this.formElement, fieldName, fieldError);
       console.warn(`❌ [FormHandler] Validatie fout in '${fieldName}': ${fieldError}`);
@@ -272,13 +284,13 @@ export const formHandler = {
     Object.entries(feAll).forEach(([f, msg]) =>
       console.log(`🔄 [FormHandler] Na input - veld '${f}': ${msg || 'geen fout'}`)
     );
-    console.log(`🔄 [FormHandler] Na input - formulier valid: ${isFormValid}`);
+    console.log(`🔄 [FormHandler] Na input - formulier valid: ${isOverallFormValid}`);
 
-    // Voer eventuele triggers uit zoals gedefinieerd in het schema
-    if (this.schema.fields[fieldName].triggers) {
-      this.schema.fields[fieldName].triggers.forEach((trigger) => {
-        if (trigger.when === 'valid' && !fieldError) {
-          console.log(`⚙️ [FormHandler] Trigger '${trigger.action.name}' voor '${fieldName}'`);
+    // Gebruik de lokale fieldSchema om te controleren op triggers.
+    if (fieldSchema.triggers) {
+      fieldSchema.triggers.forEach((trigger) => {
+        if (trigger.when === 'valid' && !fieldError) { 
+          console.log(`⚙️ [FormHandler] Trigger '${trigger.action.name || 'anonymous trigger'}' voor '${fieldName}'`);
           trigger.action(this.formData);
         }
       });
