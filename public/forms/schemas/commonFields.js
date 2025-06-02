@@ -17,7 +17,7 @@ export const commonFields = {
     validators: ['required', 'postcode'],
     persist: 'global', // options are global, form or none
     messages: {
-      postcode: 'Gebruik 4 cijfers gevolgd door 2 letters, zonder spatie.'
+      postcode: 'Gebruik een geldige postcode.'
     }
   },
   huisnummer: {
@@ -27,7 +27,7 @@ export const commonFields = {
     validators: ['required', 'numeric'],
     persist: 'global',
     messages: {
-      numeric: 'Huisnummer mag alleen cijfers bevatten.'
+      numeric: 'Gebruik alleen cijfers.'
     }
   },
   toevoeging: {
@@ -37,7 +37,7 @@ export const commonFields = {
     validators: ['optional', 'alphaNumeric'],
     persist: 'global',
     messages: {
-      alphaNumeric: 'Gebruik alleen letters en cijfers voor toevoeging.'
+      alphaNumeric: 'Gebruik alleen letters en cijfers.'
     }
   },
   voornaam: {
