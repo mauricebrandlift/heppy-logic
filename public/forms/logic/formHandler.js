@@ -103,10 +103,19 @@ export const formHandler = {
       }
 
       this.formState[fieldName] = { isTouched: false };
-      // Gebruik 'input' event voor directere feedback ipv 'change'
-      fieldEl.addEventListener('input', (e) => this.handleInput(fieldName, e));
+      // Gebruik het 'change' event om handleInput aan te roepen.
+      // Dit zorgt ervoor dat validatie en foutmeldingen voor tekstvelden pas verschijnen
+      // nadat het veld de focus verliest.
+      fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
 
-      this.updateSubmitState(); // Update de submit-knop status bij init
+      // Voor specifieke elementen zoals checkboxes, radio buttons en select-boxen,
+      // is 'change' het natuurlijke event en werkt dit correct.
+      // De bovenstaande listener dekt deze al, dus een aparte check is hier niet per se nodig
+      // tenzij je een andere handler of extra logica voor die types zou willen.
+      // if (['SELECT', 'INPUT'].includes(fieldEl.tagName) && 
+      //     (fieldEl.type === 'checkbox' || fieldEl.type === 'radio' || fieldEl.tagName === 'SELECT')) {
+      //   fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
+      // }
     });
     
     console.log(`🔄 [FormHandler] Initial formData state na laden:`, this.formData);
