@@ -22,49 +22,77 @@ function handleDigitsOnlyKeyDown(event) {
 }
 
 /**
- * Filtert input voor een postcodeveld (Nederlands formaat NNNNLL).
- * Staat alleen cijfers toe op de eerste 4 posities en letters op de laatste 2.
+ * Filtert input voor een postcodeveld (NNNNLL) tijdens de 'keydown' gebeurtenis.
+ * Deze functie probeert ongeldige tekens te voorkomen voordat ze daadwerkelijk
+ * in het inputveld verschijnen.
  * @param {KeyboardEvent} event - Het keydown event object.
  */
 function handlePostcodeKeyDown(event) {
   const target = event.target;
-  const key = event.key;
-  const value = target.value;
-  const selectionStart = target.selectionStart;
-  const selectionEnd = target.selectionEnd;
+  /** @type {string | undefined} */
+  const key = event.key; // De ingedrukte toets. Kan undefined zijn, bijv. bij browser autofill.
+  const value = target.value; // De huidige waarde van het inputveld.
+  const selectionStart = target.selectionStart; // Startpositie van de selectie.
+  const selectionEnd = target.selectionEnd; // Eindpositie van de selectie.
 
-  // Toestaan: speciale toetsen en Ctrl/Cmd shortcuts.
-  if (event.metaKey || event.ctrlKey || ['Backspace', 'Delete', 'Tab', 'Escape', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(key)) {
-    return; // Toets toestaan
+  // Toegestane speciale toetsen en combinaties (bijv. Backspace, Delete, Ctrl+A).
+  // Deze moeten altijd werken, ongeacht de input of cursorpositie.
+  // De .includes(key) check is veilig, zelfs als 'key' undefined is (resulteert dan in false).
+  if (
+    event.metaKey || // Cmd-toets op Mac
+    event.ctrlKey || // Ctrl-toets op Windows/Linux
+    [
+      'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+      'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+      'Home', 'End'
+    ].includes(key)
+  ) {
+    return; // Toets toestaan, geen preventDefault().
   }
 
-  // Voorkom invoer als de maximale lengte (6) is bereikt en er geen tekst is geselecteerd
-  // (d.w.z. de gebruiker probeert een karakter toe te voegen aan een volle input).
-  // De maxlength wordt ook op het element zelf gezet via formHandler.js voor extra robuustheid.
-  if (value.length >= 6 && selectionStart === selectionEnd && key.length === 1) {
+  // Voorkom verdere invoer van een enkel karakter als de maximale lengte (6) is bereikt
+  // en er geen tekst is geselecteerd (d.w.z. de gebruiker probeert een karakter toe te voegen).
+  // Belangrijk: controleer eerst of 'key' gedefinieerd is en een lengte van 1 heeft.
+  if (key && key.length === 1 && value.length >= 6 && selectionStart === selectionEnd) {
+    // console.log(`[InputFilter] Postcode: Maximale lengte bereikt voor enkele toetsaanslag '${key}'. Actie voorkomen.`);
     event.preventDefault();
     return;
   }
 
-  // Alleen reageren op enkelvoudige karakterinvoer (geen functietoetsen die als 'key' een langere string hebben).
-  if (key.length === 1) {
-    const nextCharPosition = selectionStart; // Positie waar het nieuwe karakter zou komen te staan.
+  // Verwerk alleen enkelvoudige karakterinvoer.
+  // Als 'key' undefined is (bijv. bij autofill), of als het een speciale toets is
+  // die niet hierboven is afgehandeld (bijv. "Shift", "AltGraph"), slaan we deze logica over.
+  // De 'change' event en sanitizeField in formHandler.js zullen de uiteindelijke waarde afhandelen.
+  if (key && key.length === 1) {
+    const nextCharPosition = selectionStart; // De positie waar het nieuwe karakter zou komen.
 
-    if (nextCharPosition < 4) { // Eerste 4 posities: alleen cijfers.
+    if (nextCharPosition < 4) { // Eerste vier posities (index 0-3): moeten cijfers zijn.
       if (!/^\d$/.test(key)) {
-        event.preventDefault(); // Voorkom invoer als het geen cijfer is.
+        // console.log(`[InputFilter] Postcode: Ongeldig karakter '${key}' op numerieke positie ${nextCharPosition}. Actie voorkomen.`);
+        event.preventDefault();
       }
-    } else if (nextCharPosition < 6) { // Positie 5 en 6: alleen letters.
+    } else if (nextCharPosition < 6) { // Laatste twee posities (index 4-5): moeten letters zijn.
       if (!/^[a-zA-Z]$/.test(key)) {
-        event.preventDefault(); // Voorkom invoer als het geen letter is.
+        // console.log(`[InputFilter] Postcode: Ongeldig karakter '${key}' op letterpositie ${nextCharPosition}. Actie voorkomen.`);
+        event.preventDefault();
       }
-    } else { 
-      // Meer dan 6 tekens proberen in te voeren.
-      // Dit zou al door de check hierboven en/of maxlength attribuut geblokkeerd moeten zijn,
-      // maar als extra veiligheid: voorkom invoer na de 6e positie.
+    } else {
+      // Poging om een karakter in te voeren na de maximale lengte van 6.
+      // Dit zou al door de eerdere check (value.length >= 6) moeten zijn afgevangen,
+      // maar als extra veiligheidsmaatregel.
+      // console.log(`[InputFilter] Postcode: Poging om karakter '${key}' buiten maximale lengte in te voeren. Actie voorkomen.`);
       event.preventDefault();
     }
+  } else if (key === undefined) {
+    // 'key' is undefined. Dit kan een browser autofill zijn of een andere programmatische wijziging.
+    // We doen hier expliciet niets en roepen event.preventDefault() NIET aan.
+    // Dit staat de browser toe om de autofill-actie uit te voeren.
+    // De 'change' event handler (formHandler.js -> handleInput) zal de volledige,
+    // mogelijk automatisch ingevulde, waarde later valideren en sanitizen.
+    // console.log(`[InputFilter] Postcode: 'key' is undefined tijdens keydown. Waarschijnlijk autofill/programmatische wijziging. Huidige waarde: '${value}'`);
   }
+  // Als 'key' wel gedefinieerd is, maar geen lengte van 1 heeft (bijv. "Shift", "Control", "AltGraph"),
+  // wordt hier ook niets gedaan, wat correct is. Deze toetsen wijzigen de inputwaarde niet direct.
 }
 
 /**
