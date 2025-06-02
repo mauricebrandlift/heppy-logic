@@ -223,20 +223,33 @@ export const formHandler = {
    * @param {Event} event - Input-event met raw waarde
    */
   handleInput(fieldName, event) {
-    const raw = event.target.value;
-    const clean = sanitizeField(raw, this.schema.fields[fieldName], fieldName);
-    event.target.value = clean;
-    console.log(`✏️ [FormHandler] Input '${fieldName}': raw='${raw}' → clean='${clean}'`);
+    const fieldSchema = this.schema.fields[fieldName];
+    if (!fieldSchema) {
+      console.warn(`[FormHandler] Geen fieldSchema gevonden voor '${fieldName}' in handleInput.`);
+      return;
+    }
 
-    this.formData[fieldName] = clean;
+    const target = event.target;
+    const rawValue = target.value;
+    
+    // De sanitization via sanitizeField blijft belangrijk,
+    // vooral voor het afhandelen van geplakte content en het correct formatteren (bijv. uppercase voor postcode letters).
+    const cleanValue = sanitizeField(rawValue, fieldSchema, fieldName);
+
+    // Als de waarde in het veld daadwerkelijk is veranderd door de sanitizer (bijv. na plakken of door keydown preventie die niet alles ving)
+    // update dan het veld. De keydown voorkomt al veel, maar dit is een fallback.
+    if (target.value !== cleanValue) {
+      target.value = cleanValue;
+    }
+    
+    this.formData[fieldName] = cleanValue;
     this.formState[fieldName].isTouched = true;
     
-    const fieldSchema = this.schema.fields[fieldName];
     const persistType = fieldSchema.persist;
 
     if (persistType === 'global') {
-      saveGlobalFieldData(fieldName, clean);
-      console.log(`💾 [FormHandler] Globaal opgeslagen '${fieldName}' →`, clean);
+      saveGlobalFieldData(fieldName, cleanValue);
+      console.log(`💾 [FormHandler] Globaal opgeslagen '${fieldName}' →`, cleanValue);
     } else if (persistType === 'form') {
       const formDataToSave = {};
       Object.keys(this.schema.fields).forEach(fName => {
@@ -253,7 +266,7 @@ export const formHandler = {
     }
 
     // Valideer alleen dit veld en update UI
-    const { fieldErrors } = validateForm({ [fieldName]: clean }, this.schema, this.formState);
+    const { fieldErrors } = validateForm({ [fieldName]: cleanValue }, this.schema, this.formState);
     const fieldError = fieldErrors[fieldName];
     clearErrors(this.formElement, fieldName);
     if (fieldError) {
