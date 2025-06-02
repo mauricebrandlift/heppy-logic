@@ -21,13 +21,32 @@ export function getFormSchema(name) {
         huisnummer: commonFields.huisnummer,
         toevoeging: commonFields.toevoeging,
       },
-      // Globale foutberichten per error code
-      globalMessages: {
-        NETWORK_ERROR: 'Kan geen verbinding maken met de server. Controleer je internet.',
-        DEFAULT: 'Er is iets misgegaan. Probeer het later opnieuw.',
+      submit: {
+        // De `action` property wordt dynamisch toegevoegd door `initAddressCheckForm`
+        // omdat het afhankelijk is van de `formHandler` instantie.
+        // Voorbeeld van andere opties die hier geconfigureerd kunnen worden:
+        // disableFieldsOnSuccess: true, 
+        // disableButtonOnSuccess: true,
       },
-      // Geen submit-logica hier; wordt in addressCheckForm.js toegevoegd
-      // Geen triggers in dit formulier; simpel postcodeschema
+      globalMessages: {
+        success: 'Adresgegevens succesvol verwerkt.',
+        /** 
+         * Fallback foutmelding voor API errors als er geen specifiekere melding 
+         * (via err.message of een gemapte err.code) beschikbaar is.
+         */
+        DEFAULT_API_ERROR: 'Er is een onbekende fout opgetreden tijdens het verwerken van uw aanvraag. Probeer het later opnieuw.',
+        /**
+         * Foutmelding indien verplichte velden niet zijn ingevuld bij een submit poging.
+         */
+        REQUIRED_FIELDS_MISSING: 'Niet alle verplichte velden zijn ingevuld.',
+        /**
+         * Algemene foutmelding voor een ongeldige submit poging (bijv. validatiefouten anders dan lege verplichte velden).
+         */
+        DEFAULT_INVALID_SUBMIT: 'Controleer de invoer en probeer het opnieuw.',
+        // Voorbeeld van een specifieke code mapping (als de action een error met .code zou gooien):
+        // 'ADDRESS_NOT_FOUND_CODE': 'Het opgegeven adres kon niet worden gevonden. Controleer uw invoer.',
+      },
+      resetFormOnSuccess: false,
     },
 
     // Andere formulieren...
