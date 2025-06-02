@@ -241,72 +241,101 @@ export const formHandler = {
     const target = event.target;
     const rawValue = target.value;
     
-    // De sanitization via sanitizeField blijft belangrijk,
-    // vooral voor het afhandelen van geplakte content en het correct formatteren (bijv. uppercase voor postcode letters).
+    // Sanitize de input waarde op basis van het veldschema.
     const cleanValue = sanitizeField(rawValue, fieldSchema, fieldName);
 
-    // Als de waarde in het veld daadwerkelijk is veranderd door de sanitizer (bijv. na plakken of door keydown preventie die niet alles ving)
-    // update dan het veld. De keydown voorkomt al veel, maar dit is een fallback.
+    // Update de DOM-waarde als de gesanitizede waarde anders is.
+    // Dit is vooral relevant als de keydown-filters (indien aanwezig) niet alle gevallen dekken (bijv. plakken).
     if (target.value !== cleanValue) {
+      // Toekomstige overweging: cursorpositie herstellen na wijziging van target.value (Suggestie 2.2)
       target.value = cleanValue;
     }
     
+    // Update de interne formulierdata met de gesanitizede waarde.
+    // Dit is de 'single source of truth' voor de data van dit veld.
     this.formData[fieldName] = cleanValue;
-    this.formState[fieldName].isTouched = true;
-    
+    this.formState[fieldName].isTouched = true; // Markeer het veld als 'touched'.
+    console.log(`📝 [FormHandler] Data voor '${fieldName}' geüpdatet naar: '${cleanValue}'`);
+
+    // Logica voor het persisteren (opslaan) van de veldwaarde.
     const persistType = fieldSchema.persist;
 
     if (persistType === 'global') {
+      // Sla de gesanitizede waarde globaal op (bijv. in localStorage onder de veldnaam).
       saveGlobalFieldData(fieldName, cleanValue);
       console.log(`💾 [FormHandler] Globaal opgeslagen '${fieldName}' →`, cleanValue);
     } else if (persistType === 'form') {
+      /**
+       * @type {Object<string, any>}
+       * @description Object dat wordt opgeslagen voor het huidige formulier.
+       * Bevat alleen velden uit this.schema.fields die 'persist: 'form'' hebben,
+       * met hun gesanitizede waarden uit this.formData.
+       */
       const formDataToSave = {};
+      
+      // Itereer over alle velden gedefinieerd in het schema van dit formulier.
       Object.keys(this.schema.fields).forEach(fName => {
-        if (this.schema.fields[fName].persist === 'form') {
-          // Zorg ervoor dat de waarde bestaat in this.formData
-          formDataToSave[fName] = this.formData.hasOwnProperty(fName) ? this.formData[fName] : '';
+        const currentFieldConfig = this.schema.fields[fName];
+        // Controleer of het huidige veld in de iteratie 'persist: 'form'' heeft.
+        if (currentFieldConfig && currentFieldConfig.persist === 'form') {
+          // Voeg het veld toe aan formDataToSave.
+          // De waarde wordt gehaald uit this.formData, die de meest recente,
+          // gesanitizede waarde voor elk veld bevat.
+          if (this.formData.hasOwnProperty(fName)) {
+            formDataToSave[fName] = this.formData[fName];
+          } else {
+            // Fallback: als een veld in het schema staat met 'persist: 'form'',
+            // maar om een of andere reden niet in this.formData voorkomt (zou niet moeten gebeuren na correcte initialisatie),
+            // sla dan een lege string op om data-integriteit te waarborgen.
+            formDataToSave[fName] = ''; 
+            console.warn(`[FormHandler] Veld '${fName}' (met persist: 'form') niet gevonden in this.formData tijdens opslaan voor formulier '${this.schema.name}'. Opgeslagen als lege string.`);
+          }
         }
       });
+      // Sla het samengestelde formDataToSave object op onder de naam van het formulier.
       saveFormData(this.schema.name, formDataToSave);
-      console.log(`💾 [FormHandler] Formulier-specifieke opslag voor '${this.schema.name}' bijgewerkt vanwege '${fieldName}'. Opgeslagen data:`, formDataToSave);
-    } else {
-      // persistType is 'none' of niet gedefinieerd
-      console.log(`💾 [FormHandler] Veld '${fieldName}' niet opgeslagen (persist type: ${persistType}).`);
+      console.log(`💾 [FormHandler] Formulier-specifieke opslag voor '${this.schema.name}' bijgewerkt vanwege input op '${fieldName}'. Opgeslagen data:`, formDataToSave);
+    } else if (persistType && persistType !== 'none') {
+      // Log een waarschuwing als een onbekend persistType is opgegeven.
+      console.warn(`[FormHandler] Veld '${fieldName}' heeft een onbekend persist type: '${persistType}'. Wordt niet opgeslagen.`);
     }
 
-    // Valideer alleen dit veld en update UI
-    const { fieldErrors } = validateForm({ [fieldName]: cleanValue }, this.schema, this.formState);
-    const fieldError = fieldErrors[fieldName];
-    clearErrors(this.formElement, fieldName);
+    // Valideer het veld en het gehele formulier, en update de UI (foutmeldingen, submit knop status).
+    // validateForm retourneert de algehele validiteit van het formulier, specifieke veldfouten, en alle fouten.
+    const { isFormValid: isOverallFormValid, fieldErrors, allErrors } = validateForm(this.formData, this.schema, this.formState);
+    const fieldError = fieldErrors[fieldName]; // Haal de specifieke fout voor het huidige veld op.
+    
+    // Wis eerst eventuele bestaande foutmeldingen voor dit specifieke veld.
+    clearErrors(this.formElement, fieldName); 
     if (fieldError) {
+      // Als er een validatiefout is voor dit veld, toon deze dan.
       showFieldErrors(this.formElement, fieldName, fieldError);
-      console.warn(`❌ [FormHandler] Validatie fout in '${fieldName}': ${fieldError}`);
+      console.warn(`❌ [FormHandler] Validatie fout in '${fieldName}' (na ${event.type} event): ${fieldError}`);
     } else {
-      console.log(`✅ [FormHandler] '${fieldName}' gevalideerd zonder fouten`);
+      // Als er geen fout is, log dit dan.
+      console.log(`✅ [FormHandler] '${fieldName}' gevalideerd zonder fouten (na ${event.type} event)`);
     }
 
-    // **Log volledige validatie na input**
-    const { isFormValid, fieldErrors: feAll } = validateForm(
-      this.formData,
-      this.schema,
-      this.formState
-    );
-    Object.entries(feAll).forEach(([f, msg]) =>
-      console.log(`🔄 [FormHandler] Na input - veld '${f}': ${msg || 'geen fout'}`)
-    );
-    console.log(`🔄 [FormHandler] Na input - formulier valid: ${isFormValid}`);
-
-    // Voer eventuele triggers uit zoals gedefinieerd in het schema
-    if (this.schema.fields[fieldName].triggers) {
-      this.schema.fields[fieldName].triggers.forEach((trigger) => {
+    // Voer eventuele 'triggers' uit die gedefinieerd zijn in het schema voor dit veld.
+    // Triggers zijn acties die uitgevoerd worden wanneer een veld aan bepaalde voorwaarden voldoet (bijv. valide is).
+    if (fieldSchema.triggers) {
+      fieldSchema.triggers.forEach((trigger) => {
+        // Voer de trigger actie alleen uit als de 'when' conditie (bijv. 'valid') overeenkomt
+        // en er geen specifieke fout is voor dit veld.
         if (trigger.when === 'valid' && !fieldError) {
-          console.log(`⚙️ [FormHandler] Trigger '${trigger.action.name}' voor '${fieldName}'`);
-          trigger.action(this.formData);
+          console.log(`⚙️ [FormHandler] Trigger '${trigger.action.name || 'anonieme actie'}' voor '${fieldName}' wordt uitgevoerd.`);
+          try {
+            // Roep de actie aan en geef de huidige formulierdata en de formHandler instantie (this) mee.
+            // Dit stelt de actie in staat om andere velden te beïnvloeden of formHandler methodes aan te roepen.
+            trigger.action(this.formData, this); 
+          } catch (err) {
+            console.error(`💥 [FormHandler] Fout tijdens uitvoeren trigger voor veld '${fieldName}':`, err);
+          }
         }
       });
     }
 
-    // Check algemene validatie voor aan/uit zetten van submit-knop
+    // Update de status van de submit knop (bijv. enabled/disabled) op basis van de algehele validiteit van het formulier.
     this.updateSubmitState();
   },
 
