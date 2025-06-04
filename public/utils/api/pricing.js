@@ -16,7 +16,7 @@ export async function fetchPricingConfiguration() {
   try {
     console.log('[api/pricing] Ophalen prijsconfiguratie...');
     // Gebruik het endpoint rechtstreeks zonder BASE_URL (dat wordt al toegevoegd in apiClient)
-    const response = await apiClient(/routes/pricing);
+    const response = await apiClient(API_CONFIG.ENDPOINTS.PRICING, { method: 'GET' });
     
     if (response && response.pricing) {
       console.log('[api/pricing] Prijsconfiguratie succesvol opgehaald:', response);
