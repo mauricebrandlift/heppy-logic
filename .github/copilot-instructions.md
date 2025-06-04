@@ -7,4 +7,4 @@
 - Implement changes incrementally and iteratively
 - Focus on small, manageable improvements with each update
 - Make changes that can be easily tested and verified
-- Document all modifications clearly in commit messages
+- Only change md files when i specifically ask you to do so

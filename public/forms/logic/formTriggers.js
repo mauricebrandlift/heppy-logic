@@ -224,16 +224,17 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
         
         showError(errorContainer, errorMessage);
       }
-      
-      // Markeer de velden als foutief voor visuele feedback
+        // Markeer de velden als foutief voor visuele feedback
       const postcodeContainer = postcodeInput.closest('.form-field-wrapper');
       const huisnummerContainer = huisnummerInput.closest('.form-field-wrapper');
       
       if (postcodeContainer) postcodeContainer.classList.add('has-error');
       if (huisnummerContainer) huisnummerContainer.classList.add('has-error');
+      
+      // Update submit button status om te zorgen dat de knop disabled wordt
+      formHandler.updateSubmitState();
     }
-  }
-  /**
+  }  /**
    * Event handler met debounce voor input events
    */
   function handleFieldInput(event) {
@@ -243,10 +244,39 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
     
     if (fieldWrapper) {
       fieldWrapper.classList.remove('has-error');
-    }    // Verberg de globale foutmelding wanneer de gebruiker begint met typen
+    }    
+    
+    // Verberg de globale foutmelding wanneer de gebruiker begint met typen
     const errorContainer = formElement.querySelector('[data-error-for="global"]');
     if (errorContainer && isErrorVisible(errorContainer)) {
       hideError(errorContainer);
+    }
+    
+    // Reset de straat- en plaatsnaam velden als ze bestaan
+    if (formHandler.formData) {
+      // Als een van de postcode of huisnummer velden is gewijzigd,
+      // moeten we de afhankelijke velden ook resetten totdat de API is aangeroepen
+      if (formHandler.schema && formHandler.schema.fields) {
+        const serverValidatedFields = Object.entries(formHandler.schema.fields)
+          .filter(([_, fieldConfig]) => fieldConfig.requiresServerValidation)
+          .filter(([_, fieldConfig]) => {
+            // Check if this field depends on the changed field
+            return fieldConfig.validationDependsOn && 
+              (fieldConfig.validationDependsOn.includes('postcode') || 
+               fieldConfig.validationDependsOn.includes('huisnummer'));
+          })
+          .map(([fieldName]) => fieldName);
+        
+        // Reset all server-validated fields that depend on postcode/huisnummer
+        serverValidatedFields.forEach(fieldName => {
+          formHandler.formData[fieldName] = '';
+          const fieldEl = formElement.querySelector(`[data-field-name="${fieldName}"]`);
+          if (fieldEl) fieldEl.value = '';
+        });
+        
+        // Update the submit button status to reflect these changes
+        formHandler.updateSubmitState();
+      }
     }
     
     clearTimeout(debounceTimeout);
