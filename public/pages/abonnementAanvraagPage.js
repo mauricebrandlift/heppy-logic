@@ -1,4 +1,4 @@
-// public/pages/aanvraagAbonnementPage.js
+// public/pages/abonnementAanvraagPage.js
 
 import { initAbbAdresForm } from '../forms/aanvraag/abbAdresForm.js';
 

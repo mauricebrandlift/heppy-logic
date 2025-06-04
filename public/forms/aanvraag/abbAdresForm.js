@@ -58,15 +58,10 @@ export function initAbbAdresForm() {
         const coverageStatus = await fetchCoverageStatus(addressDetails.plaats);
         console.log('[abbAdresForm] Dekkingsstatus:', coverageStatus);
 
-        if (coverageStatus && typeof coverageStatus.gedekt === 'boolean') {
-          if (coverageStatus.gedekt) {
+        if (coverageStatus && typeof coverageStatus.gedekt === 'boolean') {          if (coverageStatus.gedekt) {
             console.log(`[abbAdresForm] Plaats '${addressDetails.plaats}' is gedekt. Naar volgende slide...`);
-            // Roep hier de functie aan die naar de volgende slide navigeert
-            if (typeof moveToNextSlide === 'function') {
-              moveToNextSlide();
-            } else {
-              console.warn('[abbAdresForm] moveToNextSlide functie is niet beschikbaar.');
-            }
+            // Roep de moveToNextSlide functie aan die door Webflow wordt geleverd
+            moveToNextSlide();
           } else {
             console.log(`[abbAdresForm] Plaats '${addressDetails.plaats}' is NIET gedekt. Navigeren naar /aanvragen/geen-dekking...`);
             window.location.href = '/aanvragen/geen-dekking';
