@@ -15,7 +15,7 @@ export default async function handler(req, res) {// Stel CORS headers in voor AL
   );
   // Handel de OPTIONS (preflight) request af
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
+    res.status(204).end();
     return;
   }
 

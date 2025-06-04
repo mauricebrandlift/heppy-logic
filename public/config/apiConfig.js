@@ -7,9 +7,9 @@ export const API_CONFIG = {
   BASE_URL: 'https://heppy-frontend-code.vercel.app/api',
   // API endpoints
   ENDPOINTS: {
-    ADDRESS: '/address',
-    COVERAGE: '/coverage',
-    PRICING: '/pricing',
+    ADDRESS: '/routes/address',
+    COVERAGE: '/routes/coverage',
+    PRICING: '/routes/pricing',
   },
   // Je kunt hier later andere API-gerelateerde configuraties toevoegen,
   // zoals timeouts, retry-instellingen, etc.
