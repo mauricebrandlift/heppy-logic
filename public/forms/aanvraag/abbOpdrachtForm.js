@@ -63,6 +63,7 @@ async function getPricingConfiguration() {
         const configValue = parseFloat(item.config_value);
         
         switch(configKey) {
+          case 'timePer10m2':
           case 'timePerM2': 
             pricingConfig.timePerM2 = configValue;
             break;
