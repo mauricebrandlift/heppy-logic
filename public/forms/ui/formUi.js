@@ -141,3 +141,34 @@ export function hideLoader(button) {
   button.disabled = false;
   button.classList.remove('is-disabled');
 }
+
+/**
+ * Controleert de zichtbaarheid van een error element
+ * @param {HTMLElement} errorEl - De error container om te controleren
+ * @returns {boolean} True als de error zichtbaar is (geen hide class heeft)
+ */
+export function isErrorVisible(errorEl) {
+  if (!errorEl) return false;
+  return !errorEl.classList.contains('hide');
+}
+
+/**
+ * Toon een specifieke error container met consistente styling
+ * @param {HTMLElement} errorEl - De error container om te tonen
+ * @param {string} message - De error message om te tonen
+ */
+export function showError(errorEl, message) {
+  if (!errorEl) return;
+  errorEl.textContent = message;
+  errorEl.classList.remove('hide');
+}
+
+/**
+ * Verberg een specifieke error container
+ * @param {HTMLElement} errorEl - De error container om te verbergen
+ */
+export function hideError(errorEl) {
+  if (!errorEl) return;
+  errorEl.textContent = '';
+  errorEl.classList.add('hide');
+}

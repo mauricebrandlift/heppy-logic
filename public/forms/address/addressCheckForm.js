@@ -3,6 +3,7 @@
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { fetchAddressDetails, fetchCoverageStatus, ApiError as FrontendApiError } from '../../utils/api/index.js';
+import { showError, hideError } from '../ui/formUi.js';
 
 const FORM_NAME = 'postcode-form';
 

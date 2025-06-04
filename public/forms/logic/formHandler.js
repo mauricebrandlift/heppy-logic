@@ -11,6 +11,9 @@ import {
   showLoader,
   hideLoader,
   toggleFields,
+  showError,
+  hideError,
+  isErrorVisible,
 } from '../ui/formUi.js';
 import {
   saveFormData,

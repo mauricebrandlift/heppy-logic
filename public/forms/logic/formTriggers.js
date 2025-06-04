@@ -1,6 +1,7 @@
 // public/forms/logic/formTriggers.js
 
 import { fetchAddressDetails } from '../../utils/api/index.js';
+import { showError, hideError, isErrorVisible } from '../ui/formUi.js';
 
 /**
  * Verzameling van herbruikbare formulier triggers.
@@ -132,15 +133,12 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
         if (errorContainer) {
           // Gebruik de error code ADDRESS_NOT_FOUND die in commonMessages.js gedefinieerd is
           const errorCode = 'ADDRESS_NOT_FOUND';
-          let errorMessage = 'Geen geldig adres gevonden. Controleer of uw postcode en huisnummer correct zijn ingevoerd.';
-          
-          // Gebruik de foutmelding uit het schema indien beschikbaar
+          let errorMessage = 'Geen geldig adres gevonden. Controleer of uw postcode en huisnummer correct zijn ingevoerd.';          // Gebruik de foutmelding uit het schema indien beschikbaar
           if (formHandler.schema && formHandler.schema.globalMessages && formHandler.schema.globalMessages[errorCode]) {
             errorMessage = formHandler.schema.globalMessages[errorCode];
           }
           
-          errorContainer.textContent = errorMessage;
-          errorContainer.style.display = 'block';
+          showError(errorContainer, errorMessage);
         }
         
         // Markeer de velden als foutief voor visuele feedback
@@ -151,12 +149,10 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
         if (huisnummerContainer) huisnummerContainer.classList.add('has-error');
         
         return;
-      }
-        // Als het adres succesvol is opgehaald, verwijder eventuele foutmeldingen en foutstatussen
+      }      // Als het adres succesvol is opgehaald, verwijder eventuele foutmeldingen en foutstatussen
       const errorContainer = formElement.querySelector('[data-error-for="global"]');
       if (errorContainer) {
-        errorContainer.textContent = '';
-        errorContainer.style.display = 'none';
+        hideError(errorContainer);
       }
       
       // Verwijder eventuele foutstatussen van de velden
@@ -216,14 +212,11 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
         }
         
         // Haal foutmelding op uit schema, of gebruik standaard foutmelding
-        let errorMessage = 'Er is een fout opgetreden bij het ophalen van uw adres.';
-        
-        if (formHandler.schema && formHandler.schema.globalMessages && formHandler.schema.globalMessages[errorCode]) {
+        let errorMessage = 'Er is een fout opgetreden bij het ophalen van uw adres.';        if (formHandler.schema && formHandler.schema.globalMessages && formHandler.schema.globalMessages[errorCode]) {
           errorMessage = formHandler.schema.globalMessages[errorCode];
         }
         
-        errorContainer.textContent = errorMessage;
-        errorContainer.style.display = 'block';
+        showError(errorContainer, errorMessage);
       }
       
       // Markeer de velden als foutief voor visuele feedback
@@ -244,12 +237,10 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
     
     if (fieldWrapper) {
       fieldWrapper.classList.remove('has-error');
-    }
-    
-    // Verberg de globale foutmelding wanneer de gebruiker begint met typen
+    }    // Verberg de globale foutmelding wanneer de gebruiker begint met typen
     const errorContainer = formElement.querySelector('[data-error-for="global"]');
-    if (errorContainer && errorContainer.style.display === 'block') {
-      errorContainer.style.display = 'none';
+    if (errorContainer && isErrorVisible(errorContainer)) {
+      hideError(errorContainer);
     }
     
     clearTimeout(debounceTimeout);
