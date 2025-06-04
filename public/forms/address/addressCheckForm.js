@@ -2,13 +2,13 @@
 
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
-// Importeer de nieuwe API functie en eventueel de ApiError class voor type checking
-import { fetchAddressDetails, fetchCoverageStatus, ApiError as FrontendApiError } from '../../utils/api/index.js'; // fetchCoverageStatus toegevoegd
+import { fetchAddressDetails, fetchCoverageStatus, ApiError as FrontendApiError } from '../../utils/api/index.js';
 
 const FORM_NAME = 'postcode-form';
 
 /**
  * Initialiseert het postcode-check formulier, inclusief custom submit-logic.
+ * Dit formulier haalt adresgegevens op en controleert de dekkingsstatus.
  */
 export function initAddressCheckForm() {
   console.log(`🚀 [addressCheckForm] Initializing form: ${FORM_NAME}`);

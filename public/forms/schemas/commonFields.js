@@ -76,8 +76,7 @@ export const commonFields = {
     messages: {
       email: 'Voer een geldig e-mailadres in.'
     }
-  },
-  telefoon: {
+  },  telefoon: {
     label: 'Telefoonnummer',
     inputType: 'tel',
     sanitizers: ['trim', 'numericOnly'],
@@ -86,6 +85,22 @@ export const commonFields = {
     messages: {
       numeric: 'Gebruik alleen cijfers voor telefoonnummer.'
     }
+  },
+  straatnaam: {
+    label: 'Straatnaam',
+    inputType: 'text',
+    readonly: true,
+    sanitizers: ['trim'],
+    validators: ['optional'],
+    persist: 'global'
+  },
+  plaats: {
+    label: 'Plaats',
+    inputType: 'text',
+    readonly: true,
+    sanitizers: ['trim'],
+    validators: ['optional'],
+    persist: 'global'
   },
   // Voeg hier meer herbruikbare veld-definities toe
 };

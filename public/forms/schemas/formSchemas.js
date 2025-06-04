@@ -29,6 +29,25 @@ export function getFormSchema(name) {
       // Geen submit-logica hier; wordt in addressCheckForm.js toegevoegd
       // Geen triggers in dit formulier; simpel postcodeschema
     },
+      'abb_adres-form': {
+      name: 'abb_adres-form',
+      selector: '[data-form-name="abb_adres-form"]',
+      fields: {
+        postcode: commonFields.postcode,
+        huisnummer: commonFields.huisnummer,
+        toevoeging: commonFields.toevoeging,
+        straatnaam: commonFields.straatnaam,
+        plaats: commonFields.plaats,
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in abbAdresForm.js
+        // en daar aan het schema object toegevoegd.
+      },
+      globalMessages: {
+        NETWORK_ERROR: 'Er is een netwerkfout opgetreden. Probeer het later opnieuw.',
+        DEFAULT: 'Er is een onbekende fout opgetreden. Controleer de ingevoerde gegevens.',
+      },
+    },
 
     // Andere formulieren...
   };
