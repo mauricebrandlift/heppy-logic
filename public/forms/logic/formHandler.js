@@ -10,10 +10,16 @@ import {
   toggleButton,
   showLoader,
   hideLoader,
-  toggleFields, 
+  toggleFields,
 } from '../ui/formUi.js';
-import { saveFormData, loadFormData, saveGlobalFieldData, loadGlobalFieldData } from './formStorage.js';
+import {
+  saveFormData,
+  loadFormData,
+  saveGlobalFieldData,
+  loadGlobalFieldData,
+} from './formStorage.js';
 import { inputFilters } from './formInputFilters.js'; // Importeer de input filters
+import { initAddressLookupTrigger } from './formTriggers.js'; // Importeer triggers
 
 /**
  * 🚀 Centrale handler voor elk formulier.
@@ -30,6 +36,62 @@ export const formHandler = {
   formElement: null, // DOM-element van het formulier
   formData: {}, // Huidige waarden van alle velden
   formState: {}, // State per veld (bijv. isTouched)
+  _triggerCleanupFunctions: [], // Opslag voor cleanup functie van triggers
+
+  /**
+   * 🔌 Initialiseert triggers op basis van het schema
+   *
+   * Roept de juiste triggerfunctie aan op basis van het trigger type
+   * en slaat de cleanup functie op voor latere opruiming
+   */
+  _initTriggers() {
+    // Ruim eerst eventuele oude triggers op
+    this._cleanupTriggers();
+
+    // Check of schema triggers bevat
+    if (!this.schema.triggers || !Array.isArray(this.schema.triggers)) {
+      return;
+    }
+
+    // Initialiseer elke trigger uit het schema
+    for (const trigger of this.schema.triggers) {
+      if (!trigger.type) continue;
+
+      let cleanup = null;
+
+      switch (trigger.type) {
+        case 'addressLookup':
+          console.log(`🔌 [formHandler] Initialiseren addressLookup trigger`);
+          cleanup = initAddressLookupTrigger(this, trigger.config || {});
+          break;
+        // Hier kunnen meer trigger types worden toegevoegd
+        default:
+          console.warn(`⚠️ [formHandler] Onbekend trigger type: ${trigger.type}`);
+          continue;
+      }
+
+      if (typeof cleanup === 'function') {
+        this._triggerCleanupFunctions.push(cleanup);
+      }
+    }
+  },
+
+  /**
+   * 🧹 Ruimt eventuele actieve triggers op door de cleanup functies aan te roepen
+   */
+  _cleanupTriggers() {
+    if (this._triggerCleanupFunctions && this._triggerCleanupFunctions.length > 0) {
+      console.log(
+        `🧹 [formHandler] Opruimen van ${this._triggerCleanupFunctions.length} actieve triggers`
+      );
+      for (const cleanup of this._triggerCleanupFunctions) {
+        if (typeof cleanup === 'function') {
+          cleanup();
+        }
+      }
+      this._triggerCleanupFunctions = [];
+    }
+  },
 
   /**
    * 🛠️ Initialiseer de form handler met het gegeven schema.
@@ -58,7 +120,10 @@ export const formHandler = {
     this.formState = {};
     clearErrors(this.formElement);
     clearGlobalError(this.formElement);
-    console.log(`🔄 [FormHandler] Initializing form data for ${schema.name}. Form-specific saved:`, formSpecificSavedData);
+    console.log(
+      `🔄 [FormHandler] Initializing form data for ${schema.name}. Form-specific saved:`,
+      formSpecificSavedData
+    );
 
     Object.keys(schema.fields).forEach((fieldName) => {
       const fieldConfig = schema.fields[fieldName];
@@ -68,23 +133,27 @@ export const formHandler = {
         return;
       }
 
-      let valueToLoad; 
+      let valueToLoad;
       const persistType = fieldConfig.persist;
 
       if (persistType === 'global') {
         const globalValue = loadGlobalFieldData(fieldName);
-        if (globalValue !== null) { 
+        if (globalValue !== null) {
           valueToLoad = globalValue;
-          console.log(`🔄 [FormHandler] Veld '${fieldName}' (global): Geladen globale waarde: ${valueToLoad}`);
+          console.log(
+            `🔄 [FormHandler] Veld '${fieldName}' (global): Geladen globale waarde: ${valueToLoad}`
+          );
         }
       }
 
       // Form-specifieke data overschrijft eventuele globale waarde
       if (formSpecificSavedData[fieldName] !== undefined) {
         valueToLoad = formSpecificSavedData[fieldName];
-        console.log(`🔄 [FormHandler] Veld '${fieldName}' (form-specific): Geladen formulierwaarde (overschrijft globaal indien aanwezig): ${valueToLoad}`);
+        console.log(
+          `🔄 [FormHandler] Veld '${fieldName}' (form-specific): Geladen formulierwaarde (overschrijft globaal indien aanwezig): ${valueToLoad}`
+        );
       }
-      
+
       if (valueToLoad !== undefined) {
         // Pas sanitization toe op de geladen waarde
         this.formData[fieldName] = sanitizeField(valueToLoad, fieldConfig, fieldName);
@@ -98,9 +167,11 @@ export const formHandler = {
         this.formData[fieldName] = sanitizeField(initialRawValue, fieldConfig, fieldName); // Sanitize deze waarde
         // Update het DOM-element alleen als de sanitization de waarde heeft veranderd
         if (initialRawValue !== this.formData[fieldName]) {
-            fieldEl.value = this.formData[fieldName];
+          fieldEl.value = this.formData[fieldName];
         }
-        console.log(`🔄 [FormHandler] Veld '${fieldName}' niet in storage, gebruikt DOM waarde ('${initialRawValue}') gesanitized naar: '${this.formData[fieldName]}'`);
+        console.log(
+          `🔄 [FormHandler] Veld '${fieldName}' niet in storage, gebruikt DOM waarde ('${initialRawValue}') gesanitized naar: '${this.formData[fieldName]}'`
+        );
       }
 
       this.formState[fieldName] = { isTouched: false };
@@ -113,7 +184,9 @@ export const formHandler = {
       if (fieldConfig.inputFilter && inputFilters[fieldConfig.inputFilter]) {
         const filterFunction = inputFilters[fieldConfig.inputFilter];
         fieldEl.addEventListener('keydown', filterFunction);
-        console.log(`🔒 [FormHandler] Input filter '${fieldConfig.inputFilter}' toegepast op veld '${fieldName}'.`);
+        console.log(
+          `🔒 [FormHandler] Input filter '${fieldConfig.inputFilter}' toegepast op veld '${fieldName}'.`
+        );
 
         // Specifieke attributen instellen op basis van filtertype, indien nodig.
         // Dit centraliseert de logica voor attributen die direct gerelateerd zijn aan het filter.
@@ -126,10 +199,12 @@ export const formHandler = {
         // }
       } else if (fieldConfig.inputFilter) {
         // Log een waarschuwing als een filter is opgegeven maar niet bestaat.
-        console.warn(`⚠️ [FormHandler] Input filter '${fieldConfig.inputFilter}' gedefinieerd voor veld '${fieldName}', maar niet gevonden in formInputFilters.js.`);
+        console.warn(
+          `⚠️ [FormHandler] Input filter '${fieldConfig.inputFilter}' gedefinieerd voor veld '${fieldName}', maar niet gevonden in formInputFilters.js.`
+        );
       }
     });
-    
+
     console.log(`🔄 [FormHandler] Initial formData state na laden:`, this.formData);
 
     // **Log validatie na prefill**
@@ -142,6 +217,9 @@ export const formHandler = {
       console.log(`🔍 [FormHandler] Na prefill - veld '${f}' validatie fout: ${msg}`)
     );
     console.log(`🔍 [FormHandler] Na prefill - formulier valid: ${isFormValid}`);
+
+    // Initialiseer triggers indien aanwezig in het schema
+    this._initTriggers();
 
     // Voor elk veld: zet value, init state en bind input-event
     Object.keys(schema.fields).forEach((fieldName) => {
@@ -183,7 +261,7 @@ export const formHandler = {
 
         if (!isFormCurrentlyValid) {
           e.preventDefault(); // Voorkom de daadwerkelijke submit en het aanroepen van handleSubmit
-          
+
           // Wis alle bestaande fouten en toon de huidige set fouten
           clearErrors(this.formElement);
           Object.entries(currentFieldErrors).forEach(([fName, msg]) => {
@@ -199,21 +277,27 @@ export const formHandler = {
           );
 
           const globalMessages = this.schema.globalMessages || {}; // Haal globale messages uit schema
-          let messageToShow = globalMessages.DEFAULT_INVALID_SUBMIT || 'Niet alle velden zijn correct ingevuld.';
+          let messageToShow =
+            globalMessages.DEFAULT_INVALID_SUBMIT || 'Niet alle velden zijn correct ingevuld.';
 
           if (hasEmptyRequired) {
-            messageToShow = globalMessages.REQUIRED_FIELDS_MISSING || 'Niet alle verplichte velden zijn ingevuld.';
+            messageToShow =
+              globalMessages.REQUIRED_FIELDS_MISSING ||
+              'Niet alle verplichte velden zijn ingevuld.';
           }
-          
+
           clearGlobalError(this.formElement);
           showGlobalError(this.formElement, messageToShow);
-          
-          console.warn(`🚦 [FormHandler] Submit poging geblokkeerd door click listener (formulier ongeldig). Fouten:`, currentFieldErrors);
+
+          console.warn(
+            `🚦 [FormHandler] Submit poging geblokkeerd door click listener (formulier ongeldig). Fouten:`,
+            currentFieldErrors
+          );
           return; // Stop verdere uitvoering in deze listener
         }
-        
+
         // Als het formulier hier wel geldig is, ga dan pas naar de handleSubmit flow
-        this.handleSubmit(e); 
+        this.handleSubmit(e);
       });
     }
     // Update de submit button state direct na initialisatie en het binden van alle events
@@ -243,7 +327,7 @@ export const formHandler = {
 
     const target = event.target;
     const rawValue = target.value;
-    
+
     // Sanitize de input waarde op basis van het veldschema.
     const cleanValue = sanitizeField(rawValue, fieldSchema, fieldName);
 
@@ -253,7 +337,7 @@ export const formHandler = {
       // Toekomstige overweging: cursorpositie herstellen na wijziging van target.value (Suggestie 2.2)
       target.value = cleanValue;
     }
-    
+
     // Update de interne formulierdata met de gesanitizede waarde.
     // Dit is de 'single source of truth' voor de data van dit veld.
     this.formData[fieldName] = cleanValue;
@@ -275,9 +359,9 @@ export const formHandler = {
        * met hun gesanitizede waarden uit this.formData.
        */
       const formDataToSave = {};
-      
+
       // Itereer over alle velden gedefinieerd in het schema van dit formulier.
-      Object.keys(this.schema.fields).forEach(fName => {
+      Object.keys(this.schema.fields).forEach((fName) => {
         const currentFieldConfig = this.schema.fields[fName];
         // Controleer of het huidige veld in de iteratie 'persist: 'form'' heeft.
         if (currentFieldConfig && currentFieldConfig.persist === 'form') {
@@ -290,33 +374,48 @@ export const formHandler = {
             // Fallback: als een veld in het schema staat met 'persist: 'form'',
             // maar om een of andere reden niet in this.formData voorkomt (zou niet moeten gebeuren na correcte initialisatie),
             // sla dan een lege string op om data-integriteit te waarborgen.
-            formDataToSave[fName] = ''; 
-            console.warn(`[FormHandler] Veld '${fName}' (met persist: 'form') niet gevonden in this.formData tijdens opslaan voor formulier '${this.schema.name}'. Opgeslagen als lege string.`);
+            formDataToSave[fName] = '';
+            console.warn(
+              `[FormHandler] Veld '${fName}' (met persist: 'form') niet gevonden in this.formData tijdens opslaan voor formulier '${this.schema.name}'. Opgeslagen als lege string.`
+            );
           }
         }
       });
       // Sla het samengestelde formDataToSave object op onder de naam van het formulier.
       saveFormData(this.schema.name, formDataToSave);
-      console.log(`💾 [FormHandler] Formulier-specifieke opslag voor '${this.schema.name}' bijgewerkt vanwege input op '${fieldName}'. Opgeslagen data:`, formDataToSave);
+      console.log(
+        `💾 [FormHandler] Formulier-specifieke opslag voor '${this.schema.name}' bijgewerkt vanwege input op '${fieldName}'. Opgeslagen data:`,
+        formDataToSave
+      );
     } else if (persistType && persistType !== 'none') {
       // Log een waarschuwing als een onbekend persistType is opgegeven.
-      console.warn(`[FormHandler] Veld '${fieldName}' heeft een onbekend persist type: '${persistType}'. Wordt niet opgeslagen.`);
+      console.warn(
+        `[FormHandler] Veld '${fieldName}' heeft een onbekend persist type: '${persistType}'. Wordt niet opgeslagen.`
+      );
     }
 
     // Valideer het veld en het gehele formulier, en update de UI (foutmeldingen, submit knop status).
     // validateForm retourneert de algehele validiteit van het formulier, specifieke veldfouten, en alle fouten.
-    const { isFormValid: isOverallFormValid, fieldErrors, allErrors } = validateForm(this.formData, this.schema, this.formState);
+    const {
+      isFormValid: isOverallFormValid,
+      fieldErrors,
+      allErrors,
+    } = validateForm(this.formData, this.schema, this.formState);
     const fieldError = fieldErrors[fieldName]; // Haal de specifieke fout voor het huidige veld op.
-    
+
     // Wis eerst eventuele bestaande foutmeldingen voor dit specifieke veld.
-    clearErrors(this.formElement, fieldName); 
+    clearErrors(this.formElement, fieldName);
     if (fieldError) {
       // Als er een validatiefout is voor dit veld, toon deze dan.
       showFieldErrors(this.formElement, fieldName, fieldError);
-      console.warn(`❌ [FormHandler] Validatie fout in '${fieldName}' (na ${event.type} event): ${fieldError}`);
+      console.warn(
+        `❌ [FormHandler] Validatie fout in '${fieldName}' (na ${event.type} event): ${fieldError}`
+      );
     } else {
       // Als er geen fout is, log dit dan.
-      console.log(`✅ [FormHandler] '${fieldName}' gevalideerd zonder fouten (na ${event.type} event)`);
+      console.log(
+        `✅ [FormHandler] '${fieldName}' gevalideerd zonder fouten (na ${event.type} event)`
+      );
     }
 
     // Voer eventuele 'triggers' uit die gedefinieerd zijn in het schema voor dit veld.
@@ -326,13 +425,20 @@ export const formHandler = {
         // Voer de trigger actie alleen uit als de 'when' conditie (bijv. 'valid') overeenkomt
         // en er geen specifieke fout is voor dit veld.
         if (trigger.when === 'valid' && !fieldError) {
-          console.log(`⚙️ [FormHandler] Trigger '${trigger.action.name || 'anonieme actie'}' voor '${fieldName}' wordt uitgevoerd.`);
+          console.log(
+            `⚙️ [FormHandler] Trigger '${
+              trigger.action.name || 'anonieme actie'
+            }' voor '${fieldName}' wordt uitgevoerd.`
+          );
           try {
             // Roep de actie aan en geef de huidige formulierdata en de formHandler instantie (this) mee.
             // Dit stelt de actie in staat om andere velden te beïnvloeden of formHandler methodes aan te roepen.
-            trigger.action(this.formData, this); 
+            trigger.action(this.formData, this);
           } catch (err) {
-            console.error(`💥 [FormHandler] Fout tijdens uitvoeren trigger voor veld '${fieldName}':`, err);
+            console.error(
+              `💥 [FormHandler] Fout tijdens uitvoeren trigger voor veld '${fieldName}':`,
+              err
+            );
           }
         }
       });
@@ -350,11 +456,18 @@ export const formHandler = {
   updateSubmitState() {
     const { isFormValid } = validateForm(this.formData, this.schema, this.formState);
     const btn = this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
-    if (btn) { // Voeg een check toe of de knop bestaat voordat toggleButton wordt aangeroepen
+    if (btn) {
+      // Voeg een check toe of de knop bestaat voordat toggleButton wordt aangeroepen
       toggleButton(btn, isFormValid);
-      console.log(`🔄 [FormHandler] Submit button ${isFormValid ? 'enabled ✅' : 'disabled ❌'} for form ${this.schema.name}`);
+      console.log(
+        `🔄 [FormHandler] Submit button ${isFormValid ? 'enabled ✅' : 'disabled ❌'} for form ${
+          this.schema.name
+        }`
+      );
     } else {
-      console.warn(`[FormHandler] Submit button [data-form-button="${this.schema.name}"] niet gevonden in updateSubmitState voor formulier ${this.schema.name}`);
+      console.warn(
+        `[FormHandler] Submit button [data-form-button="${this.schema.name}"] niet gevonden in updateSubmitState voor formulier ${this.schema.name}`
+      );
     }
   },
 
@@ -396,5 +509,22 @@ export const formHandler = {
       const message = gm[code] || gm.DEFAULT || err.message || 'Er is iets misgegaan.';
       showGlobalError(this.formElement, message);
     }
+  },
+
+  /**
+   * 🧹 Ruimt alle resources op die door het formulier worden gebruikt.
+   * Dient aangeroepen te worden wanneer een formulier niet meer nodig is.
+   */
+  destroy() {
+    console.log(`🧹 [FormHandler] Opruimen van formulier: ${this.schema?.name}`);
+
+    // Ruim triggers op
+    this._cleanupTriggers();
+
+    // Reset state
+    this.schema = null;
+    this.formElement = null;
+    this.formData = {};
+    this.formState = {};
   },
 };
