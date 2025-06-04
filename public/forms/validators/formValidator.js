@@ -5,19 +5,15 @@
  * Elk geeft bij falen een string error message terug, of null bij succes.
  */
 export const validators = {
-  required: (value) =>
-    value.trim() === '' ? 'Dit veld is verplicht.' : null,
+  required: (value) => (value.trim() === '' ? 'Dit veld is verplicht.' : null),
   optional: (_value) => null,
-  numeric: (value) =>
-    /^\d+$/.test(value) ? null : 'Alleen cijfers toegestaan.',
+  numeric: (value) => (/^\d+$/.test(value) ? null : 'Alleen cijfers toegestaan.'),
   alphaNumeric: (value) =>
-    /^[A-Za-z0-9]+$/.test(value)
-      ? null
-      : 'Alleen letters en cijfers toegestaan.',
+    /^[A-Za-z0-9]+$/.test(value) ? null : 'Alleen letters en cijfers toegestaan.',
   postcode: (value) =>
-    /^\d{4}[A-Za-z]{2}$/.test(value)
-      ? null
-      : 'Ongeldige postcode (bijv. 1234AB).',
+    /^\d{4}[A-Za-z]{2}$/.test(value) ? null : 'Ongeldige postcode (bijv. 1234AB).',
+  positiveNumber: (value) => (Number(value) > 0 ? null : 'Waarde moet groter zijn dan 0.'),
+  nonNegativeNumber: (value) => (Number(value) >= 0 ? null : 'Waarde mag niet negatief zijn.'),
 };
 
 /**
@@ -32,9 +28,7 @@ export function validateField(fieldName, value, fieldSchema) {
   for (const name of list) {
     const fn = validators[name];
     if (typeof fn !== 'function') {
-      console.warn(
-        `⚠️ [Validator] Geen validator gevonden voor '${name}' in veld '${fieldName}'`
-      );
+      console.warn(`⚠️ [Validator] Geen validator gevonden voor '${name}' in veld '${fieldName}'`);
       continue;
     }
     // Eerst uitvoeren van de validator zelf

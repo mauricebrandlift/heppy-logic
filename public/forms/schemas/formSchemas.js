@@ -72,7 +72,68 @@ export function getFormSchema(name) {
           CUSTOM_SUCCESS: 'Je adresgegevens zijn succesvol gecontroleerd.',
           LOCAL_ONLY: 'Deze actie is alleen beschikbaar voor lokale adressen.'
         }
+      ),    },
+
+    // Formulier voor stap 2 van abonnement aanvraag - schoonmaak opdracht details
+    'abb_opdracht-form': {
+      name: 'abb_opdracht-form',
+      selector: '[data-form-name="abb_opdracht-form"]',
+      fields: {
+        abb_m2: {
+          label: 'Oppervlakte in m²',
+          inputType: 'number',
+          sanitizers: ['trim', 'numericOnly'],
+          validators: ['required', 'numeric', 'positiveNumber'],
+          inputFilter: 'digitsOnly',
+          persist: 'form',
+          placeholder: '80',
+          messages: {
+            required: 'Voer het aantal vierkante meters in',
+            numeric: 'Gebruik alleen cijfers',
+            positiveNumber: 'Het oppervlak moet groter dan 0 zijn'
+          }
+        },
+        abb_toiletten: {
+          label: 'Aantal toiletten',
+          inputType: 'number',
+          sanitizers: ['trim', 'numericOnly'],
+          validators: ['required', 'numeric', 'nonNegativeNumber'],
+          inputFilter: 'digitsOnly',
+          persist: 'form',
+          placeholder: '1',
+          messages: {
+            required: 'Voer het aantal toiletten in',
+            numeric: 'Gebruik alleen cijfers',
+            nonNegativeNumber: 'Aantal toiletten kan niet negatief zijn'
+          }
+        },
+        abb_badkamers: {
+          label: 'Aantal badkamers',
+          inputType: 'number',
+          sanitizers: ['trim', 'numericOnly'],
+          validators: ['required', 'numeric', 'nonNegativeNumber'],
+          inputFilter: 'digitsOnly',
+          persist: 'form',
+          placeholder: '1',
+          messages: {
+            required: 'Voer het aantal badkamers in',
+            numeric: 'Gebruik alleen cijfers',
+            nonNegativeNumber: 'Aantal badkamers kan niet negatief zijn'
+          }
+        }
+      },
+      // Custom berichten voor dit formulier
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          // Formulier-specifieke berichten
+          CALCULATION_ERROR: 'Er is een fout opgetreden bij het berekenen van de prijs.',
+          MIN_HOURS_NOTICE: 'Het minimum aantal uren voor een schoonmaak sessie is 3 uur.',
+          CUSTOM_SUCCESS: 'De schoonmaakgegevens zijn succesvol verwerkt.'
+        }
       ),
+      // Submit logica wordt later toegevoegd in een specifiek bestand voor dit formulier
     },
 
     // Andere formulieren...
