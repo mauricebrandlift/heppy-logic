@@ -3,7 +3,7 @@
  * Configuration for the frontend API client.
  */
 export const API_CONFIG = {
-  // Gebruik de daadwerkelijke URL van je Vercel backend deployment
+  // Gebruik de daadwerkelijke URL van je Vercel backend deploymentt
   BASE_URL: 'https://heppy-frontend-code.vercel.app/api',
   // API endpoints
   ENDPOINTS: {
