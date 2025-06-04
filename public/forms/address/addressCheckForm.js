@@ -35,12 +35,12 @@ export function initAddressCheckForm() {
       try {
         // Stap 1: Adresgegevens ophalen
         const addressDetails = await fetchAddressDetails(postcode, huisnummer);
-        console.log('[addressCheckForm] Successfully fetched address details:', addressDetails);
-
-        if (!addressDetails || !addressDetails.plaats) {
+        console.log('[addressCheckForm] Successfully fetched address details:', addressDetails);        if (!addressDetails || !addressDetails.plaats) {
           console.error('[addressCheckForm] Geen plaatsnaam ontvangen van adres API:', addressDetails);
-          // Gooi een specifieke error die de gebruiker kan begrijpen
-          throw new Error('Kon de plaatsnaam niet ophalen. Controleer postcode en huisnummer.');
+          // Gooi een error met specifieke code voor betere berichten uit commonMessages
+          const error = new Error('Kon de plaatsnaam niet ophalen. Controleer postcode en huisnummer.');
+          error.code = 'ADDRESS_NOT_FOUND';
+          throw error;
         }
         
         console.log(`[addressCheckForm] Attempting to check coverage for Plaats: ${addressDetails.plaats}`);
@@ -57,27 +57,43 @@ export function initAddressCheckForm() {
           } else {
             console.log(`[addressCheckForm] Plaats '${addressDetails.plaats}' is NIET gedekt. Navigeren naar /aanvragen/geen-dekking...`);
             window.location.href = '/aanvragen/geen-dekking'; // Pas dit pad eventueel aan
-          }
-        } else {
+          }        } else {
           // Fallback als de response van coverage check onverwacht is
           console.error('[addressCheckForm] Ongeldige dekkingsstatus ontvangen:', coverageStatus);
-          throw new Error('Kon de dekkingsstatus niet correct bepalen.');
-        }
-
-      } catch (error) {
+          const error = new Error('Kon de dekkingsstatus niet correct bepalen.');
+          error.code = 'COVERAGE_ERROR';
+          throw error;
+        }      } catch (error) {
         console.error('[addressCheckForm] Error during submit action:', error);
 
-        let errorMessage = 'Er is een onbekende fout opgetreden.';
-        if (error instanceof FrontendApiError) {
-          // Specifieke API fout van onze frontend client (kan van fetchAddressDetails of fetchCoverageStatus zijn)
-          errorMessage = error.message || 'Fout bij het communiceren met de server.';
-        } else if (error.message) {
-          // Andere JavaScript errors (bijv. van de 'throw new Error' hierboven)
-          errorMessage = error.message;
+        // Behoud de bestaande error code als die er al is
+        if (!error.code) {
+          if (error instanceof FrontendApiError) {
+            // Specifieke API fout van onze frontend client
+            if (error.status === 404) {
+              error.code = 'ADDRESS_NOT_FOUND';
+            } else if (error.status === 400) {
+              error.code = 'INVALID_ADDRESS';
+            } else if (error.status >= 500) {
+              error.code = 'SERVER_ERROR';
+            } else if (!navigator.onLine) {
+              error.code = 'NETWORK_ERROR';
+            } else {
+              error.code = 'API_ERROR';
+            }
+          } else if (error.message && error.message.includes('dekking')) {
+            error.code = 'COVERAGE_ERROR';
+          } else if (error.message && (error.message.includes('plaatsnaam') || 
+                    error.message.includes('adres') || 
+                    error.message.includes('postcode'))) {
+            error.code = 'ADDRESS_NOT_FOUND';
+          } else {
+            error.code = 'DEFAULT';
+          }
         }
 
-        const formDisplayError = new Error(errorMessage);
-        throw formDisplayError;
+        // Gooi de originele error met toegewezen code
+        throw error;
       }
     },
     // successMessage: 'Adresgegevens succesvol opgehaald!', // Optioneel
