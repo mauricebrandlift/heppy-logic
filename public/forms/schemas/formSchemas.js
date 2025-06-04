@@ -20,16 +20,6 @@ export function getFormSchema(name) {
         postcode: commonFields.postcode,
         huisnummer: commonFields.huisnummer,
         toevoeging: commonFields.toevoeging,
-        straatnaam: {
-          ...commonFields.straatnaam,
-          requiresServerValidation: true,
-          validationDependsOn: ['postcode', 'huisnummer']
-        },
-        plaats: {
-          ...commonFields.plaats,
-          requiresServerValidation: true,
-          validationDependsOn: ['postcode', 'huisnummer']
-        },
       },// Globale foutberichten per error code
       globalMessages: combineMessages(
         commonMessages.general,
