@@ -3,7 +3,6 @@
  * Generieke HTTP client voor backend-naar-externe API calls.
  * Kan uitgebreid worden met standaard headers, timeouts, retries etc.
  */
-import fetch from 'node-fetch'; // Zorg dat node-fetch geïnstalleerd is als je Node.js < 18 gebruikt
 
 /**
  * Voert een fetch request uit.
