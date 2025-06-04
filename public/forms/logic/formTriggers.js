@@ -239,12 +239,14 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
    */
   function handleFieldInput(event) {
     // Bij nieuwe input, verwijder foutmeldingen en foutstatussen
-    const inputField = event.target;
-    const fieldWrapper = inputField.closest('.form-field-wrapper');
-    
-    if (fieldWrapper) {
-      fieldWrapper.classList.remove('has-error');
-    }    
+    if (event && event.target) {
+      const inputField = event.target;
+      const fieldWrapper = inputField.closest('.form-field-wrapper');
+      
+      if (fieldWrapper) {
+        fieldWrapper.classList.remove('has-error');
+      }
+    }
     
     // Verberg de globale foutmelding wanneer de gebruiker begint met typen
     const errorContainer = formElement.querySelector('[data-error-for="global"]');
@@ -282,14 +284,14 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(lookupAndFillAddress, 500);
   }
-  
-  // Voeg event listeners toe
+    // Voeg event listeners toe
   postcodeInput.addEventListener('input', handleFieldInput);
   huisnummerInput.addEventListener('input', handleFieldInput);
   
   // Als velden al waardes hebben bij initialisatie, probeer direct adres op te halen
   if (postcodeInput.value && huisnummerInput.value) {
-    handleFieldInput();
+    // Call without creating a synthetic event, just need to trigger the address lookup
+    handleFieldInput(null);
   }
   
   // Return cleanup function
