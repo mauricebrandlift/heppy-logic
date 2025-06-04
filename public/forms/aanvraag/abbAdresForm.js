@@ -58,16 +58,15 @@ export function initAbbAdresForm() {
 
         // Stap 3: Dekking controleren
         const coverageStatus = await fetchCoverageStatus(addressDetails.plaats);
-        console.log('[abbAdresForm] Dekkingsstatus:', coverageStatus);
-
-        if (coverageStatus && typeof coverageStatus.gedekt === 'boolean') {          if (coverageStatus.gedekt) {
-            console.log(`[abbAdresForm] Plaats '${addressDetails.plaats}' is gedekt. Naar volgende slide...`);
-            // Roep de moveToNextSlide functie aan die door Webflow wordt geleverd
-            moveToNextSlide();
+        console.log('[abbAdresForm] Dekkingsstatus:', coverageStatus);        if (coverageStatus && typeof coverageStatus.gedekt === 'boolean') {          if (coverageStatus.gedekt) {
+            console.log(`[abbAdresForm] Plaats '${addressDetails.plaats}' is gedekt. Kan doorgaan naar volgende stap.`);
+            // Sla op dat het adres in een gebied met dekking is
+            formHandler.formData.heeftDekking = true;
           } else {
-            console.log(`[abbAdresForm] Plaats '${addressDetails.plaats}' is NIET gedekt. Navigeren naar /aanvragen/geen-dekking...`);
-            window.location.href = '/aanvragen/geen-dekking';
-          }        } else {
+            console.log(`[abbAdresForm] Plaats '${addressDetails.plaats}' is NIET gedekt. Zal navigeren naar geen-dekking pagina.`);
+            // Sla op dat het adres in een gebied zonder dekking is
+            formHandler.formData.heeftDekking = false;
+          }} else {
           // Gooi een error met een specifieke code voor dekkingsstatus problemen
           const error = new Error('Kon de dekkingsstatus niet correct bepalen.');
           error.code = 'COVERAGE_ERROR';
@@ -101,10 +100,18 @@ export function initAbbAdresForm() {
         // Gebruik het error object zoals het is, met de code die we hebben toegevoegd
         throw error;
       }
-    },
-    onSuccess: () => {
-      console.log('[abbAdresForm] Submit action succesvol afgehandeld (geen navigatie of verdere actie hier).');
-      // Navigatie gebeurt in de 'action' of wordt afgehandeld door moveToNextSlide
+    },    onSuccess: () => {
+      console.log('[abbAdresForm] Submit action succesvol afgehandeld, nu navigatie uitvoeren');
+      
+      // Bepaal waar we heen navigeren op basis van de dekkingsstatus
+      if (formHandler.formData.heeftDekking) {
+        console.log('[abbAdresForm] Adres heeft dekking, naar volgende slide...');
+        // Roep de moveToNextSlide functie aan die door Webflow wordt geleverd
+        moveToNextSlide();
+      } else {
+        console.log('[abbAdresForm] Adres heeft geen dekking, navigeren naar geen-dekking pagina...');
+        window.location.href = '/aanvragen/geen-dekking';
+      }
     }
   };
   
