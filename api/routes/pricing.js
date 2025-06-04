@@ -1,4 +1,4 @@
-// api/routes/pricing.js
+// api/routes/pricing.js 
 /**
  * API Route voor het ophalen van prijsconfiguratie.
  * Endpoint: GET /api/pricing
