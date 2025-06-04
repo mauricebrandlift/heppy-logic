@@ -158,13 +158,13 @@ function updateCalculationUI(formElement) {
   // Update uren weergave
   const urenField = formElement.querySelector('[data-field-total="calculate_form_abb_uren"]');
   if (urenField) {
-    urenField.textContent = `${calculation.adjustedHours} uur`;
+    urenField.textContent = `${calculation.adjustedHours}`;
   }
   
   // Update prijs weergave
   const prijsField = formElement.querySelector('[data-field-total="calculate_form_abb_prijs"]');
   if (prijsField) {
-    prijsField.textContent = `€ ${calculation.price.toFixed(2).replace('.', ',')}`;
+    prijsField.textContent = `${calculation.price.toFixed(2).replace('.', ',')}`;
   }
     // Sla de berekende waarden op voor gebruik in volgende stappen in de flow
   const flowData = loadFlowData('abonnement-aanvraag') || {};
