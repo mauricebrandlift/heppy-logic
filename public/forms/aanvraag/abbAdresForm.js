@@ -1,5 +1,5 @@
 // public/forms/aanvraag/abbAdresForm.js
-// Formulier handling voor stap 1 van de abonnementsaanvraag: adresgegevens
+// Formulier handling voor stap 1 van de abonnementsaanvraag: adresgegevenss
 
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
