@@ -450,14 +450,28 @@ export const formHandler = {
     // Update de status van de submit knop (bijv. enabled/disabled) op basis van de algehele validiteit van het formulier.
     this.updateSubmitState();
   },
-
   /**
    * 🔄 Controleert volledige formulier-validatie en togglet de submit-knop.
    *
    * Gebruikt validateForm om de globale validatie-status te bepalen.
+   * Controleert ook of velden die server-validatie nodig hebben ingevuld zijn.
    */
   updateSubmitState() {
-    const { isFormValid } = validateForm(this.formData, this.schema, this.formState);
+    const { isFormValid: basicFormValid } = validateForm(this.formData, this.schema, this.formState);
+    
+    // Haal alle velden op die server-validatie vereisen 
+    const serverValidatedFields = Object.entries(this.schema.fields || {})
+      .filter(([_, fieldSchema]) => fieldSchema.requiresServerValidation)
+      .map(([fieldName]) => fieldName);
+
+    // Controleer of alle velden die server-validatie vereisen ingevuld zijn
+    const areServerValidatedFieldsPopulated = serverValidatedFields.length === 0 || 
+      serverValidatedFields.every(field => {
+        return this.formData[field] && this.formData[field].trim() !== '';
+      });
+
+    const isFormValid = basicFormValid && areServerValidatedFieldsPopulated;
+    
     const btn = this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
     if (btn) {
       // Voeg een check toe of de knop bestaat voordat toggleButton wordt aangeroepen
@@ -465,7 +479,7 @@ export const formHandler = {
       console.log(
         `🔄 [FormHandler] Submit button ${isFormValid ? 'enabled ✅' : 'disabled ❌'} for form ${
           this.schema.name
-        }`
+        } (basic validation: ${basicFormValid}, server fields populated: ${areServerValidatedFieldsPopulated})`
       );
     } else {
       console.warn(

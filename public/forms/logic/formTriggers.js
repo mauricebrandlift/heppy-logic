@@ -111,8 +111,7 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
     try {
       console.log('[formTriggers] Adres ophalen voor:', { postcode, huisnummer });
       
-      const addressDetails = await fetchAddressDetails(postcode, huisnummer);
-        if (!addressDetails || !addressDetails.straat || !addressDetails.plaats) {
+      const addressDetails = await fetchAddressDetails(postcode, huisnummer);        if (!addressDetails || !addressDetails.straat || !addressDetails.plaats) {
         console.warn('[formTriggers] Geen volledige adresgegevens ontvangen', addressDetails);
         
         // Maak straat en plaats velden leeg
@@ -133,20 +132,22 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
         if (errorContainer) {
           // Gebruik de error code ADDRESS_NOT_FOUND die in commonMessages.js gedefinieerd is
           const errorCode = 'ADDRESS_NOT_FOUND';
-          let errorMessage = 'Geen geldig adres gevonden. Controleer of uw postcode en huisnummer correct zijn ingevoerd.';          // Gebruik de foutmelding uit het schema indien beschikbaar
+          let errorMessage = 'Geen geldig adres gevonden. Controleer of uw postcode en huisnummer correct zijn ingevoerd.';// Gebruik de foutmelding uit het schema indien beschikbaar
           if (formHandler.schema && formHandler.schema.globalMessages && formHandler.schema.globalMessages[errorCode]) {
             errorMessage = formHandler.schema.globalMessages[errorCode];
           }
           
           showError(errorContainer, errorMessage);
         }
-        
-        // Markeer de velden als foutief voor visuele feedback
+          // Markeer de velden als foutief voor visuele feedback
         const postcodeContainer = postcodeInput.closest('.form-field-wrapper');
         const huisnummerContainer = huisnummerInput.closest('.form-field-wrapper');
         
         if (postcodeContainer) postcodeContainer.classList.add('has-error');
         if (huisnummerContainer) huisnummerContainer.classList.add('has-error');
+        
+        // Update submit button status om te voorkomen dat formulier verstuurd kan worden
+        formHandler.updateSubmitState();
         
         return;
       }      // Als het adres succesvol is opgehaald, verwijder eventuele foutmeldingen en foutstatussen
@@ -167,8 +168,7 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
       // Vul de velden in
       straatInput.value = addressDetails.straat;
       plaatsInput.value = addressDetails.plaats;
-      
-      // Update formHandler.formData
+        // Update formHandler.formData
       if (formHandler.formData) {
         formHandler.formData[config.straatField] = addressDetails.straat;
         formHandler.formData[config.plaatsField] = addressDetails.plaats;
@@ -177,6 +177,9 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
       // Trigger change events om andere logica te laten weten dat de velden zijn bijgewerkt
       straatInput.dispatchEvent(new Event('change', { bubbles: true }));
       plaatsInput.dispatchEvent(new Event('change', { bubbles: true }));
+      
+      // Update submit button status nu de velden zijn ingevuld
+      formHandler.updateSubmitState();
         } catch (error) {
       console.error('[formTriggers] Fout bij ophalen adresgegevens:', error);
       
@@ -189,11 +192,14 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
         formHandler.formData[config.straatField] = '';
         formHandler.formData[config.plaatsField] = '';
       }
-      
-      // Trigger change events om andere logica te laten weten dat de velden zijn bijgewerkt
+        // Trigger change events om andere logica te laten weten dat de velden zijn bijgewerkt
       straatInput.dispatchEvent(new Event('change', { bubbles: true }));
       plaatsInput.dispatchEvent(new Event('change', { bubbles: true }));
-        // Toon een gebruiksvriendelijke foutmelding gebaseerd op het type fout
+      
+      // Update submit button status om te zorgen dat de knop disabled wordt
+      formHandler.updateSubmitState();
+      
+      // Toon een gebruiksvriendelijke foutmelding gebaseerd op het type fout
       const errorContainer = formElement.querySelector('[data-error-for="global"]');
       if (errorContainer) {
         // Bepaal de juiste error code op basis van de error

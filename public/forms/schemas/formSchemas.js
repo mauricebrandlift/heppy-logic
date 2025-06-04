@@ -13,14 +13,24 @@ import { commonMessages, combineMessages } from './commonMessages.js';
  *  - globalMessages (optioneel): mapping van error codes naar user-friendly berichten
  */
 export function getFormSchema(name) {
-  const schemas = {
-    'postcode-form': {
+  const schemas = {    'postcode-form': {
       name: 'postcode-form',
       selector: '[data-form-name="postcode-form"]',
       fields: {
         postcode: commonFields.postcode,
         huisnummer: commonFields.huisnummer,
-        toevoeging: commonFields.toevoeging,      },      // Globale foutberichten per error code
+        toevoeging: commonFields.toevoeging,
+        straatnaam: {
+          ...commonFields.straatnaam,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+        plaats: {
+          ...commonFields.plaats,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+      },// Globale foutberichten per error code
       globalMessages: combineMessages(
         commonMessages.general,
         commonMessages.address,
@@ -29,16 +39,23 @@ export function getFormSchema(name) {
       ),
       // Geen submit-logica hier; wordt in addressCheckForm.js toegevoegd
       // Geen triggers in dit formulier; simpel postcodeschema
-    },    
-    'abb_adres-form': {
+    },      'abb_adres-form': {
       name: 'abb_adres-form',
       selector: '[data-form-name="abb_adres-form"]',
       fields: {
         postcode: commonFields.postcode,
         huisnummer: commonFields.huisnummer,
         toevoeging: commonFields.toevoeging,
-        straatnaam: commonFields.straatnaam,
-        plaats: commonFields.plaats,
+        straatnaam: {
+          ...commonFields.straatnaam,
+          requiresServerValidation: true,  // Deze velden vereisen server-validatie
+          validationDependsOn: ['postcode', 'huisnummer'] // Validatie afhankelijk van deze velden
+        },
+        plaats: {
+          ...commonFields.plaats,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
       },
       submit: {
         // De submit logica wordt gedefinieerd in abbAdresForm.js
