@@ -487,7 +487,6 @@ export const formHandler = {
       );
     }
   },
-
   /**
    * 🚨 Behandel de submit van het formulier.
    *
@@ -505,21 +504,43 @@ export const formHandler = {
     event.preventDefault();
     clearErrors(this.formElement);
     clearGlobalError(this.formElement);
-    showLoader(event.target);
+    
+    // Expliciet de juiste submit button ophalen om loader op te tonen
+    const submitButton = this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
+    if (submitButton) {
+      showLoader(submitButton); // Gebruik de expliciete button
+    } else {
+      showLoader(event.target); // Fallback naar event.target als de button niet gevonden kan worden
+    }
+    
     toggleFields(this.formElement, false);
 
     try {
       if (this.schema.submit && typeof this.schema.submit.action === 'function') {
         await this.schema.submit.action(this.formData);
       }
-      hideLoader(event.target);
+      
+      // Gebruik dezelfde button voor het verbergen van de loader
+      if (submitButton) {
+        hideLoader(submitButton);
+      } else {
+        hideLoader(event.target);
+      }
+      
       toggleFields(this.formElement, true);
       if (this.schema.submit && typeof this.schema.submit.onSuccess === 'function') {
         this.schema.submit.onSuccess();
       }
     } catch (err) {
       console.error(`❌ [FormHandler] Submit error:`, err);
-      hideLoader(event.target);
+      
+      // Gebruik dezelfde button voor het verbergen van de loader bij errors
+      if (submitButton) {
+        hideLoader(submitButton);
+      } else {
+        hideLoader(event.target);
+      }
+      
       toggleFields(this.formElement, true);
       const gm = this.schema.globalMessages || {};
       const code = err.code || (err.name === 'TypeError' ? 'NETWORK_ERROR' : 'DEFAULT');
