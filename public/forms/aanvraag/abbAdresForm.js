@@ -7,7 +7,6 @@ import { fetchAddressDetails, fetchCoverageStatus, ApiError as FrontendApiError 
 import { showError, hideError } from '../ui/formUi.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
 
-const testttt = 'test';
 const FORM_NAME = 'abb_adres-form';
 
 /**
