@@ -1,9 +1,8 @@
 // public/forms/logic/formTriggers.js
 
-import { fetchAddressDetails } from '../../utils/api/index.js';
+import { fetchAddressDetails, fetchPricingConfiguration as apiFetchPricingConfiguration } from '../../utils/api/index.js';
 import { showError, hideError, isErrorVisible } from '../ui/formUi.js';
 import { saveGlobalFieldData, saveFlowData, loadFlowData } from './formStorage.js';
-import { API_CONFIG } from '../../config/apiConfig.js';
 
 /**
  * Verzameling van herbruikbare formulier triggers.
@@ -342,21 +341,11 @@ async function fetchPricingConfiguration() {
   }
   
   pricingConfigState.isLoading = true;
-  
-  try {
-    console.log('[formTriggers] Ophalen prijsconfiguratie...');
-    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRICING}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
+    try {
+    console.log('[formTriggers] Ophalen prijsconfiguratie via API client...');
     
-    if (!response.ok) {
-      throw new Error(`API responded with status ${response.status}`);
-    }
-    
-    const data = await response.json();
+    const result = await apiFetchPricingConfiguration();
+    const data = result; // De API client returned direct de juiste data
     console.log('[formTriggers] Prijsconfiguratie opgehaald:', data);
     
     // Verwerk de data uit de database

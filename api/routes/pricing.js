@@ -3,11 +3,10 @@
  * API Route voor het ophalen van prijsconfiguratie.
  * Endpoint: GET /api/pricing
  */
-import { supabaseConfig } from '../config/index.js';
+import { fetchPricingConfiguration, formatPricingConfiguration } from '../services/configService.js';
 import { handleErrorResponse } from '../utils/errorHandler.js';
 
-export default async function handler(req, res) {
-  // Stel CORS headers in voor ALLE responses van deze functie
+export default async function handler(req, res) {// Stel CORS headers in voor ALLE responses van deze functie
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader(
@@ -39,43 +38,21 @@ export default async function handler(req, res) {
   };
 
   console.log(JSON.stringify({ ...logMeta, level: 'INFO', message: 'Request ontvangen voor prijsconfiguratie.' }));
-
   try {
-    const { url: supabaseUrl, anonKey: supabaseAnonKey } = supabaseConfig;
+    // Gebruik de configService om prijsconfiguratie op te halen
+    const pricingData = await fetchPricingConfiguration(correlationId);
     
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Supabase configuratie ontbreekt.');
-    }
-
-    // Haal de prijsconfiguratie data op uit Supabase
-    const response = await fetch(`${supabaseUrl}/rest/v1/prijs_configuratie`, {
-      headers: {
-        'apikey': supabaseAnonKey,
-        'Authorization': `Bearer ${supabaseAnonKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(JSON.stringify({
-        ...logMeta,
-        level: 'ERROR',
-        message: 'Fout bij ophalen prijsconfiguratie data',
-        status: response.status,
-        error: errorText,
-      }));
-      throw new Error(`Fout bij ophalen prijsconfiguratie: ${response.status}`);
-    }
-
-    const pricingData = await response.json();
+    // Optioneel: data formatteren (wanneer gewenst)
+    // const formattedData = formatPricingConfiguration(pricingData);
+    
     console.log(JSON.stringify({
       ...logMeta,
       level: 'INFO',
-      message: 'Prijsconfiguratie succesvol opgehaald',
+      message: 'Prijsconfiguratie succesvol opgehaald via configService',
       itemCount: Array.isArray(pricingData) ? pricingData.length : 0,
     }));
 
+    // Stuur de ongeformatteerde data terug voor compatibiliteit met bestaande frontend
     return res.status(200).json({
       correlationId: correlationId || 'not-provided',
       pricing: pricingData,

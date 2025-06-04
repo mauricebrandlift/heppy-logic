@@ -2,7 +2,7 @@
 
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
-import { API_CONFIG } from '../../config/apiConfig.js';
+import { fetchPricingConfiguration } from '../../utils/api/index.js';
 import { saveGlobalFieldData, loadGlobalFieldData, saveFlowData, loadFlowData } from '../logic/formStorage.js';
 // Import moveToNextSlide van Webflow indien nodig
 // In een live omgeving is deze functie waarschijnlijk globaal beschikbaar door Webflow
@@ -42,7 +42,7 @@ const calculation = {
  * Haal de prijsconfiguratie op van de backend API
  * @returns {Promise<boolean>} true als het ophalen is gelukt, false als er een fout optrad
  */
-async function fetchPricingConfiguration() {
+async function getPricingConfiguration() {
   if (pricingConfig.isLoading || pricingConfig.isLoaded) {
     return pricingConfig.isLoaded;
   }
@@ -50,19 +50,10 @@ async function fetchPricingConfiguration() {
   pricingConfig.isLoading = true;
   
   try {
-    console.log('🔄 [AbbOpdrachtForm] Ophalen prijsconfiguratie...');
-    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRICING}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
+    console.log('🔄 [AbbOpdrachtForm] Ophalen prijsconfiguratie via API client...');
+    const result = await fetchPricingConfiguration();
+    const data = result;
     
-    if (!response.ok) {
-      throw new Error(`API responded with status ${response.status}`);
-    }
-    
-    const data = await response.json();
     console.log('✅ [AbbOpdrachtForm] Prijsconfiguratie opgehaald:', data);
     
     // Verwerk de data uit de database
@@ -194,10 +185,9 @@ function updateCalculationUI(formElement) {
  * @param {object} formData - Formuliergegevens
  * @param {Element} formElement - Het formulierelement
  */
-async function performCalculations(formData, formElement) {
-  // Zorg ervoor dat we de prijsconfiguratie hebben
+async function performCalculations(formData, formElement) {  // Zorg ervoor dat we de prijsconfiguratie hebben
   if (!pricingConfig.isLoaded) {
-    const success = await fetchPricingConfiguration();
+    const success = await getPricingConfiguration();
     if (!success) {
       console.error('❌ [AbbOpdrachtForm] Kon berekening niet uitvoeren: prijsconfiguratie niet beschikbaar');
       return;
@@ -272,11 +262,10 @@ function setupHourButtons(formElement) {
  * Initialiseer het formulier
  * @param {Element} formElement - Het formulierelement
  */
-export async function initAbbOpdrachtForm() {
-  console.log('🚀 [AbbOpdrachtForm] Initialiseren...');
+export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtForm] Initialiseren...');
   
   // Haal prijsconfiguratie op bij het initialiseren
-  await fetchPricingConfiguration();
+  await getPricingConfiguration();
   
   // Haal het formulierschema op
   const schema = getFormSchema('abb_opdracht-form');
