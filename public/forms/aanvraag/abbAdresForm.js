@@ -34,10 +34,11 @@ export function initAbbAdresForm() {
       try {
         // Stap 1: Adresgegevens ophalen
         const addressDetails = await fetchAddressDetails(postcode, huisnummer);
-        console.log('[abbAdresForm] Adresdetails opgehaald:', addressDetails);
-
-        if (!addressDetails || !addressDetails.straat || !addressDetails.plaats) {
-          throw new Error('Kon adresgegevens niet volledig ophalen. Controleer postcode en huisnummer.');
+        console.log('[abbAdresForm] Adresdetails opgehaald:', addressDetails);        if (!addressDetails || !addressDetails.straat || !addressDetails.plaats) {
+          // Gooi een error met een specifieke code die in commonMessages.js is gedefinieerd
+          const error = new Error('Kon adresgegevens niet volledig ophalen.');
+          error.code = 'ADDRESS_NOT_FOUND'; 
+          throw error;
         }
 
         // Stap 2: Readonly velden vullen in DOM & formHandler.formData
@@ -65,20 +66,39 @@ export function initAbbAdresForm() {
           } else {
             console.log(`[abbAdresForm] Plaats '${addressDetails.plaats}' is NIET gedekt. Navigeren naar /aanvragen/geen-dekking...`);
             window.location.href = '/aanvragen/geen-dekking';
-          }
-        } else {
-          throw new Error('Kon de dekkingsstatus niet correct bepalen.');
-        }
-      } catch (error) {
+          }        } else {
+          // Gooi een error met een specifieke code voor dekkingsstatus problemen
+          const error = new Error('Kon de dekkingsstatus niet correct bepalen.');
+          error.code = 'COVERAGE_ERROR';
+          throw error;
+        }      } catch (error) {
         console.error('[abbAdresForm] Fout tijdens submit action:', error);
-        let errorMessage = 'Er is een onbekende fout opgetreden.';
-        if (error instanceof FrontendApiError) {
-          errorMessage = error.message || 'Fout bij het communiceren met de server.';
-        } else if (error.message) {
-          errorMessage = error.message;
+        
+        // Als de error geen code heeft, voeg er dan één toe op basis van het type error
+        if (!error.code) {
+          if (error instanceof FrontendApiError) {
+            if (error.status === 404) {
+              error.code = 'ADDRESS_NOT_FOUND';
+            } else if (error.status === 400) {
+              error.code = 'INVALID_ADDRESS';
+            } else if (error.status >= 500) {
+              error.code = 'SERVER_ERROR';
+            } else if (!navigator.onLine) {
+              error.code = 'NETWORK_ERROR';
+            } else {
+              error.code = 'API_ERROR';
+            }
+          } else if (error.message && error.message.includes('dekking')) {
+            error.code = 'COVERAGE_ERROR';
+          } else if (error.message && error.message.includes('adres')) {
+            error.code = 'ADDRESS_NOT_FOUND';
+          } else {
+            error.code = 'DEFAULT';
+          }
         }
-        // Gooi de error zodat formHandler deze kan oppakken en tonen
-        throw new Error(errorMessage);
+        
+        // Gebruik het error object zoals het is, met de code die we hebben toegevoegd
+        throw error;
       }
     },
     onSuccess: () => {

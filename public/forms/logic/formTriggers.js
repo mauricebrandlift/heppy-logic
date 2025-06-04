@@ -111,24 +111,60 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
       console.log('[formTriggers] Adres ophalen voor:', { postcode, huisnummer });
       
       const addressDetails = await fetchAddressDetails(postcode, huisnummer);
-      
-      if (!addressDetails || !addressDetails.straat || !addressDetails.plaats) {
+        if (!addressDetails || !addressDetails.straat || !addressDetails.plaats) {
         console.warn('[formTriggers] Geen volledige adresgegevens ontvangen', addressDetails);
-        // Toon een globale foutmelding
+        
+        // Maak straat en plaats velden leeg
+        straatInput.value = '';
+        plaatsInput.value = '';
+        
+        // Update ook formHandler.formData indien beschikbaar
+        if (formHandler.formData) {
+          formHandler.formData[config.straatField] = '';
+          formHandler.formData[config.plaatsField] = '';
+        }
+        
+        // Trigger change events om andere logica te laten weten dat de velden zijn bijgewerkt
+        straatInput.dispatchEvent(new Event('change', { bubbles: true }));
+        plaatsInput.dispatchEvent(new Event('change', { bubbles: true }));
+          // Toon een gebruiksvriendelijke foutmelding uit de commonMessages
         const errorContainer = formElement.querySelector('[data-error-for="global"]');
         if (errorContainer) {
-          errorContainer.textContent = 'Geen geldig adres gevonden. Controleer postcode en huisnummer.';
+          // Gebruik de error code ADDRESS_NOT_FOUND die in commonMessages.js gedefinieerd is
+          const errorCode = 'ADDRESS_NOT_FOUND';
+          let errorMessage = 'Geen geldig adres gevonden. Controleer of uw postcode en huisnummer correct zijn ingevoerd.';
+          
+          // Gebruik de foutmelding uit het schema indien beschikbaar
+          if (formHandler.schema && formHandler.schema.globalMessages && formHandler.schema.globalMessages[errorCode]) {
+            errorMessage = formHandler.schema.globalMessages[errorCode];
+          }
+          
+          errorContainer.textContent = errorMessage;
           errorContainer.style.display = 'block';
         }
+        
+        // Markeer de velden als foutief voor visuele feedback
+        const postcodeContainer = postcodeInput.closest('.form-field-wrapper');
+        const huisnummerContainer = huisnummerInput.closest('.form-field-wrapper');
+        
+        if (postcodeContainer) postcodeContainer.classList.add('has-error');
+        if (huisnummerContainer) huisnummerContainer.classList.add('has-error');
+        
         return;
       }
-      
-      // Als het adres succesvol is opgehaald, verwijder eventuele foutmelding
+        // Als het adres succesvol is opgehaald, verwijder eventuele foutmeldingen en foutstatussen
       const errorContainer = formElement.querySelector('[data-error-for="global"]');
       if (errorContainer) {
         errorContainer.textContent = '';
         errorContainer.style.display = 'none';
       }
+      
+      // Verwijder eventuele foutstatussen van de velden
+      const postcodeContainer = postcodeInput.closest('.form-field-wrapper');
+      const huisnummerContainer = huisnummerInput.closest('.form-field-wrapper');
+      
+      if (postcodeContainer) postcodeContainer.classList.remove('has-error');
+      if (huisnummerContainer) huisnummerContainer.classList.remove('has-error');
       
       console.log('[formTriggers] Adresgegevens ontvangen:', addressDetails);
       
@@ -145,22 +181,77 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
       // Trigger change events om andere logica te laten weten dat de velden zijn bijgewerkt
       straatInput.dispatchEvent(new Event('change', { bubbles: true }));
       plaatsInput.dispatchEvent(new Event('change', { bubbles: true }));
-      
-    } catch (error) {
+        } catch (error) {
       console.error('[formTriggers] Fout bij ophalen adresgegevens:', error);
-      // Toon een foutmelding
+      
+      // Maak straat en plaats velden leeg
+      straatInput.value = '';
+      plaatsInput.value = '';
+      
+      // Update ook formHandler.formData indien beschikbaar
+      if (formHandler.formData) {
+        formHandler.formData[config.straatField] = '';
+        formHandler.formData[config.plaatsField] = '';
+      }
+      
+      // Trigger change events om andere logica te laten weten dat de velden zijn bijgewerkt
+      straatInput.dispatchEvent(new Event('change', { bubbles: true }));
+      plaatsInput.dispatchEvent(new Event('change', { bubbles: true }));
+        // Toon een gebruiksvriendelijke foutmelding gebaseerd op het type fout
       const errorContainer = formElement.querySelector('[data-error-for="global"]');
       if (errorContainer) {
-        errorContainer.textContent = 'Er is een fout opgetreden bij het ophalen van het adres.';
+        // Bepaal de juiste error code op basis van de error
+        let errorCode = 'API_ERROR';
+        
+        if (error.status === 404) {
+          errorCode = 'ADDRESS_NOT_FOUND';
+        } else if (error.status === 400) {
+          errorCode = 'INVALID_ADDRESS';
+        } else if (error.status >= 500) {
+          errorCode = 'SERVER_ERROR';
+        } else if (error.name === 'NetworkError' || !navigator.onLine) {
+          errorCode = 'NETWORK_ERROR';
+        } else if (error.message && error.message.includes('timeout')) {
+          errorCode = 'API_TIMEOUT';
+        }
+        
+        // Haal foutmelding op uit schema, of gebruik standaard foutmelding
+        let errorMessage = 'Er is een fout opgetreden bij het ophalen van uw adres.';
+        
+        if (formHandler.schema && formHandler.schema.globalMessages && formHandler.schema.globalMessages[errorCode]) {
+          errorMessage = formHandler.schema.globalMessages[errorCode];
+        }
+        
+        errorContainer.textContent = errorMessage;
         errorContainer.style.display = 'block';
       }
+      
+      // Markeer de velden als foutief voor visuele feedback
+      const postcodeContainer = postcodeInput.closest('.form-field-wrapper');
+      const huisnummerContainer = huisnummerInput.closest('.form-field-wrapper');
+      
+      if (postcodeContainer) postcodeContainer.classList.add('has-error');
+      if (huisnummerContainer) huisnummerContainer.classList.add('has-error');
     }
   }
-
   /**
    * Event handler met debounce voor input events
    */
-  function handleFieldInput() {
+  function handleFieldInput(event) {
+    // Bij nieuwe input, verwijder foutmeldingen en foutstatussen
+    const inputField = event.target;
+    const fieldWrapper = inputField.closest('.form-field-wrapper');
+    
+    if (fieldWrapper) {
+      fieldWrapper.classList.remove('has-error');
+    }
+    
+    // Verberg de globale foutmelding wanneer de gebruiker begint met typen
+    const errorContainer = formElement.querySelector('[data-error-for="global"]');
+    if (errorContainer && errorContainer.style.display === 'block') {
+      errorContainer.style.display = 'none';
+    }
+    
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(lookupAndFillAddress, 500);
   }

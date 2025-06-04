@@ -1,6 +1,7 @@
 // public/forms/schemas/formSchemas.js
 
 import { commonFields } from './commonFields.js';
+import { commonMessages, combineMessages } from './commonMessages.js';
 
 /**
  * Database van form schemas.
@@ -19,16 +20,17 @@ export function getFormSchema(name) {
       fields: {
         postcode: commonFields.postcode,
         huisnummer: commonFields.huisnummer,
-        toevoeging: commonFields.toevoeging,
-      },
-      // Globale foutberichten per error code
-      globalMessages: {
-        NETWORK_ERROR: 'Kan geen verbinding maken met de server. Controleer je internet.',
-        DEFAULT: 'Er is iets misgegaan. Probeer het later opnieuw.',
-      },
+        toevoeging: commonFields.toevoeging,      },      // Globale foutberichten per error code
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.address,
+        commonMessages.coverage,
+        commonMessages.server
+      ),
       // Geen submit-logica hier; wordt in addressCheckForm.js toegevoegd
       // Geen triggers in dit formulier; simpel postcodeschema
-    },    'abb_adres-form': {
+    },    
+    'abb_adres-form': {
       name: 'abb_adres-form',
       selector: '[data-form-name="abb_adres-form"]',
       fields: {
@@ -53,11 +55,17 @@ export function getFormSchema(name) {
           //   plaatsField: 'plaats'
           // }
         }
-      ],
-      globalMessages: {
-        NETWORK_ERROR: 'Er is een netwerkfout opgetreden. Probeer het later opnieuw.',
-        DEFAULT: 'Er is een onbekende fout opgetreden. Controleer de ingevoerde gegevens.',
-      },
+      ],      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.address,
+        commonMessages.coverage,
+        commonMessages.server,
+        {
+          // Formulier-specifieke berichten
+          CUSTOM_SUCCESS: 'Je adresgegevens zijn succesvol gecontroleerd.',
+          LOCAL_ONLY: 'Deze actie is alleen beschikbaar voor lokale adressen.'
+        }
+      ),
     },
 
     // Andere formulieren...
