@@ -14,10 +14,9 @@ export default async function handler(req, res) {
     'Access-Control-Allow-Headers',
     'Content-Type, X-Correlation-ID, Authorization'
   );
-
   // Handel de OPTIONS (preflight) request af
   if (req.method === 'OPTIONS') {
-    res.status(204).end();
+    res.status(200).end();
     return;
   }
 
