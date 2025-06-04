@@ -3,7 +3,7 @@
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { API_CONFIG } from '../../config/apiConfig.js';
-import { saveGlobalFieldData, loadGlobalFieldData } from '../logic/formStorage.js';
+import { saveGlobalFieldData, loadGlobalFieldData, saveFlowData, loadFlowData } from '../logic/formStorage.js';
 // Import moveToNextSlide van Webflow indien nodig
 // In een live omgeving is deze functie waarschijnlijk globaal beschikbaar door Webflow
 
@@ -175,8 +175,16 @@ function updateCalculationUI(formElement) {
   if (prijsField) {
     prijsField.textContent = `€ ${calculation.price.toFixed(2).replace('.', ',')}`;
   }
+    // Sla de berekende waarden op voor gebruik in volgende stappen in de flow
+  const flowData = loadFlowData('abonnement-aanvraag') || {};
   
-  // Sla de berekende waarden op voor gebruik in volgende stappen
+  // Update de flow data met de berekende waarden
+  flowData.abb_uren = calculation.adjustedHours.toString();
+  flowData.abb_prijs = calculation.price.toFixed(2);
+  
+  saveFlowData('abonnement-aanvraag', flowData);
+  
+  // Voor backward compatibility, sla ook op in de global field data
   saveGlobalFieldData('abb_uren', calculation.adjustedHours.toString());
   saveGlobalFieldData('abb_prijs', calculation.price.toFixed(2));
 }
@@ -288,14 +296,27 @@ export async function initAbbOpdrachtForm() {
       });
     }
   });
-  
-  // Voeg submit logica toe aan het schema
+    // Voeg submit logica toe aan het schema
   schema.submit = {
     action: async (formData) => {
       // Voer een laatste berekening uit om zeker te zijn van correcte waarden
       await performCalculations(formData, document.querySelector(schema.selector));
       
-      // Sla de formuliergegevens op om beschikbaar te zijn voor de volgende stap
+      // Sla de formuliergegevens op in de flow data
+      const flowData = loadFlowData('abonnement-aanvraag') || {};
+      
+      // Update de flow data met huidige formuliergegevens
+      flowData.abb_m2 = formData.abb_m2;
+      flowData.abb_toiletten = formData.abb_toiletten;
+      flowData.abb_badkamers = formData.abb_badkamers;
+      
+      // Zorg ervoor dat de berekende waarden ook in de flow data worden opgeslagen
+      flowData.abb_uren = calculation.adjustedHours.toString();
+      flowData.abb_prijs = calculation.price.toFixed(2);
+      
+      saveFlowData('abonnement-aanvraag', flowData);
+      
+      // Voor backward compatibility, sla ook op in de global field data
       saveGlobalFieldData('abb_m2', formData.abb_m2);
       saveGlobalFieldData('abb_toiletten', formData.abb_toiletten);
       saveGlobalFieldData('abb_badkamers', formData.abb_badkamers);
@@ -322,18 +343,36 @@ export async function initAbbOpdrachtForm() {
   
   // Set up de uren +/- knoppen
   setupHourButtons(document.querySelector(schema.selector));
+    // Haal eventuele opgeslagen flow data op
+  const flowData = loadFlowData('abonnement-aanvraag') || {};
   
-  // Als er al waardes zijn ingevuld, voer dan direct een berekening uit
+  // Bereid formulierdata voor met waarden uit de flow of uit de velden zelf
   const formData = {};
+  const formElement = document.querySelector(schema.selector);
+  
+  // Controleer elk veld en vul het in met opgeslagen waarden indien beschikbaar
   ['abb_m2', 'abb_toiletten', 'abb_badkamers'].forEach(key => {
-    const el = document.querySelector(`[data-field-name="${key}"]`);
-    if (el && el.value) {
-      formData[key] = el.value;
+    // Eerst proberen uit flow data te halen
+    if (flowData[key]) {
+      formData[key] = flowData[key];
+      
+      // Vul het veld ook in de UI in
+      const el = formElement.querySelector(`[data-field-name="${key}"]`);
+      if (el) {
+        el.value = flowData[key];
+      }
+    } else {
+      // Anders uit het huidige formulier halen
+      const el = formElement.querySelector(`[data-field-name="${key}"]`);
+      if (el && el.value) {
+        formData[key] = el.value;
+      }
     }
   });
   
-  if (formData.abb_m2 && formData.abb_toiletten && formData.abb_badkamers) {
-    await performCalculations(formData, document.querySelector(schema.selector));
+  // Als er voldoende gegevens zijn, voer dan een berekening uit
+  if (formData.abb_m2 || formData.abb_toiletten || formData.abb_badkamers) {
+    await performCalculations(formData, formElement);
   }
   
   console.log('✅ [AbbOpdrachtForm] Initialisatie voltooid');

@@ -5,6 +5,7 @@ import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { fetchAddressDetails, fetchCoverageStatus, ApiError as FrontendApiError } from '../../utils/api/index.js';
 import { showError, hideError } from '../ui/formUi.js';
+import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
 
 
 const FORM_NAME = 'abb_adres-form';
@@ -24,6 +25,10 @@ export function initAbbAdresForm() {
     console.error(`[abbAdresForm] Schema '${FORM_NAME}' niet gevonden in formSchemas.js!`);
     return;
   }
+  
+  // Laad eventueel bestaande flow data
+  const flowData = loadFlowData('abonnement-aanvraag');
+  console.log('[abbAdresForm] Bestaande flow data:', flowData);
   
   // Definieer de submit actie
   schema.submit = {
@@ -54,18 +59,30 @@ export function initAbbAdresForm() {
         formHandler.formData.straatnaam = addressDetails.straat;
         formHandler.formData.plaats = addressDetails.plaats;
         
-        console.log('[abbAdresForm] Straat en plaats ingevuld. Straat:', addressDetails.straat, 'Plaats:', addressDetails.plaats);
-
-        // Stap 3: Dekking controleren
+        console.log('[abbAdresForm] Straat en plaats ingevuld. Straat:', addressDetails.straat, 'Plaats:', addressDetails.plaats);        // Stap 3: Dekking controleren
         const coverageStatus = await fetchCoverageStatus(addressDetails.plaats);
         console.log('[abbAdresForm] Dekkingsstatus:', coverageStatus);        if (coverageStatus && typeof coverageStatus.gedekt === 'boolean') {          if (coverageStatus.gedekt) {
             console.log(`[abbAdresForm] Plaats '${addressDetails.plaats}' is gedekt. Kan doorgaan naar volgende stap.`);
             // Sla op dat het adres in een gebied met dekking is
             formHandler.formData.heeftDekking = true;
+            
+            // Bewaar alle adresgegevens in de flowData voor de hele aanvraagflow
+            const flowData = loadFlowData('abonnement-aanvraag') || {};
+            flowData.postcode = postcode;
+            flowData.huisnummer = huisnummer;
+            flowData.straatnaam = addressDetails.straat;
+            flowData.plaats = addressDetails.plaats;
+            flowData.heeftDekking = true;
+            saveFlowData('abonnement-aanvraag', flowData);
           } else {
             console.log(`[abbAdresForm] Plaats '${addressDetails.plaats}' is NIET gedekt. Zal navigeren naar geen-dekking pagina.`);
             // Sla op dat het adres in een gebied zonder dekking is
             formHandler.formData.heeftDekking = false;
+            
+            // Bewaar dekking status in flow data
+            const flowData = loadFlowData('abonnement-aanvraag') || {};
+            flowData.heeftDekking = false;
+            saveFlowData('abonnement-aanvraag', flowData);
           }} else {
           // Gooi een error met een specifieke code voor dekkingsstatus problemen
           const error = new Error('Kon de dekkingsstatus niet correct bepalen.');
@@ -125,8 +142,33 @@ export function initAbbAdresForm() {
       }
     }
   };
-  
-  // Initialiseer de formHandler met het bijgewerkte schema
+    // Initialiseer de formHandler met het bijgewerkte schema
   formHandler.init(schema);
+  
+  // Pre-fill formuliervelden als er flowData beschikbaar is
+  if (flowData) {
+    const formElement = document.querySelector(schema.selector);
+    
+    // Adresvelden vooraf invullen als ze beschikbaar zijn in flowData
+    if (formElement) {
+      const postcodeField = formElement.querySelector('[data-field-name="postcode"]');
+      const huisnummerField = formElement.querySelector('[data-field-name="huisnummer"]');
+      const straatField = formElement.querySelector('[data-field-name="straatnaam"]');
+      const plaatsField = formElement.querySelector('[data-field-name="plaats"]');
+      
+      if (flowData.postcode && postcodeField) postcodeField.value = flowData.postcode;
+      if (flowData.huisnummer && huisnummerField) huisnummerField.value = flowData.huisnummer;
+      if (flowData.straatnaam && straatField) straatField.value = flowData.straatnaam;
+      if (flowData.plaats && plaatsField) plaatsField.value = flowData.plaats;
+      
+      // Update ook de formData in de formHandler
+      if (flowData.postcode) formHandler.formData.postcode = flowData.postcode;
+      if (flowData.huisnummer) formHandler.formData.huisnummer = flowData.huisnummer;
+      if (flowData.straatnaam) formHandler.formData.straatnaam = flowData.straatnaam;
+      if (flowData.plaats) formHandler.formData.plaats = flowData.plaats;
+      if (typeof flowData.heeftDekking === 'boolean') formHandler.formData.heeftDekking = flowData.heeftDekking;
+    }
+  }
+  
   console.log(`[abbAdresForm] Formulier '${FORM_NAME}' is succesvol geïnitialiseerd.`);
 }

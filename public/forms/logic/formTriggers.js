@@ -2,6 +2,8 @@
 
 import { fetchAddressDetails } from '../../utils/api/index.js';
 import { showError, hideError, isErrorVisible } from '../ui/formUi.js';
+import { saveGlobalFieldData, saveFlowData, loadFlowData } from './formStorage.js';
+import { API_CONFIG } from '../../config/apiConfig.js';
 
 /**
  * Verzameling van herbruikbare formulier triggers.
@@ -299,5 +301,362 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
     postcodeInput.removeEventListener('input', handleFieldInput);
     huisnummerInput.removeEventListener('input', handleFieldInput);
     clearTimeout(debounceTimeout);
+  };
+}
+
+/**
+ * Houdt de status van de prijsconfiguratie bij
+ * Deze wordt eenmalig opgehaald van de API en daarna hergebruikt
+ */
+const pricingConfigState = {
+  config: {
+    timePerM2: null,       // minuten per 10m2
+    timePerToilet: null,   // minuten per toilet
+    timePerBathroom: null, // minuten per badkamer
+    pricePerHour: null,    // prijs per uur
+    minHours: 3            // minimum aantal uren per schoonmaak
+  },
+  isLoading: false,        // flag voor het laden van de prijsconfiguratie
+  isLoaded: false          // flag voor het checken of de prijsconfiguratie is geladen
+};
+
+/**
+ * Haalt de prijsconfiguratie op van de backend API
+ * @returns {Promise<boolean>} true als het ophalen is gelukt, false als er een fout optrad
+ */
+async function fetchPricingConfiguration() {
+  if (pricingConfigState.isLoading) {
+    return new Promise(resolve => {
+      // Als de configuratie al wordt opgehaald, wacht dan tot het klaar is
+      const checkInterval = setInterval(() => {
+        if (!pricingConfigState.isLoading) {
+          clearInterval(checkInterval);
+          resolve(pricingConfigState.isLoaded);
+        }
+      }, 100);
+    });
+  }
+  
+  if (pricingConfigState.isLoaded) {
+    return true;
+  }
+  
+  pricingConfigState.isLoading = true;
+  
+  try {
+    console.log('[formTriggers] Ophalen prijsconfiguratie...');
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRICING}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API responded with status ${response.status}`);
+    }
+    
+    const data = await response.json();
+    console.log('[formTriggers] Prijsconfiguratie opgehaald:', data);
+    
+    // Verwerk de data uit de database
+    if (Array.isArray(data.pricing) && data.pricing.length > 0) {
+      data.pricing.forEach(item => {
+        const configKey = item.config_key;
+        const configValue = parseFloat(item.config_value);
+        
+        switch(configKey) {
+          case 'timePerM2':
+            pricingConfigState.config.timePerM2 = configValue;
+            break;
+          case 'timePerToilet':
+            pricingConfigState.config.timePerToilet = configValue;
+            break;
+          case 'timePerBathroom':
+            pricingConfigState.config.timePerBathroom = configValue;
+            break;
+          case 'pricePerHour':
+            pricingConfigState.config.pricePerHour = configValue;
+            break;
+          case 'minHours':
+            if (configValue > 0) {
+              pricingConfigState.config.minHours = configValue;
+            }
+            break;
+        }
+      });
+      
+      pricingConfigState.isLoaded = true;
+      console.log('[formTriggers] Prijsconfiguratie verwerkt:', pricingConfigState.config);
+      return true;
+    } else {
+      console.error('[formTriggers] Geen geldige prijsconfiguratie gevonden in de API respons');
+      return false;
+    }
+  } catch (error) {
+    console.error('[formTriggers] Fout bij ophalen prijsconfiguratie:', error);
+    return false;
+  } finally {
+    pricingConfigState.isLoading = false;
+  }
+}
+
+/**
+ * Bereken de uren op basis van de invoergegevens en prijsconfiguratie
+ * @param {number} m2 - Aantal vierkante meters
+ * @param {number} toilets - Aantal toiletten
+ * @param {number} bathrooms - Aantal badkamers
+ * @returns {number} - Berekende uren (niet afgerond)
+ */
+function calculateHours(m2, toilets, bathrooms) {
+  // Bereken totale minuten
+  const m2Minutes = (m2 / 10) * (pricingConfigState.config.timePerM2 || 0);
+  const toiletMinutes = toilets * (pricingConfigState.config.timePerToilet || 0);
+  const bathroomMinutes = bathrooms * (pricingConfigState.config.timePerBathroom || 0);
+  
+  const totalMinutes = m2Minutes + toiletMinutes + bathroomMinutes;
+  const hours = totalMinutes / 60;
+  
+  console.log(`[formTriggers] Berekening: ${m2}m² (${m2Minutes}min) + ${toilets} toiletten (${toiletMinutes}min) + ${bathrooms} badkamers (${bathroomMinutes}min) = ${totalMinutes}min = ${hours}u`);
+  
+  return hours;
+}
+
+/**
+ * Rond uren af naar boven naar het dichtstbijzijnde halve uur, met een minimum
+ * @param {number} hours - Onafgeronde uren
+ * @returns {number} - Afgeronde uren (minimum 3, afgerond naar boven per half uur)
+ */
+function roundHoursUp(hours) {
+  // Minimum van 3 uur (of de waarde uit de configuratie)
+  const minHours = pricingConfigState.config.minHours || 3;
+  
+  if (hours <= 0) return minHours;
+  
+  // Rond af naar boven naar het dichtstbijzijnde halve uur
+  const roundedHours = Math.ceil(hours * 2) / 2;
+  
+  // Zorg ervoor dat het resultaat niet lager is dan het minimum
+  return Math.max(roundedHours, minHours);
+}
+
+/**
+ * Bereken de prijs op basis van de afgeronde uren en het uurtarief
+ * @param {number} hours - Afgeronde uren
+ * @returns {number} - Berekende prijs
+ */
+function calculatePrice(hours) {
+  return hours * (pricingConfigState.config.pricePerHour || 0);
+}
+
+/**
+ * Trigger voor het berekenen van schoonmaakuren en -kosten
+ * op basis van oppervlakte, aantal toiletten en badkamers.
+ * 
+ * Deze trigger:
+ * - Berekent het aantal benodigde uren
+ * - Past afrondingsregels toe (minimum 3 uur, afronden naar boven per half uur)
+ * - Berekent de prijs op basis van de afgeronde uren
+ * - Update de weergavevelden in het formulier
+ * 
+ * @param {Object} formHandler - De formHandler instantie
+ * @param {Object} options - Configuratie opties
+ * @param {string} options.m2Field - Naam van het oppervlakte veld (default: 'abb_m2')
+ * @param {string} options.toiletsField - Naam van het toiletten veld (default: 'abb_toiletten')
+ * @param {string} options.bathroomsField - Naam van het badkamers veld (default: 'abb_badkamers')
+ * @param {string} options.hoursDisplay - Data-attribuut voor het uren weergaveveld (default: 'calculate_form_abb_uren')
+ * @param {string} options.priceDisplay - Data-attribuut voor het prijs weergaveveld (default: 'calculate_form_abb_prijs')
+ * @param {string} options.hoursUpButton - Data-attribuut voor de uren verhogen knop (default: 'uren_up')
+ * @param {string} options.hoursDownButton - Data-attribuut voor de uren verlagen knop (default: 'uren_down')
+ * @returns {Function} Cleanup functie om event listeners te verwijderen
+ */
+export function initHoursCalculationTrigger(formHandler, options = {}) {
+  const config = {
+    m2Field: 'abb_m2',
+    toiletsField: 'abb_toiletten',
+    bathroomsField: 'abb_badkamers',
+    hoursDisplay: 'calculate_form_abb_uren',
+    priceDisplay: 'calculate_form_abb_prijs',
+    hoursUpButton: 'uren_up',
+    hoursDownButton: 'uren_down',
+    ...options
+  };
+  
+  // Houdt de huidige berekende waarden bij
+  const calculation = {
+    hours: 0,              // berekende uren
+    adjustedHours: 0,      // afgeronde uren (minimum 3, afgerond naar boven per half uur)
+    price: 0               // berekende prijs
+  };
+
+  const formElement = formHandler.formElement;
+  if (!formElement) {
+    console.error('[formTriggers] Geen formulierelement gevonden in formHandler');
+    return () => {}; // Noop cleanup function
+  }
+
+  // Haal velden op
+  const m2Input = formElement.querySelector(`[data-field-name="${config.m2Field}"]`);
+  const toiletsInput = formElement.querySelector(`[data-field-name="${config.toiletsField}"]`);
+  const bathroomsInput = formElement.querySelector(`[data-field-name="${config.bathroomsField}"]`);
+  
+  // Haal weergavevelden op
+  const hoursDisplay = formElement.querySelector(`[data-field-total="${config.hoursDisplay}"]`);
+  const priceDisplay = formElement.querySelector(`[data-field-total="${config.priceDisplay}"]`);
+  
+  // Haal knoppen op
+  const hoursUpButton = formElement.querySelector(`[data-btn="${config.hoursUpButton}"]`);
+  const hoursDownButton = formElement.querySelector(`[data-btn="${config.hoursDownButton}"]`);
+
+  // Controleer of de benodigde velden aanwezig zijn
+  if (!m2Input || !toiletsInput || !bathroomsInput) {
+    console.error('[formTriggers] Kon invoervelden niet vinden voor berekening schoonmaakuren');
+    return () => {};
+  }
+  
+  if (!hoursDisplay || !priceDisplay) {
+    console.warn('[formTriggers] Weergavevelden voor uren of prijs niet gevonden');
+  }
+
+  let debounceTimeout = null;
+
+  /**
+   * Update de UI met de berekende waarden
+   */
+  function updateCalculationUI() {
+    // Update uren weergave
+    if (hoursDisplay) {
+      hoursDisplay.textContent = `${calculation.adjustedHours} uur`;
+    }
+    
+    // Update prijs weergave
+    if (priceDisplay) {
+      priceDisplay.textContent = `€ ${calculation.price.toFixed(2).replace('.', ',')}`;
+    }
+      // Sla de berekende waarden op voor gebruik in volgende stappen
+    const flowData = loadFlowData('abonnement-aanvraag') || {};
+    
+    // Update de flow data met de berekende waarden
+    flowData.abb_uren = calculation.adjustedHours.toString();
+    flowData.abb_prijs = calculation.price.toFixed(2);
+    
+    saveFlowData('abonnement-aanvraag', flowData);
+    
+    // Voor backward compatibility, sla ook op in de global field data
+    saveGlobalFieldData('abb_uren', calculation.adjustedHours.toString());
+    saveGlobalFieldData('abb_prijs', calculation.price.toFixed(2));
+  }
+
+  /**
+   * Voer de berekeningen uit op basis van de formuliergegevens
+   */
+  async function performCalculations() {
+    // Zorg ervoor dat we de prijsconfiguratie hebben
+    if (!pricingConfigState.isLoaded) {
+      const success = await fetchPricingConfiguration();
+      if (!success) {
+        console.error('[formTriggers] Kon berekening niet uitvoeren: prijsconfiguratie niet beschikbaar');
+        return;
+      }
+    }
+    
+    // Haal de waarden op
+    const m2 = parseInt(m2Input.value) || 0;
+    const toilets = parseInt(toiletsInput.value) || 0;
+    const bathrooms = parseInt(bathroomsInput.value) || 0;
+    
+    // Bereken uren
+    const calculatedHours = calculateHours(m2, toilets, bathrooms);
+    calculation.hours = calculatedHours;
+    
+    // Rond uren af naar boven (minimum 3 uur, per half uur)
+    calculation.adjustedHours = roundHoursUp(calculatedHours);
+    
+    // Bereken prijs
+    calculation.price = calculatePrice(calculation.adjustedHours);
+    
+    // Update de UI
+    updateCalculationUI();
+  }
+
+  /**
+   * Event handler voor veranderingen in de inputvelden
+   */
+  function handleFieldInput() {
+    // Voer berekeningen uit met debounce om overmatige berekeningen te voorkomen
+    clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(performCalculations, 300);
+  }
+  
+  /**
+   * Setup voor uren +/- knoppen
+   */
+  function setupHourButtons() {
+    if (hoursUpButton) {
+      hoursUpButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Verhoog de uren met een half uur
+        calculation.adjustedHours += 0.5;
+        
+        // Update de prijs
+        calculation.price = calculatePrice(calculation.adjustedHours);
+        
+        // Update de UI
+        updateCalculationUI();
+      });
+    }
+    
+    if (hoursDownButton) {
+      hoursDownButton.addEventListener('click', function(e) {
+        e.preventDefault();
+        
+        // Minimum van 3 uur of de berekende uren als die hoger zijn
+        const minHours = Math.max(pricingConfigState.config.minHours || 3, calculation.hours);
+        
+        // Als we al op het minimum zitten, doe niets
+        if (calculation.adjustedHours <= minHours) {
+          return;
+        }
+        
+        // Verlaag de uren met een half uur, maar niet onder het minimum
+        calculation.adjustedHours = Math.max(calculation.adjustedHours - 0.5, minHours);
+        
+        // Update de prijs
+        calculation.price = calculatePrice(calculation.adjustedHours);
+        
+        // Update de UI
+        updateCalculationUI();
+      });
+    }
+  }
+
+  // Bind event listeners
+  m2Input.addEventListener('input', handleFieldInput);
+  toiletsInput.addEventListener('input', handleFieldInput);
+  bathroomsInput.addEventListener('input', handleFieldInput);
+  
+  // Set up the hour buttons
+  setupHourButtons();
+  
+  // Voer initiële berekening uit als er al waarden zijn
+  if (m2Input.value || toiletsInput.value || bathroomsInput.value) {
+    performCalculations();
+  }
+
+  // Return cleanup functie
+  return () => {
+    m2Input.removeEventListener('input', handleFieldInput);
+    toiletsInput.removeEventListener('input', handleFieldInput);
+    bathroomsInput.removeEventListener('input', handleFieldInput);
+    clearTimeout(debounceTimeout);
+    
+    // Verwijder click events van knoppen
+    if (hoursUpButton) {
+      hoursUpButton.replaceWith(hoursUpButton.cloneNode(true));
+    }
+    if (hoursDownButton) {
+      hoursDownButton.replaceWith(hoursDownButton.cloneNode(true));
+    }
   };
 }
