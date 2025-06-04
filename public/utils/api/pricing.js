@@ -13,11 +13,10 @@ import { API_CONFIG } from '../../config/apiConfig.js';
  * @throws {ApiError} Als er een fout optreedt bij het ophalen van de data
  */
 export async function fetchPricingConfiguration() {
-  const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PRICING}`;
-  
   try {
     console.log('[api/pricing] Ophalen prijsconfiguratie...');
-    const response = await apiClient.get(url);
+    // Gebruik het endpoint rechtstreeks zonder BASE_URL (dat wordt al toegevoegd in apiClient)
+    const response = await apiClient(API_CONFIG.ENDPOINTS.PRICING);
     
     if (response && response.pricing) {
       console.log('[api/pricing] Prijsconfiguratie succesvol opgehaald:', response);
