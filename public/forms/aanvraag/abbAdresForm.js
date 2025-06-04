@@ -106,8 +106,19 @@ export function initAbbAdresForm() {
       // Bepaal waar we heen navigeren op basis van de dekkingsstatus
       if (formHandler.formData.heeftDekking) {
         console.log('[abbAdresForm] Adres heeft dekking, naar volgende slide...');
-        // Roep de moveToNextSlide functie aan die door Webflow wordt geleverd
-        moveToNextSlide();
+        
+        // Initialiseer het opdracht formulier vóór de navigatie
+        import('./abbOpdrachtForm.js').then(module => {
+          console.log('[abbAdresForm] Stap 2 (abbOpdrachtForm) wordt geïnitialiseerd...');
+          module.initAbbOpdrachtForm();
+          
+          // Na initialisatie, navigeer naar de volgende slide
+          moveToNextSlide();
+        }).catch(err => {
+          console.error('[abbAdresForm] Kon stap 2 (abbOpdrachtForm) niet laden:', err);
+          // Alsnog doorgaan naar volgende slide, ook al is er een probleem met het laden
+          moveToNextSlide();
+        });
       } else {
         console.log('[abbAdresForm] Adres heeft geen dekking, navigeren naar geen-dekking pagina...');
         window.location.href = '/aanvragen/geen-dekking';

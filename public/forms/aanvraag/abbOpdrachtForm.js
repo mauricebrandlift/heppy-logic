@@ -302,7 +302,17 @@ export async function initAbbOpdrachtForm() {
     },    onSuccess: () => {
       console.log('✅ [AbbOpdrachtForm] Formulier succesvol verwerkt, naar volgende slide...');
       
-      // Gebruik moveToNextSlide() om naar de volgende stap te gaan (net als in abbAdresForm.js)
+      // Hier zou je de volgende stap kunnen initialiseren, bijvoorbeeld:
+      // import('./abbPersoonsgegevensForm.js').then(module => {
+      //   console.log('[abbOpdrachtForm] Stap 3 (abbPersoonsgegevensForm) wordt geïnitialiseerd...');
+      //   module.initAbbPersoonsgegevensForm();
+      //   moveToNextSlide();
+      // }).catch(err => {
+      //   console.error('[abbOpdrachtForm] Kon stap 3 niet laden:', err);
+      //   moveToNextSlide();
+      // });
+      
+      // Voorlopig alleen naar de volgende slide navigeren
       moveToNextSlide();
     }
   };
