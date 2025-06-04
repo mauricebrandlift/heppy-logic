@@ -488,7 +488,7 @@ export const formHandler = {
     }
   },
   /**
-   * 🚨 Behandel de submit van het formulier.
+   * 🚨 Behandel de submit van het formulier..
    *
    * Stappen:
    *  1. voorkom standaard reload
