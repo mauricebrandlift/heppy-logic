@@ -689,16 +689,31 @@ export function initWeekSelectTrigger(formHandler, options = {}) {
   // Bereken de eerste geldige week (huidige week + 2)
   const firstValidWeek = currentWeek + 2;
   const maxValidWeek = currentWeek + config.maxWeeks;
-
   weekInput.min = firstValidWeek;
   weekInput.max = maxValidWeek;
   weekInput.value = firstValidWeek;
 
   updateWeekInfo(firstValidWeek, infoElement);
 
+  // Voeg een input event handler toe om waarden te valideren
   weekInput.addEventListener('input', () => {
-    const selectedWeek = parseInt(weekInput.value, 10);
-    updateWeekInfo(selectedWeek, infoElement);
+    let value = parseInt(weekInput.value, 10) || 0;
+    
+    // Zorg ervoor dat de waarde tussen 1 en 52 ligt
+    if (value < 1) value = 1;
+    if (value > 52) value = 52;
+    
+    // Zorg ervoor dat de waarde binnen het toegestane bereik ligt
+    if (value < firstValidWeek) value = firstValidWeek;
+    if (value > maxValidWeek) value = maxValidWeek;
+    
+    // Update het veld met de gecorrigeerde waarde
+    if (value.toString() !== weekInput.value) {
+      weekInput.value = value;
+    }
+    
+    // Update de datumbereik informatie
+    updateWeekInfo(value, infoElement);
   });
 
   function updateWeekInfo(weekNumber, element) {

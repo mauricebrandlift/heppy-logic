@@ -370,11 +370,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
   if (formData.abb_m2 || formData.abb_toiletten || formData.abb_badkamers) {
     await performCalculations(formData, formElement);
   }
-  
-  console.log('✅ [AbbOpdrachtForm] Initialisatie voltooid');
-  
-  // Initialiseer de week select trigger
-  initWeekSelectTrigger(schema.selector);
+    console.log('✅ [AbbOpdrachtForm] Initialisatie voltooid');
 }
 
 // Exporteer eventuele helper functies die publiekelijk gebruikt kunnen worden
