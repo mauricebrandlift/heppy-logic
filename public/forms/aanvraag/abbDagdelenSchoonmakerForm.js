@@ -36,7 +36,11 @@ const formStatus = {
  * Verbergt de globale foutmelding
  */
 function hideErrorMessage() {
-  const errorElement = document.querySelector('[data-error-for="global"]');
+  // Zoek specifiek binnen het huidige formulier naar het error element
+  const formElement = document.querySelector('[data-form-name="abb_dagdelen-schoonmaker-form"]');
+  if (!formElement) return;
+  
+  const errorElement = formElement.querySelector('[data-error-for="global"]');
   if (errorElement) {
     errorElement.classList.add('hide');
     errorElement.textContent = '';
@@ -49,7 +53,11 @@ function hideErrorMessage() {
  * @param {string} type - Type fout (error, warning, info)
  */
 function showErrorMessage(message, type = 'error') {
-  const errorElement = document.querySelector('[data-error-for="global"]');
+  // Zoek specifiek binnen het huidige formulier naar het error element
+  const formElement = document.querySelector('[data-form-name="abb_dagdelen-schoonmaker-form"]');
+  if (!formElement) return;
+  
+  const errorElement = formElement.querySelector('[data-error-for="global"]');
   if (!errorElement) return;
   
   errorElement.textContent = message;
@@ -309,20 +317,37 @@ function addNoPreferenceOption(wrapper) {
  */
 async function fetchEnToonSchoonmakers(formElement, gebruikDagdelenFilter = false) {
   if (!formElement) return;
-    try {
+  
+  try {
     updateLoadingState(true);
     
     // Haal flow data op voor gebruiker coordinaten en plaats
-    const flowData = loadFlowData('abonnement-aanvraag');
-    const adresData = loadFlowData('adresData');
+    const flowData = loadFlowData('abonnement-aanvraag') || {};
     
-    if (!adresData || !adresData.plaats || !flowData || !flowData.abb_uren) {
-      throw new Error('Benodigde gegevens ontbreken. Ga terug naar vorige stap.');
+    // Controleer of de vereiste gegevens aanwezig zijn in flowData
+    // In vorige stappen worden deze opgeslagen in flowData (niet in adresData)
+    if (!flowData.plaats) {
+      console.error('❌ [SchoonmakerForm] Plaats ontbreekt in flowData', flowData);
+      throw new Error('Adresgegevens ontbreken. Ga terug naar de adresstap.');
+    }
+    
+    if (!flowData.abb_uren) {
+      console.error('❌ [SchoonmakerForm] Uren ontbreken in flowData', flowData);
+      throw new Error('Opdrachtgegevens (uren) ontbreken. Ga terug naar de opdrachtstap.');
+    }
+    
+    // Coördinaten kunnen uit adresData of flowData komen (voor consistentie)
+    const adresData = loadFlowData('adresData') || {};
+    const latitude = flowData.latitude || adresData.latitude;
+    const longitude = flowData.longitude || adresData.longitude;
+    
+    if (!latitude || !longitude) {
+      console.warn('⚠️ [SchoonmakerForm] Coördinaten ontbreken, afstandberekening mogelijk onnauwkeurig');
     }
     
     // Bereid parameters voor
     const params = {
-      plaats: adresData.plaats,
+      plaats: flowData.plaats,
       uren: parseFloat(flowData.abb_uren)
     };
     
@@ -336,12 +361,11 @@ async function fetchEnToonSchoonmakers(formElement, gebruikDagdelenFilter = fals
     
     // Haal schoonmakers op
     const schoonmakers = await fetchAvailableCleaners(params);
-    
-    // Sorteer en verrijk met extra informatie (afstanden)
+      // Sorteer en verrijk met extra informatie (afstanden)
     const verwerkteLijst = verwerkSchoonmakers(
       schoonmakers, 
-      parseFloat(adresData.latitude), 
-      parseFloat(adresData.longitude)
+      parseFloat(latitude || 0), 
+      parseFloat(longitude || 0)
     );
     
     // Render schoonmakers
@@ -492,17 +516,7 @@ export async function initAbbDagdelenSchoonmakerForm() {
     },
     onSuccess: () => {
       console.log('✅ [AbbDagdelenSchoonmakerForm] Formulier succesvol verwerkt, naar volgende slide...');
-      
-      // Naar volgende stap, bijvoorbeeld de persoonsgegevens
-      // import('./abbPersoonsgegevensForm.js').then(module => {
-      //   module.initAbbPersoonsgegevensForm();
-      //   moveToNextSlide();
-      // }).catch(err => {
-      //   console.error('[abbDagdelenSchoonmakerForm] Kon volgende stap niet laden:', err);
-      //   moveToNextSlide();
-      // });
-      
-      // Voorlopig alleen naar de volgende slide navigeren
+
       moveToNextSlide();
     }
   };
