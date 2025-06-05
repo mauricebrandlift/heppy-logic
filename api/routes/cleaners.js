@@ -9,22 +9,25 @@
  * - dagdelen (optioneel, specifieke dagdelen voorkeuren)
  */
 
-import { handleApiError } from '../utils/errorHandler.js';
+import { handleErrorResponse } from '../utils/errorHandler.js';
 import { getBeschikbareSchoonmakers } from '../services/cleanerService.js';
 
 /**
  * Handler voor POST /api/routes/cleaners
  * Haalt beschikbare schoonmakers op via de cleanerService
  */
-export default async function handler(req, res) {
-  // CORS headers voor veiligheid
+export default async function handler(req, res) {  // CORS headers voor veiligheid
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, X-Correlation-ID, Authorization'
+  );
 
   // Afhandeling van OPTIONS request (preflight)
   if (req.method === 'OPTIONS') {
-    return res.status(204).end();
+    res.status(200).end();
+    return;
   }
 
   // Alleen POST toegestaan
@@ -60,8 +63,7 @@ export default async function handler(req, res) {
 
     // Stuur het resultaat terug
     return res.status(200).json(schoonmakers);
-  } catch (error) {
-    // Gebruik de centrale errorHandler voor consistente error verwerking
-    return handleApiError(res, error, 'schoonmakers_fetch_error');
+  } catch (error) {    // Gebruik de centrale errorHandler voor consistente error verwerking
+    return handleErrorResponse(res, error, 500, req.headers['x-correlation-id']);
   }
 }
