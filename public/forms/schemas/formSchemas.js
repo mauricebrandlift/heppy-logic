@@ -148,6 +148,41 @@ export function getFormSchema(name) {
         }
       ),
       // Submit logica wordt later toegevoegd in een specifiek bestand voor dit formulier
+    },    // Formulier voor stap 3 van abonnement aanvraag - dagdelen en schoonmaker keuze
+    'abb_dagdelen-schoonmaker-form': {
+      name: 'abb_dagdelen-schoonmaker-form',
+      selector: '[data-form-name="abb_dagdelen-schoonmaker-form"]',
+      fields: {
+        schoonmakerKeuze: {
+          label: 'Schoonmaker voorkeur',
+          inputType: 'radio',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'form',
+          messages: {
+            required: 'Selecteer een schoonmaker of "geen voorkeur"'
+          }
+        },
+        // Dagdelen zijn optioneel en worden apart afgehandeld
+        dagdeel: {
+          label: 'Voorkeursdagdelen',
+          inputType: 'checkbox',
+          validators: ['optional'],
+          persist: 'form'
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          // Formulier-specifieke berichten
+          NO_CLEANERS_AVAILABLE: 'Er zijn momenteel geen schoonmakers beschikbaar in jouw regio.',
+          NO_CLEANERS_MATCH: 'Er zijn geen schoonmakers beschikbaar die aan je criteria voldoen.',
+          API_ERROR: 'Er is een probleem bij het ophalen van beschikbare schoonmakers.',
+          CUSTOM_SUCCESS: 'Je schoonmakervoorkeur is succesvol opgeslagen.'
+        }
+      ),
+      // Submit logica wordt later toegevoegd in abbDagdelenSchoonmakerForm.js
     },
 
     // Andere formulieren...

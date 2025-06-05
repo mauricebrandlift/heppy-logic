@@ -10,6 +10,7 @@ export const API_CONFIG = {
     ADDRESS: '/routes/address',
     COVERAGE: '/routes/coverage',
     PRICING: '/routes/pricing',
+    CLEANERS: '/routes/cleaners',
   },
   // Je kunt hier later andere API-gerelateerde configuraties toevoegen,
   // zoals timeouts, retry-instellingen, etc.

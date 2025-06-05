@@ -312,22 +312,18 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       saveGlobalFieldData('abb_m2', formData.abb_m2);
       saveGlobalFieldData('abb_toiletten', formData.abb_toiletten);
       saveGlobalFieldData('abb_badkamers', formData.abb_badkamers);
-      saveGlobalFieldData('weeknr', formData.weeknr); // Sla ook op in global data
-    },    onSuccess: () => {
+      saveGlobalFieldData('weeknr', formData.weeknr); // Sla ook op in global data    },    onSuccess: () => {
       console.log('✅ [AbbOpdrachtForm] Formulier succesvol verwerkt, naar volgende slide...');
       
-      // Hier zou je de volgende stap kunnen initialiseren, bijvoorbeeld:
-      // import('./abbPersoonsgegevensForm.js').then(module => {
-      //   console.log('[abbOpdrachtForm] Stap 3 (abbPersoonsgegevensForm) wordt geïnitialiseerd...');
-      //   module.initAbbPersoonsgegevensForm();
-      //   moveToNextSlide();
-      // }).catch(err => {
-      //   console.error('[abbOpdrachtForm] Kon stap 3 niet laden:', err);
-      //   moveToNextSlide();
-      // });
-      
-      // Voorlopig alleen naar de volgende slide navigeren
-      moveToNextSlide();
+      // Import en initialiseer de volgende stap: dagdelen & schoonmaker keuze
+      import('./abbDagdelenSchoonmakerForm.js').then(module => {
+        console.log('[abbOpdrachtForm] Stap 3 (abbDagdelenSchoonmakerForm) wordt geïnitialiseerd...');
+        module.initAbbDagdelenSchoonmakerForm();
+        moveToNextSlide();
+      }).catch(err => {
+        console.error('[abbOpdrachtForm] Kon stap 3 niet laden:', err);
+        moveToNextSlide();
+      });
     }
   };
   
