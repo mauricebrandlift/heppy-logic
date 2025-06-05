@@ -120,6 +120,20 @@ export function getFormSchema(name) {
             numeric: 'Gebruik alleen cijfers',
             nonNegativeNumber: 'Aantal badkamers kan niet negatief zijn'
           }
+        },
+        weeknr: {
+          label: 'Begin weeknummer',
+          inputType: 'number',
+          sanitizers: ['trim', 'numericOnly'],
+          validators: ['required', 'numeric', 'integer'],
+          inputFilter: 'digitsOnly',
+          persist: 'form',
+          placeholder: '',
+          messages: {
+            required: 'Selecteer het begin weeknummer',
+            numeric: 'Gebruik alleen cijfers',
+            integer: 'Voer een heel weeknummer in'
+          }
         }
       },
       // Custom berichten voor dit formulier

@@ -4,6 +4,7 @@ import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { fetchPricingConfiguration } from '../../utils/api/index.js';
 import { saveGlobalFieldData, loadGlobalFieldData, saveFlowData, loadFlowData } from '../logic/formStorage.js';
+import { initWeekSelectTrigger } from '../logic/formTriggers.js';
 // Import moveToNextSlide van Webflow indien nodig
 // In een live omgeving is deze functie waarschijnlijk globaal beschikbaar door Webflow
 
@@ -299,6 +300,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       flowData.abb_m2 = formData.abb_m2;
       flowData.abb_toiletten = formData.abb_toiletten;
       flowData.abb_badkamers = formData.abb_badkamers;
+      flowData.weeknr = formData.weeknr; // Sla weeknr op in flow data
       
       // Zorg ervoor dat de berekende waarden ook in de flow data worden opgeslagen
       flowData.abb_uren = calculation.adjustedHours.toString();
@@ -310,6 +312,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       saveGlobalFieldData('abb_m2', formData.abb_m2);
       saveGlobalFieldData('abb_toiletten', formData.abb_toiletten);
       saveGlobalFieldData('abb_badkamers', formData.abb_badkamers);
+      saveGlobalFieldData('weeknr', formData.weeknr); // Sla ook op in global data
     },    onSuccess: () => {
       console.log('✅ [AbbOpdrachtForm] Formulier succesvol verwerkt, naar volgende slide...');
       
@@ -331,6 +334,9 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
   // Initialiseer de form handler met ons schema
   formHandler.init(schema);
   
+  // Initialiseer de weeknummer selector met datumbereik weergave
+  initWeekSelectTrigger(formHandler, { weekField: 'weeknr', infoField: 'weeknr' });
+  
   // Set up de uren +/- knoppen
   setupHourButtons(document.querySelector(schema.selector));
     // Haal eventuele opgeslagen flow data op
@@ -341,7 +347,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
   const formElement = document.querySelector(schema.selector);
   
   // Controleer elk veld en vul het in met opgeslagen waarden indien beschikbaar
-  ['abb_m2', 'abb_toiletten', 'abb_badkamers'].forEach(key => {
+  ['abb_m2', 'abb_toiletten', 'abb_badkamers', 'weeknr'].forEach(key => {
     // Eerst proberen uit flow data te halen
     if (flowData[key]) {
       formData[key] = flowData[key];
@@ -366,6 +372,9 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
   }
   
   console.log('✅ [AbbOpdrachtForm] Initialisatie voltooid');
+  
+  // Initialiseer de week select trigger
+  initWeekSelectTrigger(schema.selector);
 }
 
 // Exporteer eventuele helper functies die publiekelijk gebruikt kunnen worden

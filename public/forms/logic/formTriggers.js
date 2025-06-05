@@ -649,3 +649,80 @@ export function initHoursCalculationTrigger(formHandler, options = {}) {
     }
   };
 }
+
+/**
+ * Trigger voor het initialiseren van het weeknummer invoerveld
+ * en het bijwerken van de bijbehorende datumbereik tekst.
+ * 
+ * @param {Object} formHandler - De formHandler instantie met toegang tot formulierelementen en data
+ * @param {Object} options - Configuratie opties voor de trigger
+ * @param {string} options.weekField - Naam van het weeknummer veld (default: 'weeknr')
+ * @param {string} options.infoField - Naam van het info veld voor datumbereik (default: 'weeknr')
+ * @param {number} options.maxWeeks - Aantal weken vooruit dat geselecteerd kan worden (default: 8)
+ * @returns {Function} Cleanup functie om event listeners te verwijderen
+ */
+export function initWeekSelectTrigger(formHandler, options = {}) {
+  const config = {
+    weekField: 'weeknr',
+    infoField: 'weeknr',
+    maxWeeks: 8,
+    ...options
+  };
+
+  const formElement = formHandler.formElement;
+  if (!formElement) {
+    console.error('[formTriggers] Geen formulierelement gevonden in formHandler');
+    return () => {}; // Noop cleanup function
+  }
+
+  const weekInput = formElement.querySelector(`[data-field-name="${config.weekField}"]`);
+  const infoElement = formElement.querySelector(`[data-field-info="${config.infoField}"]`);
+
+  if (!weekInput || !infoElement) {
+    console.error('[formTriggers] Kon weeknummer input of info element niet vinden');
+    return () => {};
+  }
+
+  const currentDate = new Date();
+  const currentWeek = getWeekNumber(currentDate);
+
+  // Bereken de eerste geldige week (huidige week + 2)
+  const firstValidWeek = currentWeek + 2;
+  const maxValidWeek = currentWeek + config.maxWeeks;
+
+  weekInput.min = firstValidWeek;
+  weekInput.max = maxValidWeek;
+  weekInput.value = firstValidWeek;
+
+  updateWeekInfo(firstValidWeek, infoElement);
+
+  weekInput.addEventListener('input', () => {
+    const selectedWeek = parseInt(weekInput.value, 10);
+    updateWeekInfo(selectedWeek, infoElement);
+  });
+
+  function updateWeekInfo(weekNumber, element) {
+    const year = currentDate.getFullYear();
+    const startDate = getStartDateOfWeek(weekNumber, year);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6);
+
+    element.textContent = `Week van maandag ${formatDate(startDate)} t/m zondag ${formatDate(endDate)}`;
+  }
+
+  function getWeekNumber(date) {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  }
+
+  function getStartDateOfWeek(weekNumber, year) {
+    const firstDayOfYear = new Date(year, 0, 1);
+    const daysOffset = (weekNumber - 1) * 7 - firstDayOfYear.getDay() + 1;
+    return new Date(year, 0, daysOffset);
+  }
+
+  function formatDate(date) {
+    return `${date.getDate()} ${date.toLocaleString('default', { month: 'long' })}`;
+  }
+}
