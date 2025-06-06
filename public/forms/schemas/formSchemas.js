@@ -188,7 +188,7 @@ export function getFormSchema(name) {
       name: 'inloggen-form',
       selector: '[data-form-name="inloggen-form"]',
       fields: {
-        email: commonFields.email,
+        emailadres: commonFields.email,
         wachtwoord: {
           label: 'Wachtwoord',
           inputType: 'password',

@@ -20,13 +20,12 @@ export function initLoginForm() {
     console.error('❌ [LoginForm] Geen schema gevonden voor login formulier');
     return;
   }
-  
-  // Voeg submit handler toe
+    // Voeg submit handler toe
   schema.submit = {
     action: async (formData) => {
       try {
         // Log gebruiker in
-        const result = await authClient.login(formData.email, formData.wachtwoord);
+        const result = await authClient.login(formData.emailadres, formData.wachtwoord);
         
         console.log('✅ [LoginForm] Login succesvol, gebruikersrol:', result.user.role);
         return { success: true, data: result.user };

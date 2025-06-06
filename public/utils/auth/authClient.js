@@ -26,19 +26,19 @@ const AUTH_EVENTS = {
 
 export const authClient = {
   /**
-   * Logt een gebruiker in met email en wachtwoord
-   * @param {string} email - Gebruiker email
+   * Logt een gebruiker in met emailadres en wachtwoord
+   * @param {string} emailadres - Gebruiker emailadres
    * @param {string} wachtwoord - Gebruiker wachtwoord
    * @returns {Promise<{user, session}>} Gebruikersdata en sessie
    */
-  async login(email, wachtwoord) {
+  async login(emailadres, wachtwoord) {
     try {
       const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH.LOGIN}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, wachtwoord })
+        body: JSON.stringify({ email: emailadres, wachtwoord })
       });
 
       const data = await response.json();
