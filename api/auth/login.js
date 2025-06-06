@@ -63,7 +63,7 @@ export default async function handler(req, res) {
       });
     }    // Haal gebruikersprofiel op met rol informatie via directe API call
     const profileResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/user_profiles?uuid=eq.${data.user.id}&select=*`, 
+      `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${data.user.id}&select=*`, 
       {
         method: 'GET',
         headers: {
