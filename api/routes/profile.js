@@ -4,7 +4,7 @@
  * Gives access to user profile data
  */
 import { withAuth } from '../utils/authMiddleware.js';
-import { createClient } from '@supabase/supabase-js';
+import { httpClient } from '../utils/apiClient.js';
 import { supabaseConfig } from '../config/index.js';
 
 /**
@@ -15,59 +15,80 @@ async function profileHandler(req, res) {
   try {
     // User is beschikbaar in req.user (ingesteld door authMiddleware)
     const { id: userId, role } = req.user;
+    const authToken = req.headers.authorization?.split(' ')[1];
     
-    // Initialiseer Supabase client
-    const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey);
+    if (!authToken) {
+      return res.status(401).json({ error: 'Authenticatie vereist' });
+    }
     
     // Haal uitgebreide profieldata op uit juiste tabel op basis van rol
     let profileData = null;
+    let tableName;
     
     switch (role) {
       case 'klant':
-        const { data: klantData, error: klantError } = await supabase
-          .from('klanten')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
-          
-        if (klantError) throw klantError;
-        profileData = klantData;
+        tableName = 'klanten';
         break;
         
       case 'schoonmaker':
-        const { data: schoonmakerData, error: schoonmakerError } = await supabase
-          .from('schoonmakers')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
-          
-        if (schoonmakerError) throw schoonmakerError;
-        profileData = schoonmakerData;
+        tableName = 'schoonmakers';
         break;
         
       case 'admin':
-        const { data: adminData, error: adminError } = await supabase
-          .from('admins')
-          .select('*')
-          .eq('user_id', userId)
-          .single();
-          
-        if (adminError) throw adminError;
-        profileData = adminData;
+        tableName = 'admins';
         break;
         
       default:
-        throw new Error(`Onbekende rol: ${role}`);
+        return res.status(400).json({ error: 'Ongeldige gebruikersrol' });
     }
     
-    // Voeg basis gebruikersinformatie toe
-    const { data: baseProfile, error: baseProfileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-      
-    if (baseProfileError) throw baseProfileError;
+    // Directe API call naar Supabase REST API voor het ophalen van profieldata
+    const profileResponse = await httpClient(
+      `${supabaseConfig.url}/rest/v1/${tableName}?user_id=eq.${userId}&select=*`, 
+      {
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (!profileResponse.ok) {
+      throw new Error(`Kan ${role} profiel niet ophalen`);
+    }
+    
+    const profiles = await profileResponse.json();
+    
+    if (!profiles || profiles.length === 0) {
+      throw new Error(`Geen ${role} profiel gevonden`);
+    }
+    
+    profileData = profiles[0];
+    
+    // Haal basis gebruikersinformatie op
+    const baseProfileResponse = await httpClient(
+      `${supabaseConfig.url}/rest/v1/user_profiles?user_id=eq.${userId}&select=*`, 
+      {
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (!baseProfileResponse.ok) {
+      throw new Error('Kan basis profiel niet ophalen');
+    }
+    
+    const baseProfiles = await baseProfileResponse.json();
+    
+    if (!baseProfiles || baseProfiles.length === 0) {
+      throw new Error('Geen basis profiel gevonden');
+    }
+    
+    const baseProfile = baseProfiles[0];
     
     // Combineer profielen
     const combinedProfile = {

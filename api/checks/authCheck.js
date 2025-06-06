@@ -2,7 +2,7 @@
 /**
  * Authenticatie controle utilities voor API routes
  */
-import { createClient } from '@supabase/supabase-js';
+import { httpClient } from '../utils/apiClient.js';
 import { supabaseConfig } from '../config/index.js';
 
 /**
@@ -16,34 +16,59 @@ export async function verifyAuth(token) {
     throw new Error('Geen token aanwezig');
   }
   
-  // Initialiseer Supabase client
-  const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey);
-  
-  // Verifieer dat token geldig is
-  const { data: { user }, error } = await supabase.auth.getUser(token);
-  
-  if (error || !user) {
-    throw new Error('Ongeldige of verlopen token');
-  }
-  
-  // Haal gebruikersprofiel op met rol
-  const { data: profile, error: profileError } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('user_id', user.id)
-    .single();
+  try {
+    // Verifieer dat token geldig is door een directe API call naar Supabase Auth API
+    const userResponse = await httpClient(`${supabaseConfig.url}/auth/v1/user`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'apikey': supabaseConfig.anonKey
+      }
+    });
     
-  if (profileError) {
-    throw new Error('Gebruikersprofiel niet gevonden');
-  }
+    if (!userResponse.ok) {
+      throw new Error('Ongeldige of verlopen token');
+    }
+    
+    // Parse user data
+    const user = await userResponse.json();
+    
+    if (!user || !user.id) {
+      throw new Error('Ongeldige gebruikersdata');
+    }
+    
+    // Haal gebruikersprofiel op met rol informatie via directe API call
+    const profileResponse = await httpClient(
+      `${supabaseConfig.url}/rest/v1/user_profiles?user_id=eq.${user.id}&select=*`, 
+      {
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+    
+    if (!profileResponse.ok) {
+      throw new Error('Gebruikersprofiel niet gevonden');
+    }
+    
+    const profiles = await profileResponse.json();
+    
+    if (!profiles || profiles.length === 0) {
+      throw new Error('Gebruikersprofiel niet gevonden');
+    }
+      const profile = profiles[0];
   
-  // Returneer de gebruiker met hun rol
-  return {
-    id: user.id,
-    email: user.email,
-    role: profile.rol,
-    profile
-  };
+    // Returneer de gebruiker met hun rol
+    return {
+      id: user.id,
+      email: user.email,
+      role: profile.rol,
+      profile
+    };
+  } catch (error) {
+    throw error;
+  }
 }
 
 /**

@@ -1,9 +1,9 @@
 // api/auth/logout.js
 /**
  * Logout endpoint voor het uitloggen van gebruikers.
- * Beëindigt de sessie in Supabase.
+ * Beëindigt de sessie in Supabase door een directe API call.
  */
-import { createClient } from '@supabase/supabase-js';
+import { httpClient } from '../utils/apiClient.js';
 import { supabaseConfig } from '../config/index.js';
 
 export default async function handler(req, res) {
@@ -31,14 +31,19 @@ export default async function handler(req, res) {
 
     const token = authHeader.split(' ')[1];
     
-    // Initialiseer Supabase client
-    const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey);
+    // Log gebruiker uit door directe API call naar Supabase Auth API
+    const response = await httpClient(`${supabaseConfig.url}/auth/v1/logout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${token}`
+      }
+    });
     
-    // Log gebruiker uit door sessie te beëindigen
-    const { error } = await supabase.auth.admin.signOut(token);
-    
-    if (error) {
-      console.error('❌ [Auth API] Uitlog fout:', error.message);
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('❌ [Auth API] Uitlog fout:', error);
       return res.status(500).json({ error: 'Probleem bij uitloggen', code: 'LOGOUT_ERROR' });
     }
     

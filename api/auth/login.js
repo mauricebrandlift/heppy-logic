@@ -1,9 +1,9 @@
 // api/auth/login.js
 /**
  * Login endpoint voor gebruikersauthenticatie.
- * Authenticatie wordt afgehandeld door Supabase.
+ * Authenticatie wordt afgehandeld door directe API calls naar Supabase.
  */
-import { createClient } from '@supabase/supabase-js';
+import { httpClient } from '../utils/apiClient.js';
 import { supabaseConfig } from '../config/index.js';
 
 export default async function handler(req, res) {
@@ -28,19 +28,34 @@ export default async function handler(req, res) {
     // Valideer request data
     if (!email || !wachtwoord) {
       return res.status(400).json({ error: 'Email en wachtwoord zijn verplicht', code: 'MISSING_CREDENTIALS' });
-    }
-
-    // Initialiseer Supabase client met config uit api/config/index.js
-    const supabase = createClient(supabaseConfig.url, supabaseConfig.anonKey);
-    
-    // Authenticeer met Supabase
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password: wachtwoord
+    }    // Directe API call naar Supabase Auth API
+    const response = await httpClient(`${supabaseConfig.url}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseConfig.anonKey,
+        'X-Client-Info': 'heppy-api'
+      },
+      body: JSON.stringify({
+        email,
+        password: wachtwoord
+      })
     });
-
-    if (error) {
-      console.error('❌ [Auth API] Login fout:', error.message);
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      const error = data.error || 'Authenticatie mislukt';
+      console.error('❌ [Auth API] Login fout:', error);
+      return res.status(401).json({
+        error: 'E-mailadres of wachtwoord is onjuist',
+        code: 'AUTH_FAILED'
+      });
+    }
+    
+    // Check voor error in response
+    if (!data.user || !data.access_token) {
+      console.error('❌ [Auth API] Login fout:', data.error_description || 'Authenticatie mislukt');
       // Geef een gebruikersvriendelijke melding terug
       return res.status(401).json({
         error: 'E-mailadres of wachtwoord is onjuist',
@@ -48,29 +63,38 @@ export default async function handler(req, res) {
       });
     }
 
-    if (!data.user) {
-      return res.status(401).json({
-        error: 'Ongeldig account',
-        code: 'INVALID_ACCOUNT'
-      });
-    }
+    // Haal gebruikersprofiel op met rol informatie via directe API call
+    const profileResponse = await httpClient(
+      `${supabaseConfig.url}/rest/v1/user_profiles?user_id=eq.${data.user.id}&select=*`, 
+      {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${data.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    // Haal gebruikersprofiel op met rol informatie
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('user_id', data.user.id)
-      .single();
-
-    if (profileError) {
-      console.error('❌ [Auth API] Profiel ophalen fout:', profileError.message);
+    if (!profileResponse.ok) {
+      console.error('❌ [Auth API] Profiel ophalen fout:', await profileResponse.text());
       return res.status(500).json({
         error: 'Kan gebruikersprofiel niet ophalen',
         code: 'PROFILE_ERROR'
       });
     }
-
-    // Geef gebruikersdata terug met rol en sessie
+    
+    const profiles = await profileResponse.json();
+    
+    if (!profiles || profiles.length === 0) {
+      console.error('❌ [Auth API] Geen gebruikersprofiel gevonden');
+      return res.status(500).json({
+        error: 'Kan gebruikersprofiel niet vinden',
+        code: 'PROFILE_NOT_FOUND'
+      });
+    }
+    
+    const profile = profiles[0];    // Geef gebruikersdata terug met rol en sessie
     return res.status(200).json({
       user: {
         id: data.user.id,
@@ -79,9 +103,9 @@ export default async function handler(req, res) {
         // Voeg eventueel andere benodigde gebruikersdata toe
       },
       session: {
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token,
-        expires_at: data.session.expires_at
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: Math.floor(Date.now() / 1000) + data.expires_in
       }
     });
   } catch (error) {
