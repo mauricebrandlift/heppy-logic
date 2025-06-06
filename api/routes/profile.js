@@ -44,7 +44,7 @@ async function profileHandler(req, res) {
     
     // Directe API call naar Supabase REST API voor het ophalen van profieldata
     const profileResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/${tableName}?user_id=eq.${userId}&select=*`, 
+      `${supabaseConfig.url}/rest/v1/${tableName}?uuid=eq.${userId}&select=*`, 
       {
         headers: {
           'apikey': supabaseConfig.anonKey,
@@ -68,7 +68,7 @@ async function profileHandler(req, res) {
     
     // Haal basis gebruikersinformatie op
     const baseProfileResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/user_profiles?user_id=eq.${userId}&select=*`, 
+      `${supabaseConfig.url}/rest/v1/user_profiles?uuid=eq.${userId}&select=*`, 
       {
         headers: {
           'apikey': supabaseConfig.anonKey,

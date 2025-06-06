@@ -61,11 +61,9 @@ export default async function handler(req, res) {
         error: 'E-mailadres of wachtwoord is onjuist',
         code: 'AUTH_FAILED'
       });
-    }
-
-    // Haal gebruikersprofiel op met rol informatie via directe API call
+    }    // Haal gebruikersprofiel op met rol informatie via directe API call
     const profileResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/user_profiles?user_id=eq.${data.user.id}&select=*`, 
+      `${supabaseConfig.url}/rest/v1/user_profiles?uuid=eq.${data.user.id}&select=*`, 
       {
         method: 'GET',
         headers: {

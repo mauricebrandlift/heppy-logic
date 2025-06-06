@@ -56,10 +56,9 @@ export default async function handler(req, res) {
         error: 'Ongeldige gebruikersdata', 
         code: 'INVALID_USER'
       });
-    }
-        // Haal gebruikersprofiel op met rol informatie via directe API call
+    }        // Haal gebruikersprofiel op met rol informatie via directe API call
       const profileResponse = await httpClient(
-        `${supabaseConfig.url}/rest/v1/user_profiles?user_id=eq.${user.id}&select=*`, 
+        `${supabaseConfig.url}/rest/v1/user_profiles?uuid=eq.${user.id}&select=*`, 
         {
           headers: {
             'apikey': supabaseConfig.anonKey,
