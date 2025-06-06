@@ -183,6 +183,34 @@ export function getFormSchema(name) {
         }
       ),
       // Submit logica wordt later toegevoegd in abbDagdelenSchoonmakerForm.js
+    },    // Login formulier
+    'inloggen-form': {
+      name: 'inloggen-form',
+      selector: '[data-form-name="inloggen-form"]',
+      fields: {
+        email: commonFields.email,
+        wachtwoord: {
+          label: 'Wachtwoord',
+          inputType: 'password',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none', // Wachtwoorden nooit persistent opslaan
+          messages: {
+            required: 'Wachtwoord is verplicht'
+          }
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          // Aanmeld-specifieke berichten
+          AUTH_FAILED: 'E-mailadres of wachtwoord is onjuist.',
+          AUTH_ERROR: 'Er is een probleem opgetreden bij het inloggen. Probeer het later opnieuw.',
+          AUTH_SUCCESS: 'Je bent succesvol ingelogd.'
+        }
+      )
+      // Submit logica wordt later toegevoegd in loginForm.js
     },
 
     // Andere formulieren...

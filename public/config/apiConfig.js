@@ -11,6 +11,12 @@ export const API_CONFIG = {
     COVERAGE: '/routes/coverage',
     PRICING: '/routes/pricing',
     CLEANERS: '/routes/cleaners',
+    PROFILE: '/routes/profile',
+    AUTH: {
+      LOGIN: '/auth/login',
+      LOGOUT: '/auth/logout',
+      ME: '/auth/me',
+    },
   },
   // Je kunt hier later andere API-gerelateerde configuraties toevoegen,
   // zoals timeouts, retry-instellingen, etc.
