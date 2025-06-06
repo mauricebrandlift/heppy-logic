@@ -9,6 +9,9 @@ export const sanitizers = {
 
   /** Zet alle letters om naar hoofdletters */
   uppercase: (value) => value.toUpperCase(),
+  
+  /** Zet alle letters om naar kleine letters */
+  lowercase: (value) => value.toLowerCase(),
 
   /** Laat alleen numerieke karakters over */
   numericOnly: (value) => value.replace(/\D+/g, ''),

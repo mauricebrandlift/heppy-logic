@@ -14,6 +14,11 @@ export const validators = {
     /^\d{4}[A-Za-z]{2}$/.test(value) ? null : 'Ongeldige postcode (bijv. 1234AB).',
   positiveNumber: (value) => (Number(value) > 0 ? null : 'Waarde moet groter zijn dan 0.'),
   nonNegativeNumber: (value) => (Number(value) >= 0 ? null : 'Waarde mag niet negatief zijn.'),
+  email: (value) => {
+    // Eenvoudige email validatie regex - bevat @ en minimaal één punt na @
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(value) ? null : 'Voer een geldig e-mailadres in.';
+  },
 };
 
 /**
