@@ -179,7 +179,9 @@ export default async function handler(req, res) {
 
     if (!authResponse.ok) {
       // Check voor specifieke Supabase auth errors
-      if (authData.error_description?.includes('already registered')) {
+      if (authData.error_description?.includes('already registered') || 
+          authData.message?.includes('already exists') ||
+          authData.code === '23505') {
         console.warn(JSON.stringify({
           ...logMeta,
           level: 'WARN',
@@ -238,7 +240,7 @@ export default async function handler(req, res) {
     }));
 
     const sollicitatieData = {
-      gebruiker_id: userId,
+      id: userId,
       geslacht,
       geboortedatum,
       voornaam,
