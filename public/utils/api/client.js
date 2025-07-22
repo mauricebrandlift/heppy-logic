@@ -8,6 +8,14 @@ import { API_CONFIG } from '../../config/apiConfig.js'; // Importeer de configur
 const BASE_API_PATH = '/api'; // Basispad voor alle backend API-calls
 
 /**
+ * Genereert een unieke correlation ID voor request tracking
+ * @returns {string} Een unieke correlation ID
+ */
+function generateCorrelationId() {
+  return `client-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
  * Custom Error class voor API fouten aan de client-zijde.
  * Volgens api-guidelines.md (punt 4).
  */
@@ -35,9 +43,12 @@ export async function apiClient(endpoint, options = {}, timeout = 5000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
 
+  // Genereer correlation ID voor request tracking
+  const correlationId = generateCorrelationId();
+
   const defaultHeaders = {
     'Content-Type': 'application/json',
-    // 'X-Correlation-ID': generateFrontendCorrelationId(), // Optioneel: genereer en stuur mee
+    'X-Correlation-ID': correlationId,
     ...options.headers,
   };
 
@@ -53,7 +64,7 @@ export async function apiClient(endpoint, options = {}, timeout = 5000) {
 
 
   // Logging (volgens api-guidelines.md punt 6 - logDebug)
-  console.log('API Request:', { url, options: fetchOptions });
+  console.log('API Request:', { url, correlationId, options: fetchOptions });
 
   try {
     const response = await fetch(url, fetchOptions);
@@ -66,11 +77,11 @@ export async function apiClient(endpoint, options = {}, timeout = 5000) {
     });
 
     if (!response.ok) {
-      console.error('API Error Response:', { status: response.status, url, responseData });
+      console.error('API Error Response:', { status: response.status, url, correlationId, responseData });
       throw new ApiError(response.status, responseData.message || `API Fout: ${response.status}`, responseData);
     }
 
-    console.log('API Success Response:', { status: response.status, url, responseData });
+    console.log('API Success Response:', { status: response.status, url, correlationId, responseData });
     return responseData;
   } catch (error) {
     clearTimeout(timeoutId); // Zorg dat timeout ook gecleared wordt bij een error
@@ -78,10 +89,10 @@ export async function apiClient(endpoint, options = {}, timeout = 5000) {
       throw error; // Gooi ApiError direct door
     }
     if (error.name === 'AbortError') {
-      console.error('API Request Timeout:', { url });
+      console.error('API Request Timeout:', { url, correlationId });
       throw new Error(`Request naar ${url} timed out na ${timeout / 1000}s.`);
     }
-    console.error('Network/Fetch Error:', { url, error });
+    console.error('Network/Fetch Error:', { url, correlationId, error });
     throw new Error(error.message || 'Netwerkfout of onverwachte fout bij API call.');
   }
 }

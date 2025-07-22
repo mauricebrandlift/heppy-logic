@@ -52,7 +52,11 @@ export async function submitSollicitatie(sollicitatieData) {
   console.log(`[submitSollicitatie] Calling API endpoint: ${endpoint}`, {
     endpoint,
     hasData: !!sollicitatieData,
-    dataKeys: Object.keys(sollicitatieData || {})
+    dataKeys: Object.keys(sollicitatieData || {}),
+    sollicitatieData: {
+      ...sollicitatieData,
+      wachtwoord: '[HIDDEN]' // Verberg wachtwoord in logs
+    }
   });
 
   try {
