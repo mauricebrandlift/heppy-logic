@@ -213,6 +213,76 @@ export function getFormSchema(name) {
       // Submit logica wordt later toegevoegd in loginForm.js
     },
 
+    // Sollicitatie formulier
+    'soll_algemeen': {
+      name: 'soll_algemeen',
+      selector: '[data-form-name="soll_algemeen"]',
+      fields: {
+        // Persoonlijke gegevens
+        sollalg_geslacht: {
+          ...commonFields.geslacht,
+          label: 'Geslacht'
+        },
+        sollalg_geboortedatum: {
+          ...commonFields.geboortedatum,
+          label: 'Geboortedatum'
+        },
+        sollalg_voornaam: {
+          ...commonFields.voornaam,
+          label: 'Voornaam'
+        },
+        sollalg_achternaam: {
+          ...commonFields.achternaam,
+          label: 'Achternaam'
+        },
+        sollalg_woonplaats: {
+          ...commonFields.woonplaats,
+          label: 'Woonplaats'
+        },
+        sollalg_telefoon: {
+          ...commonFields.telefoon,
+          validators: ['required', 'numeric'], // Telefoon verplicht voor sollicitaties
+          messages: {
+            required: 'Telefoonnummer is verplicht',
+            numeric: 'Gebruik alleen cijfers voor telefoonnummer'
+          }
+        },
+        
+        // Sollicitatie specifiek
+        sollalg_ervaringmotivatie: {
+          ...commonFields.ervaringmotivatie,
+          label: 'Ervaring & Motivatie'
+        },
+        sollalg_emailadres: {
+          ...commonFields.email,
+          label: 'E-mailadres'
+        },
+        sollalg_wachtwoord: {
+          ...commonFields.wachtwoord,
+          label: 'Gewenst wachtwoord'
+        },
+        sollalg_akkoordVoorwaarden: {
+          ...commonFields.akkoordVoorwaarden,
+          label: 'Ik ga akkoord met de voorwaarden'
+        }
+      },
+      
+      // Globale foutberichten
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          // Sollicitatie-specifieke berichten
+          EMAIL_EXISTS: 'Er bestaat al een account met dit e-mailadres.',
+          SOLLICITATIE_SUCCESS: 'Je sollicitatie is succesvol verstuurd! We nemen zo snel mogelijk contact met je op.',
+          DUPLICATE_APPLICATION: 'Je hebt al eerder gesolliciteerd. We nemen contact met je op zodra we je sollicitatie hebben beoordeeld.',
+          INVALID_AGE: 'Je moet minimaal 18 jaar oud zijn om te solliciteren.',
+          WEAK_PASSWORD: 'Kies een sterker wachtwoord met minimaal 8 karakters.'
+        }
+      )
+      // Submit logica wordt later toegevoegd in sollAlgemeenForm.js
+    },
+
     // Andere formulieren...
   };
 

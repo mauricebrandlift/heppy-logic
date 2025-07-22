@@ -102,5 +102,74 @@ export const commonFields = {
     validators: ['optional'],
     persist: 'global'
   },
+  
+  // Sollicitatie specifieke velden
+  geslacht: {
+    label: 'Geslacht',
+    inputType: 'radio',
+    sanitizers: ['trim'],
+    validators: ['required'],
+    persist: 'form',
+    messages: {
+      required: 'Selecteer je geslacht'
+    }
+  },
+  geboortedatum: {
+    label: 'Geboortedatum',
+    inputType: 'date',
+    sanitizers: ['trim'],
+    validators: ['required', 'date'],
+    persist: 'form',
+    messages: {
+      required: 'Geboortedatum is verplicht',
+      date: 'Voer een geldige datum in'
+    }
+  },
+  woonplaats: {
+    label: 'Woonplaats',
+    inputType: 'text',
+    sanitizers: ['trim', 'capitalizeFirst'],
+    validators: ['required', 'alphaNumeric'],
+    persist: 'form',
+    messages: {
+      required: 'Woonplaats is verplicht',
+      alphaNumeric: 'Woonplaats mag alleen letters bevatten'
+    }
+  },
+  ervaringmotivatie: {
+    label: 'Ervaring & Motivatie',
+    inputType: 'textarea',
+    sanitizers: ['trim'],
+    validators: ['required', 'minLength'],
+    persist: 'form',
+    minLength: 50,
+    messages: {
+      required: 'Vertel ons over je ervaring en motivatie',
+      minLength: 'Schrijf minimaal 50 karakters over je ervaring en motivatie'
+    }
+  },
+  wachtwoord: {
+    label: 'Wachtwoord',
+    inputType: 'password',
+    sanitizers: ['trim'],
+    validators: ['required', 'minLength'],
+    persist: 'none', // Wachtwoorden nooit persistent opslaan
+    minLength: 8,
+    messages: {
+      required: 'Wachtwoord is verplicht',
+      minLength: 'Wachtwoord moet minimaal 8 karakters zijn'
+    }
+  },
+  akkoordVoorwaarden: {
+    label: 'Akkoord met voorwaarden',
+    inputType: 'checkbox',
+    sanitizers: [],
+    validators: ['required'],
+    persist: 'none',
+    messages: {
+      required: 'Je moet akkoord gaan met de voorwaarden'
+    }
+  },
+  
   // Voeg hier meer herbruikbare veld-definities toe
 };

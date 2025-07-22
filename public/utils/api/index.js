@@ -13,6 +13,7 @@ export { fetchAddressDetails } from './address.js';
 export { fetchCoverageStatus } from './coverage.js';
 export { fetchPricingConfiguration } from './pricing.js';
 export { fetchAvailableCleaners } from './cleaners.js';
+export { submitSollicitatie } from './sollicitatie.js';
 
 // Voeg hier exports toe voor andere API modules als die worden gemaakt, bijv.:
 // export { fetchSomeOtherData } from './someOtherModule.js';
