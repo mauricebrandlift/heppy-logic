@@ -109,7 +109,7 @@ export const commonFields = {
     inputType: 'radio',
     sanitizers: ['trim'],
     validators: ['required'],
-    persist: 'form',
+    persist: 'none', // Niet opslaan - gebruiker moet elke keer selecteren
     messages: {
       required: 'Selecteer je geslacht'
     }
