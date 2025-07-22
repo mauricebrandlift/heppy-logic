@@ -97,6 +97,99 @@ export const formHandler = {
   },
 
   /**
+   * 📋 Helper functie om de waarde van een veld te krijgen (ondersteunt radio buttons en checkboxes)
+   * @param {HTMLElement} fieldElement - Het form element
+   * @returns {string} De waarde van het veld
+   */
+  _getFieldValue(fieldElement) {
+    if (fieldElement.type === 'radio') {
+      // Voor radio buttons: zoek de checked radio in de groep
+      const name = fieldElement.name || fieldElement.getAttribute('data-field-name');
+      if (name) {
+        const checkedRadio = this.formElement.querySelector(`input[name="${name}"]:checked`) ||
+                            this.formElement.querySelector(`input[data-field-name="${name}"]:checked`);
+        return checkedRadio ? checkedRadio.value : '';
+      }
+      return fieldElement.checked ? fieldElement.value : '';
+    } else if (fieldElement.type === 'checkbox') {
+      // Voor checkboxes: return checked status als string
+      return fieldElement.checked ? 'true' : 'false';
+    } else {
+      // Voor andere velden: gewoon de value
+      return fieldElement.value || '';
+    }
+  },
+
+  /**
+   * ✏️ Helper functie om de waarde van een veld te zetten (ondersteunt radio buttons en checkboxes)
+   * @param {HTMLElement} fieldElement - Het form element
+   * @param {string} value - De waarde om te zetten
+   */
+  _setFieldValue(fieldElement, value) {
+    if (fieldElement.type === 'radio') {
+      // Voor radio buttons: zoek de juiste radio in de groep en check die
+      const name = fieldElement.name || fieldElement.getAttribute('data-field-name');
+      if (name) {
+        // Uncheck alle radios in de groep eerst
+        const allRadios = this.formElement.querySelectorAll(`input[name="${name}"], input[data-field-name="${name}"]`);
+        allRadios.forEach(radio => radio.checked = false);
+        
+        // Check de juiste radio
+        const targetRadio = this.formElement.querySelector(`input[name="${name}"][value="${value}"], input[data-field-name="${name}"][value="${value}"]`);
+        if (targetRadio) {
+          targetRadio.checked = true;
+        }
+      }
+    } else if (fieldElement.type === 'checkbox') {
+      // Voor checkboxes: zet checked status op basis van waarde
+      fieldElement.checked = (value === 'true' || value === true);
+    } else {
+      // Voor andere velden: gewoon de value zetten
+      fieldElement.value = value;
+    }
+  },
+
+  /**
+   * 🔗 Helper functie om de juiste events te binden voor verschillende veldtypes
+   * @param {HTMLElement} fieldElement - Het form element
+   * @param {string} fieldName - Naam van het veld
+   * @param {Object} fieldConfig - Configuratie van het veld
+   */
+  _bindFieldEvents(fieldElement, fieldName, fieldConfig) {
+    if (fieldElement.type === 'radio') {
+      // Voor radio buttons: bind change event op alle radios in de groep
+      const name = fieldElement.name || fieldElement.getAttribute('data-field-name');
+      if (name) {
+        const allRadios = this.formElement.querySelectorAll(`input[name="${name}"], input[data-field-name="${name}"]`);
+        allRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => this.handleInput(fieldName, e));
+        });
+      }
+    } else {
+      // Voor andere velden: gewoon change event
+      fieldElement.addEventListener('change', (e) => this.handleInput(fieldName, e));
+    }
+
+    // Input filters toepassen indien gedefinieerd
+    if (fieldConfig.inputFilter && inputFilters[fieldConfig.inputFilter]) {
+      const filterFunction = inputFilters[fieldConfig.inputFilter];
+      fieldElement.addEventListener('keydown', filterFunction);
+      console.log(
+        `🔒 [FormHandler] Input filter '${fieldConfig.inputFilter}' toegepast op veld '${fieldName}'.`
+      );
+
+      // Specifieke attributen instellen op basis van filtertype
+      if (fieldConfig.inputFilter === 'postcode') {
+        fieldElement.setAttribute('maxlength', '6');
+      }
+    } else if (fieldConfig.inputFilter) {
+      console.warn(
+        `⚠️ [FormHandler] Input filter '${fieldConfig.inputFilter}' gedefinieerd voor veld '${fieldName}', maar niet gevonden in formInputFilters.js.`
+      );
+    }
+  },
+
+  /**
    * 🛠️ Initialiseer de form handler met het gegeven schema.
    *
    * Stap 1: vind en bind het formulier in de DOM
@@ -160,17 +253,17 @@ export const formHandler = {
       if (valueToLoad !== undefined) {
         // Pas sanitization toe op de geladen waarde
         this.formData[fieldName] = sanitizeField(valueToLoad, fieldConfig, fieldName);
-        fieldEl.value = this.formData[fieldName]; // Zet gesanitized waarde in DOM
+        this._setFieldValue(fieldEl, this.formData[fieldName]); // Gebruik helper voor radio/checkbox support
         console.log(
           `🔄 [FormHandler] Veld '${fieldName}' ingesteld op geladen & gesanitized waarde: ${this.formData[fieldName]}`
         );
       } else {
         // Geen opgeslagen waarde gevonden, gebruik (en sanitize) de huidige DOM-waarde
-        const initialRawValue = fieldEl.value || ''; // Haal huidige waarde uit DOM, of '' indien falsy
+        const initialRawValue = this._getFieldValue(fieldEl); // Gebruik helper voor radio/checkbox support
         this.formData[fieldName] = sanitizeField(initialRawValue, fieldConfig, fieldName); // Sanitize deze waarde
         // Update het DOM-element alleen als de sanitization de waarde heeft veranderd
         if (initialRawValue !== this.formData[fieldName]) {
-          fieldEl.value = this.formData[fieldName];
+          this._setFieldValue(fieldEl, this.formData[fieldName]);
         }
         console.log(
           `🔄 [FormHandler] Veld '${fieldName}' niet in storage, gebruikt DOM waarde ('${initialRawValue}') gesanitized naar: '${this.formData[fieldName]}'`
@@ -178,34 +271,9 @@ export const formHandler = {
       }
 
       this.formState[fieldName] = { isTouched: false };
-      // Gebruik het 'change' event om handleInput aan te roepen.
-      // Dit zorgt ervoor dat validatie en foutmeldingen voor tekstvelden pas verschijnen
-      // nadat het veld de focus verliest.
-      fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
-
-      // Toepassen van input filters via keydown, indien gedefinieerd in het schema
-      if (fieldConfig.inputFilter && inputFilters[fieldConfig.inputFilter]) {
-        const filterFunction = inputFilters[fieldConfig.inputFilter];
-        fieldEl.addEventListener('keydown', filterFunction);
-        console.log(
-          `🔒 [FormHandler] Input filter '${fieldConfig.inputFilter}' toegepast op veld '${fieldName}'.`
-        );
-
-        // Specifieke attributen instellen op basis van filtertype, indien nodig.
-        // Dit centraliseert de logica voor attributen die direct gerelateerd zijn aan het filter.
-        if (fieldConfig.inputFilter === 'postcode') {
-          fieldEl.setAttribute('maxlength', '6');
-        }
-        // Voorbeeld: als je een maxLength zou willen instellen voor 'digitsOnly' via schema:
-        // if (fieldConfig.inputFilter === 'digitsOnly' && fieldConfig.maxLength) {
-        //   fieldEl.setAttribute('maxlength', fieldConfig.maxLength.toString());
-        // }
-      } else if (fieldConfig.inputFilter) {
-        // Log een waarschuwing als een filter is opgegeven maar niet bestaat.
-        console.warn(
-          `⚠️ [FormHandler] Input filter '${fieldConfig.inputFilter}' gedefinieerd voor veld '${fieldName}', maar niet gevonden in formInputFilters.js.`
-        );
-      }
+      
+      // Bind events using helper function (handles radio buttons correctly)
+      this._bindFieldEvents(fieldEl, fieldName, fieldConfig);
     });
 
     console.log(`🔄 [FormHandler] Initial formData state na laden:`, this.formData);
@@ -329,16 +397,16 @@ export const formHandler = {
     }
 
     const target = event.target;
-    const rawValue = target.value;
+    const rawValue = this._getFieldValue(target); // Gebruik helper voor radio/checkbox support
 
     // Sanitize de input waarde op basis van het veldschema.
     const cleanValue = sanitizeField(rawValue, fieldSchema, fieldName);
 
     // Update de DOM-waarde als de gesanitizede waarde anders is.
     // Dit is vooral relevant als de keydown-filters (indien aanwezig) niet alle gevallen dekken (bijv. plakken).
-    if (target.value !== cleanValue) {
+    if (rawValue !== cleanValue) {
       // Toekomstige overweging: cursorpositie herstellen na wijziging van target.value (Suggestie 2.2)
-      target.value = cleanValue;
+      this._setFieldValue(target, cleanValue);
     }
 
     // Update de interne formulierdata met de gesanitizede waarde.
