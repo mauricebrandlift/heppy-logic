@@ -240,7 +240,7 @@ export default async function handler(req, res) {
       achternaam,
       woonplaats,
       telefoon,
-      ervaring_motivatie: ervaringmotivatie,
+      ervaringmotivatie: ervaringmotivatie,
       emailadres,
       status: 'nieuw',
       akkoord_voorwaarden: akkoordVoorwaarden
