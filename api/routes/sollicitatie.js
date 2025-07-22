@@ -150,7 +150,9 @@ export default async function handler(req, res) {
     console.info(JSON.stringify({
       ...logMeta,
       level: 'INFO',
-      message: 'Account aanmaken gestart'
+      message: 'Account aanmaken gestart',
+      supabaseUrl: supabaseConfig.url ? 'SET' : 'NOT_SET',
+      supabaseAnonKey: supabaseConfig.anonKey ? 'SET' : 'NOT_SET'
     }));
 
     const authResponse = await httpClient(`${supabaseConfig.url}/auth/v1/signup`, {
@@ -195,7 +197,10 @@ export default async function handler(req, res) {
         ...logMeta,
         level: 'ERROR',
         message: 'Supabase auth error',
-        error: authData.error || authData.error_description
+        error: authData.error || authData.error_description || 'Unknown auth error',
+        authData: authData,
+        statusCode: authResponse.status,
+        statusText: authResponse.statusText
       }));
       return res.status(500).json({
         correlationId: logMeta.correlationId,
