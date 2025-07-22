@@ -48,7 +48,7 @@ export const commonFields = {
   voornaam: {
     label: 'Voornaam',
     inputType: 'text',
-    sanitizers: ['trim', 'uppercase'],
+    sanitizers: ['trim', 'capitalizeFirst'],
     validators: ['required', 'alphaNumeric'],
     persist: 'global',
     messages: {
@@ -59,7 +59,7 @@ export const commonFields = {
   achternaam: {
     label: 'Achternaam',
     inputType: 'text',
-    sanitizers: ['trim', 'uppercase'],
+    sanitizers: ['trim', 'capitalizeFirst'],
     validators: ['required', 'alphaNumeric'],
     persist: 'global',
     messages: {

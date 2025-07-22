@@ -108,7 +108,9 @@ export const formHandler = {
       if (name) {
         const checkedRadio = this.formElement.querySelector(`input[name="${name}"]:checked`) ||
                             this.formElement.querySelector(`input[data-field-name="${name}"]:checked`);
-        return checkedRadio ? checkedRadio.value : '';
+        const result = checkedRadio ? checkedRadio.value : '';
+        console.log(`🔍 [FormHandler] Radio ${name} checkedRadio=${!!checkedRadio}, returning: '${result}'`);
+        return result;
       }
       return fieldElement.checked ? fieldElement.value : '';
     } else if (fieldElement.type === 'checkbox') {

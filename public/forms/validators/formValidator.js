@@ -12,6 +12,12 @@ export const validators = {
       console.log(`🔍 [Validator] Checkbox required check: value='${value}', isValid=${isValid}`);
       return isValid ? null : 'Dit veld is verplicht.';
     }
+    // Voor radio buttons: check of er daadwerkelijk een waarde is geselecteerd
+    if (fieldSchema && fieldSchema.inputType === 'radio') {
+      const isValid = value && value.trim() !== '';
+      console.log(`🔍 [Validator] Radio required check: value='${value}', isValid=${isValid}`);
+      return isValid ? null : 'Dit veld is verplicht.';
+    }
     // Voor andere velden: check of waarde niet leeg is
     return (value.trim() === '' ? 'Dit veld is verplicht.' : null);
   },
