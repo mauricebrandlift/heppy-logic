@@ -53,7 +53,7 @@ export async function apiClient(endpoint, options = {}, timeout = 5000) {
 
 
   // Logging (volgens api-guidelines.md punt 6 - logDebug)
-  // console.debug('API Request:', { url, options: fetchOptions });
+  console.log('API Request:', { url, options: fetchOptions });
 
   try {
     const response = await fetch(url, fetchOptions);
@@ -66,11 +66,11 @@ export async function apiClient(endpoint, options = {}, timeout = 5000) {
     });
 
     if (!response.ok) {
-      // console.error('API Error Response:', { status: response.status, url, responseData });
+      console.error('API Error Response:', { status: response.status, url, responseData });
       throw new ApiError(response.status, responseData.message || `API Fout: ${response.status}`, responseData);
     }
 
-    // console.debug('API Success Response:', { status: response.status, url, responseData });
+    console.log('API Success Response:', { status: response.status, url, responseData });
     return responseData;
   } catch (error) {
     clearTimeout(timeoutId); // Zorg dat timeout ook gecleared wordt bij een error
@@ -78,10 +78,10 @@ export async function apiClient(endpoint, options = {}, timeout = 5000) {
       throw error; // Gooi ApiError direct door
     }
     if (error.name === 'AbortError') {
-      // console.error('API Request Timeout:', { url });
+      console.error('API Request Timeout:', { url });
       throw new Error(`Request naar ${url} timed out na ${timeout / 1000}s.`);
     }
-    // console.error('Network/Fetch Error:', { url, error });
+    console.error('Network/Fetch Error:', { url, error });
     throw new Error(error.message || 'Netwerkfout of onverwachte fout bij API call.');
   }
 }

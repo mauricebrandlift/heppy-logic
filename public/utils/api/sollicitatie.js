@@ -49,7 +49,11 @@ export async function submitSollicitatie(sollicitatieData) {
 
   const endpoint = '/routes/sollicitatie'; // Het backend endpoint is /api/routes/sollicitatie
 
-  // console.debug(`[submitSollicitatie] Calling API endpoint: ${endpoint}`);
+  console.log(`[submitSollicitatie] Calling API endpoint: ${endpoint}`, {
+    endpoint,
+    hasData: !!sollicitatieData,
+    dataKeys: Object.keys(sollicitatieData || {})
+  });
 
   try {
     // POST request met sollicitatie data
@@ -58,11 +62,11 @@ export async function submitSollicitatie(sollicitatieData) {
       body: JSON.stringify(sollicitatieData)
     });
 
-    // console.debug('[submitSollicitatie] Sollicitatie succesvol verstuurd:', response);
+    console.log('[submitSollicitatie] Sollicitatie succesvol verstuurd:', response);
 
     return response;
   } catch (error) {
-    // console.error('[submitSollicitatie] Error tijdens sollicitatie:', error);
+    console.error('[submitSollicitatie] Error tijdens sollicitatie:', error);
 
     // Als het een ApiError is, gooi hem door (wordt afgehandeld door formHandler)
     if (error instanceof ApiError) {
