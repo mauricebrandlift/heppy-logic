@@ -107,7 +107,7 @@ export const commonFields = {
   geslacht: {
     label: 'Geslacht',
     inputType: 'radio',
-    sanitizers: ['trim'],
+    sanitizers: [], // Geen sanitizers nodig voor radio buttons
     validators: ['required'],
     persist: 'none', // Niet opslaan - gebruiker moet elke keer selecteren
     messages: {

@@ -49,6 +49,13 @@ export const sanitizers = {
  */
 export function sanitizeField(value, field, fieldName) {
   let result = String(value ?? '');
+  
+  // Skip sanitization for radio buttons and checkboxes - their values are predefined
+  if (field.inputType === 'radio' || field.inputType === 'checkbox') {
+    console.log(`🔄 [Sanitizer] Skipping sanitization for ${field.inputType} field '${fieldName}'`);
+    return result;
+  }
+  
   if (!field.sanitizers || !Array.isArray(field.sanitizers)) {
     return result;
   }
