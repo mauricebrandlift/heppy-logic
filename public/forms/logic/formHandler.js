@@ -314,18 +314,25 @@ export const formHandler = {
 
     // Voor elk veld: zet value, init state en bind input-event
     Object.keys(schema.fields).forEach((fieldName) => {
+      const fieldConfig = schema.fields[fieldName];
       const fieldEl = this.formElement.querySelector(`[data-field-name="${fieldName}"]`);
       if (!fieldEl) {
         console.warn(`⚠️ [FormHandler] Veld '${fieldName}' niet gevonden in DOM`);
         return;
       }
 
-      // Stel opgeslagen waarde in als default
+      // Stel opgeslagen waarde in als default, maar NIET voor radio/checkbox (DOM intact laten)
       if (this.formData[fieldName] != null) {
-        fieldEl.value = this.formData[fieldName];
-        console.log(
-          `🔄 [FormHandler] Veld '${fieldName}' ingesteld op opgeslagen waarde: ${this.formData[fieldName]}`
-        );
+        if (fieldConfig.inputType === 'radio' || fieldConfig.inputType === 'checkbox') {
+          console.log(
+            `🔄 [FormHandler] Veld '${fieldName}' (${fieldConfig.inputType}): DOM intact gelaten bij tweede loop, formData: ${this.formData[fieldName]}`
+          );
+        } else {
+          fieldEl.value = this.formData[fieldName];
+          console.log(
+            `🔄 [FormHandler] Veld '${fieldName}' ingesteld op opgeslagen waarde: ${this.formData[fieldName]}`
+          );
+        }
       }
 
       // Init state (bijv. voor touched/dirty tracking)
