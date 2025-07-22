@@ -257,21 +257,37 @@ export const formHandler = {
       if (valueToLoad !== undefined) {
         // Pas sanitization toe op de geladen waarde
         this.formData[fieldName] = sanitizeField(valueToLoad, fieldConfig, fieldName);
-        this._setFieldValue(fieldEl, this.formData[fieldName]); // Gebruik helper voor radio/checkbox support
-        console.log(
-          `🔄 [FormHandler] Veld '${fieldName}' ingesteld op geladen & gesanitized waarde: ${this.formData[fieldName]}`
-        );
+        
+        // Voor radio/checkbox: NIET overschrijven - laat DOM intact
+        if (fieldConfig.inputType === 'radio' || fieldConfig.inputType === 'checkbox') {
+          console.log(
+            `🔄 [FormHandler] Veld '${fieldName}' (${fieldConfig.inputType}): DOM intact gelaten, formData ingesteld op: ${this.formData[fieldName]}`
+          );
+        } else {
+          this._setFieldValue(fieldEl, this.formData[fieldName]);
+          console.log(
+            `🔄 [FormHandler] Veld '${fieldName}' ingesteld op geladen & gesanitized waarde: ${this.formData[fieldName]}`
+          );
+        }
       } else {
         // Geen opgeslagen waarde gevonden, gebruik (en sanitize) de huidige DOM-waarde
         const initialRawValue = this._getFieldValue(fieldEl); // Gebruik helper voor radio/checkbox support
         this.formData[fieldName] = sanitizeField(initialRawValue, fieldConfig, fieldName); // Sanitize deze waarde
-        // Update het DOM-element alleen als de sanitization de waarde heeft veranderd
-        if (initialRawValue !== this.formData[fieldName]) {
-          this._setFieldValue(fieldEl, this.formData[fieldName]);
+        
+        // Voor radio/checkbox: NOOIT DOM overschrijven - laat Webflow/script values intact
+        if (fieldConfig.inputType === 'radio' || fieldConfig.inputType === 'checkbox') {
+          console.log(
+            `🔄 [FormHandler] Veld '${fieldName}' (${fieldConfig.inputType}): DOM intact gelaten, formData gelezen als: '${this.formData[fieldName]}'`
+          );
+        } else {
+          // Update het DOM-element alleen als de sanitization de waarde heeft veranderd
+          if (initialRawValue !== this.formData[fieldName]) {
+            this._setFieldValue(fieldEl, this.formData[fieldName]);
+          }
+          console.log(
+            `🔄 [FormHandler] Veld '${fieldName}' niet in storage, gebruikt DOM waarde ('${initialRawValue}') gesanitized naar: '${this.formData[fieldName]}'`
+          );
         }
-        console.log(
-          `🔄 [FormHandler] Veld '${fieldName}' niet in storage, gebruikt DOM waarde ('${initialRawValue}') gesanitized naar: '${this.formData[fieldName]}'`
-        );
       }
 
       this.formState[fieldName] = { isTouched: false };
