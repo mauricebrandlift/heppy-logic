@@ -42,6 +42,97 @@ export const formHandler = {
   _triggerCleanupFunctions: [], // Opslag voor cleanup functie van triggers
 
   /**
+   * 📥 Haalt de waarde van een veld uit de DOM, rekening houdend met het veldtype
+   * @param {string} fieldName - Naam van het veld
+   * @param {HTMLElement} fieldElement - Het DOM element (optioneel, wordt anders opgezocht)
+   * @returns {string|boolean} - De waarde van het veld
+   */
+  _getFieldValue(fieldName, fieldElement = null) {
+    const fieldEl = fieldElement || this.formElement.querySelector(`[data-field-name="${fieldName}"]`);
+    if (!fieldEl) return '';
+
+    const fieldSchema = this.schema.fields[fieldName];
+    const inputType = fieldSchema?.inputType || fieldEl.type;
+
+    switch (inputType) {
+      case 'radio':
+        // Voor radio buttons: zoek de geselecteerde radio in de groep
+        const checkedRadio = this.formElement.querySelector(`[data-field-name="${fieldName}"]:checked`);
+        return checkedRadio ? checkedRadio.value : '';
+      
+      case 'checkbox':
+        // Voor checkboxes: return boolean waarde
+        return fieldEl.checked;
+      
+      default:
+        // Voor text, email, password, number, date, textarea, etc.
+        return fieldEl.value || '';
+    }
+  },
+
+  /**
+   * 📤 Zet de waarde van een veld in de DOM, rekening houdend met het veldtype
+   * @param {string} fieldName - Naam van het veld
+   * @param {string|boolean} value - De waarde om in te stellen
+   * @param {HTMLElement} fieldElement - Het DOM element (optioneel, wordt anders opgezocht)
+   */
+  _setFieldValue(fieldName, value, fieldElement = null) {
+    const fieldEl = fieldElement || this.formElement.querySelector(`[data-field-name="${fieldName}"]`);
+    if (!fieldEl) return;
+
+    const fieldSchema = this.schema.fields[fieldName];
+    const inputType = fieldSchema?.inputType || fieldEl.type;
+
+    switch (inputType) {
+      case 'radio':
+        // Voor radio buttons: selecteer de juiste radio in de groep
+        const radioToSelect = this.formElement.querySelector(`[data-field-name="${fieldName}"][value="${value}"]`);
+        if (radioToSelect) {
+          // Deselecteer alle andere radio buttons in de groep eerst
+          const allRadios = this.formElement.querySelectorAll(`[data-field-name="${fieldName}"]`);
+          allRadios.forEach(radio => radio.checked = false);
+          // Selecteer de juiste radio
+          radioToSelect.checked = true;
+        }
+        break;
+      
+      case 'checkbox':
+        // Voor checkboxes: zet checked status
+        fieldEl.checked = Boolean(value);
+        break;
+      
+      default:
+        // Voor text, email, password, number, date, textarea, etc.
+        fieldEl.value = value || '';
+        break;
+    }
+  },
+
+  /**
+   * 🎯 Bind de juiste event listeners op een veld, afhankelijk van het type
+   * @param {string} fieldName - Naam van het veld
+   * @param {HTMLElement} fieldElement - Het DOM element
+   * @param {Object} fieldConfig - De field configuratie uit het schema
+   */
+  _bindFieldEvents(fieldName, fieldElement, fieldConfig) {
+    const inputType = fieldConfig?.inputType || fieldElement.type;
+    
+    // Bepaal het juiste event type op basis van het input type
+    const eventType = (inputType === 'radio' || inputType === 'checkbox') ? 'change' : 'change';
+    
+    // Voor radio buttons moeten we alle radio elements in de groep vinden
+    if (inputType === 'radio') {
+      const allRadios = this.formElement.querySelectorAll(`[data-field-name="${fieldName}"]`);
+      allRadios.forEach(radio => {
+        radio.addEventListener(eventType, (e) => this.handleInput(fieldName, e));
+      });
+    } else {
+      // Voor andere types, bind gewoon op het enkele element
+      fieldElement.addEventListener(eventType, (e) => this.handleInput(fieldName, e));
+    }
+  },
+
+  /**
    * 🔌 Initialiseert triggers op basis van het schema
    *
    * Roept de juiste triggerfunctie aan op basis van het trigger type
@@ -160,17 +251,17 @@ export const formHandler = {
       if (valueToLoad !== undefined) {
         // Pas sanitization toe op de geladen waarde
         this.formData[fieldName] = sanitizeField(valueToLoad, fieldConfig, fieldName);
-        fieldEl.value = this.formData[fieldName]; // Zet gesanitized waarde in DOM
+        this._setFieldValue(fieldEl, this.formData[fieldName]); // Gebruik helper voor radio/checkbox support
         console.log(
           `🔄 [FormHandler] Veld '${fieldName}' ingesteld op geladen & gesanitized waarde: ${this.formData[fieldName]}`
         );
       } else {
         // Geen opgeslagen waarde gevonden, gebruik (en sanitize) de huidige DOM-waarde
-        const initialRawValue = fieldEl.value || ''; // Haal huidige waarde uit DOM, of '' indien falsy
+        const initialRawValue = this._getFieldValue(fieldEl); // Gebruik helper voor radio/checkbox support
         this.formData[fieldName] = sanitizeField(initialRawValue, fieldConfig, fieldName); // Sanitize deze waarde
         // Update het DOM-element alleen als de sanitization de waarde heeft veranderd
         if (initialRawValue !== this.formData[fieldName]) {
-          fieldEl.value = this.formData[fieldName];
+          this._setFieldValue(fieldEl, this.formData[fieldName]);
         }
         console.log(
           `🔄 [FormHandler] Veld '${fieldName}' niet in storage, gebruikt DOM waarde ('${initialRawValue}') gesanitized naar: '${this.formData[fieldName]}'`
@@ -178,10 +269,9 @@ export const formHandler = {
       }
 
       this.formState[fieldName] = { isTouched: false };
-      // Gebruik het 'change' event om handleInput aan te roepen.
-      // Dit zorgt ervoor dat validatie en foutmeldingen voor tekstvelden pas verschijnen
-      // nadat het veld de focus verliest.
-      fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
+      
+      // Bind appropriate events based on field type
+      this._bindFieldEvents(fieldEl, fieldName, fieldConfig);
 
       // Toepassen van input filters via keydown, indien gedefinieerd in het schema
       if (fieldConfig.inputFilter && inputFilters[fieldConfig.inputFilter]) {
@@ -223,29 +313,6 @@ export const formHandler = {
 
     // Initialiseer triggers indien aanwezig in het schema
     this._initTriggers();
-
-    // Voor elk veld: zet value, init state en bind input-event
-    Object.keys(schema.fields).forEach((fieldName) => {
-      const fieldEl = this.formElement.querySelector(`[data-field-name="${fieldName}"]`);
-      if (!fieldEl) {
-        console.warn(`⚠️ [FormHandler] Veld '${fieldName}' niet gevonden in DOM`);
-        return;
-      }
-
-      // Stel opgeslagen waarde in als default
-      if (this.formData[fieldName] != null) {
-        fieldEl.value = this.formData[fieldName];
-        console.log(
-          `🔄 [FormHandler] Veld '${fieldName}' ingesteld op opgeslagen waarde: ${this.formData[fieldName]}`
-        );
-      }
-
-      // Init state (bijv. voor touched/dirty tracking)
-      this.formState[fieldName] = { isTouched: false };
-
-      // Bind input event: sanitize, valideer, sla op, update UI
-      fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
-    });
 
     // Bind click op custom submit-knop specifiek voor dit formulier
     const submitBtn = this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
@@ -329,16 +396,16 @@ export const formHandler = {
     }
 
     const target = event.target;
-    const rawValue = target.value;
+    const rawValue = this._getFieldValue(target); // Gebruik helper voor radio/checkbox support
 
     // Sanitize de input waarde op basis van het veldschema.
     const cleanValue = sanitizeField(rawValue, fieldSchema, fieldName);
 
     // Update de DOM-waarde als de gesanitizede waarde anders is.
     // Dit is vooral relevant als de keydown-filters (indien aanwezig) niet alle gevallen dekken (bijv. plakken).
-    if (target.value !== cleanValue) {
+    if (rawValue !== cleanValue) {
       // Toekomstige overweging: cursorpositie herstellen na wijziging van target.value (Suggestie 2.2)
-      target.value = cleanValue;
+      this._setFieldValue(target, cleanValue);
     }
 
     // Update de interne formulierdata met de gesanitizede waarde.
