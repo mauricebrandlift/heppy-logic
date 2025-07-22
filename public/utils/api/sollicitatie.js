@@ -53,7 +53,10 @@ export async function submitSollicitatie(sollicitatieData) {
 
   try {
     // POST request met sollicitatie data
-    const response = await apiClient.post(endpoint, sollicitatieData);
+    const response = await apiClient(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(sollicitatieData)
+    });
 
     // console.debug('[submitSollicitatie] Sollicitatie succesvol verstuurd:', response);
 
