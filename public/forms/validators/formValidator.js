@@ -5,7 +5,16 @@
  * Elk geeft bij falen een string error message terug, of null bij succes.
  */
 export const validators = {
-  required: (value) => (value.trim() === '' ? 'Dit veld is verplicht.' : null),
+  required: (value, fieldSchema) => {
+    // Voor checkboxes: check of waarde 'true' is (gecheckt)
+    if (fieldSchema && fieldSchema.inputType === 'checkbox') {
+      const isValid = (value === 'true' || value === true);
+      console.log(`🔍 [Validator] Checkbox required check: value='${value}', isValid=${isValid}`);
+      return isValid ? null : 'Dit veld is verplicht.';
+    }
+    // Voor andere velden: check of waarde niet leeg is
+    return (value.trim() === '' ? 'Dit veld is verplicht.' : null);
+  },
   optional: (_value) => null,
   numeric: (value) => (/^\d+$/.test(value) ? null : 'Alleen cijfers toegestaan.'),
   alphaNumeric: (value) =>
@@ -18,6 +27,25 @@ export const validators = {
     // Eenvoudige email validatie regex - bevat @ en minimaal één punt na @
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(value) ? null : 'Voer een geldig e-mailadres in.';
+  },
+  minLength: (value, fieldSchema) => {
+    const minLen = fieldSchema.minLength || 0;
+    if (value.length < minLen) {
+      return `Minimaal ${minLen} karakters vereist.`;
+    }
+    return null;
+  },
+  date: (value) => {
+    // Basic date format validation (YYYY-MM-DD)
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(value)) {
+      return 'Voer een geldige datum in (YYYY-MM-DD).';
+    }
+    const date = new Date(value);
+    if (isNaN(date.getTime())) {
+      return 'Voer een geldige datum in.';
+    }
+    return null;
   },
 };
 
@@ -36,8 +64,8 @@ export function validateField(fieldName, value, fieldSchema) {
       console.warn(`⚠️ [Validator] Geen validator gevonden voor '${name}' in veld '${fieldName}'`);
       continue;
     }
-    // Eerst uitvoeren van de validator zelf
-    const err = fn(value);
+    // Eerst uitvoeren van de validator zelf, geef fieldSchema mee voor checkbox support
+    const err = fn(value, fieldSchema);
     if (err) {
       // Alleen bij falen de override uit schema gebruiken
       return override[name] || err;

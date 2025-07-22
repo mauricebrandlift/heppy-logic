@@ -30,6 +30,11 @@ export const sanitizers = {
     if (!match) return '';
     return match[1] + (match[2] || '');
   },
+
+  /** Zet eerste letter van elk woord naar hoofdletter */
+  capitalizeFirst: (value) => {
+    return value.replace(/\b\w/g, letter => letter.toUpperCase());
+  },
 };
 
 /**

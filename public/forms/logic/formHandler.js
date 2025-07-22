@@ -113,7 +113,9 @@ export const formHandler = {
       return fieldElement.checked ? fieldElement.value : '';
     } else if (fieldElement.type === 'checkbox') {
       // Voor checkboxes: return checked status als string
-      return fieldElement.checked ? 'true' : 'false';
+      const result = fieldElement.checked ? 'true' : 'false';
+      console.log(`🔍 [FormHandler] Checkbox ${fieldElement.getAttribute('data-field-name')} checked=${fieldElement.checked}, returning: '${result}'`);
+      return result;
     } else {
       // Voor andere velden: gewoon de value
       return fieldElement.value || '';
