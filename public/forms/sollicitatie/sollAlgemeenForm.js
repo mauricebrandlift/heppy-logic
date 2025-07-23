@@ -100,24 +100,32 @@ export function initSollicitatieForm() {
       } catch (error) {
         console.error('[sollAlgemeenForm] Sollicitatie fout:', error);
         
+        // Specifieke error behandeling
+        let errorMessage = 'Er is een fout opgetreden bij het versturen van je sollicitatie.';
+        let errorCode = 'INTERNAL_ERROR';
+        
+        if (error.code === 'EMAIL_EXISTS') {
+          errorMessage = 'Er bestaat al een account met dit e-mailadres. Probeer in te loggen of gebruik een ander e-mailadres.';
+          errorCode = 'EMAIL_EXISTS';
+        } else if (error.code === 'VALIDATION_ERROR' || error.statusCode === 400) {
+          errorMessage = error.message || 'Controleer je gegevens en probeer opnieuw.';
+          errorCode = 'VALIDATION_ERROR';
+        } else if (error.code) {
+          errorCode = error.code;
+          errorMessage = error.message || errorMessage;
+        } else if (error.statusCode === 409) {
+          errorMessage = 'Er bestaat al een account met dit e-mailadres. Probeer in te loggen of gebruik een ander e-mailadres.';
+          errorCode = 'EMAIL_EXISTS';
+        }
+        
         // Gebruik de formUi helpers voor error display
         const formElement = formHandler.formElement;
         if (formElement) {
-          showError(formElement, error.message || 'Er is een fout opgetreden bij het versturen van je sollicitatie.');
-        }
-        
-        // Bepaal error code op basis van API response
-        let errorCode = 'INTERNAL_ERROR';
-        if (error.code) {
-          errorCode = error.code;
-        } else if (error.statusCode === 409) {
-          errorCode = 'EMAIL_EXISTS';
-        } else if (error.statusCode === 400) {
-          errorCode = 'VALIDATION_ERROR';
+          showError(formElement, errorMessage);
         }
         
         // Gooi error met code voor formHandler
-        const formError = new Error(error.message || 'Er is een fout opgetreden');
+        const formError = new Error(errorMessage);
         formError.code = errorCode;
         throw formError;
       }
@@ -137,9 +145,11 @@ export function initSollicitatieForm() {
       
       // Optioneel: Reset formulier na korte delay
       setTimeout(() => {
-        if (formElement) {
+        if (formElement && typeof formElement.reset === 'function') {
           formElement.reset();
           console.log('[sollAlgemeenForm] Formulier gereset');
+        } else {
+          console.log('[sollAlgemeenForm] FormElement heeft geen reset functie - mogelijk Webflow element');
         }
       }, 3000); // Reset na 3 seconden
       
