@@ -27,9 +27,12 @@ const moveToNextSlide = window.moveToNextSlide || (() => console.warn('⚠️ mo
 // Status object voor dit formulier
 const formStatus = {
   isLoading: false,
-  schoonmakersWrapper: null,
+  schoonmakersWrapper: null, // [data-element="schoonmakers-list"]
   schoonmakerTemplate: null,
-  totaalSchoonmakers: 0
+  totaalSchoonmakers: 0,
+  totaalElement: null,        // [data-element="schoonmakers-total"]
+  geenVoorkeurElement: null,  // [data-element="schoonmakers-geen-voorkeur"]
+  emptyElement: null          // [data-element="schoonmakers-empty"]
 };
 
 /**
@@ -337,43 +340,51 @@ function berekenDagdeelBeschikbaarheid(slots, requiredHours) {
  */
 function renderSchoonmakers(schoonmakers, filterDagdelen = null) {
   if (!formStatus.schoonmakersWrapper) {
-    console.error('❌ [SchoonmakerForm] Geen schoonmakers wrapper gevonden');
+    console.error('❌ [SchoonmakerForm] Geen schoonmakers list container gevonden');
     return;
   }
-  
-  // Leeg de container eerst
+
+  // Reset list
   formStatus.schoonmakersWrapper.innerHTML = '';
   formStatus.totaalSchoonmakers = schoonmakers.length;
-  
-  // Toon feedback als er geen schoonmakers zijn
-  if (schoonmakers.length === 0) {
-    const noCleanersMsg = document.createElement('div');
-    noCleanersMsg.className = 'geen-schoonmakers-melding';
-    noCleanersMsg.textContent = filterDagdelen 
-      ? 'Geen schoonmakers beschikbaar op de geselecteerde dagdelen.'
-      : 'Geen schoonmakers beschikbaar in jouw regio.';
-    formStatus.schoonmakersWrapper.appendChild(noCleanersMsg);
-    return;
+
+  // Update total element (buiten de lijst)
+  if (formStatus.totaalElement) {
+    if (schoonmakers.length > 0) {
+      formStatus.totaalElement.style.display = '';
+      formStatus.totaalElement.textContent = `${schoonmakers.length} ${schoonmakers.length === 1 ? 'schoonmaker' : 'schoonmakers'} beschikbaar`;
+    } else {
+      formStatus.totaalElement.style.display = 'none';
+      formStatus.totaalElement.textContent = '';
+    }
   }
-  
-  // Toon het aantal gevonden schoonmakers
-  const samenvattingEl = document.createElement('div');
-  samenvattingEl.className = 'schoonmakers-samenvatting';
-  samenvattingEl.setAttribute('data-schoonmakers-count', schoonmakers.length);
-  samenvattingEl.innerHTML = `
-    <p class="schoonmakers-count-text">
-      <strong>${schoonmakers.length}</strong> ${schoonmakers.length === 1 ? 'schoonmaker' : 'schoonmakers'} beschikbaar.
-    </p>
-  `;
-  formStatus.schoonmakersWrapper.appendChild(samenvattingEl);
-  
-  // Voeg alle schoonmakers toe
+
+  // Geen voorkeur element tonen / verbergen
+  if (formStatus.geenVoorkeurElement) {
+    formStatus.geenVoorkeurElement.style.display = schoonmakers.length > 0 ? '' : 'none';
+  }
+
+  // Leeg melding element
+  if (formStatus.emptyElement) {
+    if (schoonmakers.length === 0) {
+      formStatus.emptyElement.style.display = '';
+      // Optioneel aangepaste tekst op basis van filter
+      const msg = filterDagdelen ? 'Geen schoonmakers op deze dagdelen.' : 'Geen schoonmakers beschikbaar in jouw regio.';
+      if (!formStatus.emptyElement.getAttribute('data-static')) {
+        formStatus.emptyElement.textContent = msg;
+      }
+    } else {
+      formStatus.emptyElement.style.display = 'none';
+    }
+  }
+
+  if (schoonmakers.length === 0) return; // niets verder renderen
+
+  // Render schoonmakers
   schoonmakers.forEach(schoonmaker => {
     const schoonmakerEl = renderSchoonmaker(schoonmaker, filterDagdelen);
     if (schoonmakerEl) {
       formStatus.schoonmakersWrapper.appendChild(schoonmakerEl);
-      
-      // Initialiseer de beschikbaarheid toggle voor deze schoonmaker
       initBeschikbaarheidsToggle(schoonmakerEl);
     }
   });
@@ -383,32 +394,16 @@ function renderSchoonmakers(schoonmakers, filterDagdelen = null) {
  * Voeg de "geen voorkeur" radio-optie toe aan de lijst
  * @param {HTMLElement} wrapper - Container voor de opties 
  */
-function addNoPreferenceOption(wrapper) {
-  if (!wrapper) return;
-  
-  // Check of er al een geen-voorkeur element is
-  const existing = wrapper.querySelector('[data-option="geen-voorkeur"]');
-  if (existing) return;
-  
-  const noPreferenceEl = document.createElement('div');
-  noPreferenceEl.className = 'schoonmaker-optie geen-voorkeur';
-  noPreferenceEl.setAttribute('data-option', 'geen-voorkeur');
-  
-  noPreferenceEl.innerHTML = `
-    <label class="radio-wrapper">
-      <input type="radio" name="schoonmakerKeuze" value="geenVoorkeur" data-field-name="schoonmakerKeuze">
-      <span class="radio-label">Geen voorkeur</span>
-    </label>
-    <div class="geen-voorkeur-toelichting">
-      Wij kiezen voor jou een geschikte schoonmaker.
-    </div>
-  `;
-  
-  // Voeg toe aan het begin van de wrapper
-  if (wrapper.firstChild) {
-    wrapper.insertBefore(noPreferenceEl, wrapper.firstChild);
-  } else {
-    wrapper.appendChild(noPreferenceEl);
+function addNoPreferenceOption() {
+  // Niet meer dynamisch toevoegen; element bestaat extern
+  if (formStatus.geenVoorkeurElement) {
+    // Zorg dat radio de juiste attributen heeft
+    const radio = formStatus.geenVoorkeurElement.querySelector('input[type="radio"]');
+    if (radio) {
+      radio.name = 'schoonmakerKeuze';
+      radio.setAttribute('data-field-name', 'schoonmakerKeuze');
+      if (!radio.value) radio.value = 'geenVoorkeur';
+    }
   }
 }
 
@@ -579,8 +574,11 @@ export async function initAbbDagdelenSchoonmakerForm() {
   // Haal formulierschema op
   const schema = getFormSchema('abb_dagdelen-schoonmaker-form');
   
-  // Vind waar de schoonmakers getoond worden
-  formStatus.schoonmakersWrapper = document.querySelector('.schoonmakers-wrapper');
+  // Vind nieuwe containers op basis van data-element attributen
+  formStatus.schoonmakersWrapper = document.querySelector('[data-element="schoonmakers-list"]');
+  formStatus.totaalElement = document.querySelector('[data-element="schoonmakers-total"]');
+  formStatus.geenVoorkeurElement = document.querySelector('[data-element="schoonmakers-geen-voorkeur"]');
+  formStatus.emptyElement = document.querySelector('[data-element="schoonmakers-empty"]');
   
   // Vind het template voor een schoonmaker item
   formStatus.schoonmakerTemplate = document.querySelector('[data-render-element="schoonmaker"]');
@@ -642,11 +640,8 @@ export async function initAbbDagdelenSchoonmakerForm() {
   const flowData = loadFlowData('abonnement-aanvraag') || {};
   
   if (flowData.schoonmakerKeuze) {
-    // Vind de radio button met deze waarde en selecteer deze
-    const radio = formElement.querySelector(`input[name="schoonmakerKeuze"][value="${flowData.schoonmakerKeuze}"]`);
-    if (radio) {
-      radio.checked = true;
-    }
+    const radio = document.querySelector(`input[name="schoonmakerKeuze"][value="${flowData.schoonmakerKeuze}"]`);
+    if (radio) radio.checked = true;
   }
   
   // Vink eventueel opgeslagen dagdelen aan
