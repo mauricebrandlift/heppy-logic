@@ -224,7 +224,109 @@ function renderSchoonmaker(schoonmaker, dagdelenFilter = null) {
       beschikbaarheidContainer.appendChild(dagElement);    });
   }
   
+  // Nieuwe dagdeel weergave (7 kolommen x 3 dagdelen structuur)
+  // Regel: Een dagdeel is 'available' als er voldoende aaneengesloten uren zijn binnen dat dagdeel OF
+  // een aaneengesloten blok dat dit dagdeel raakt en samen met aansluitend volgend dagdeel de benodigde uren dekt.
+  try {
+    const requiredHoursRaw = (loadFlowData && loadFlowData('abonnement-aanvraag') || {}).abb_uren;
+    const requiredHours = parseFloat(requiredHoursRaw) || 0; // fallback 0 => geen speciale highlight
+    if (Array.isArray(schoonmaker.beschikbaarheid)) {
+      const daypartAvailability = berekenDagdeelBeschikbaarheid(schoonmaker.beschikbaarheid, requiredHours);
+      const daypartElems = schoonmakerEl.querySelectorAll('[data-field-name="schoonmaker-dagdeel"]');
+      daypartElems.forEach(el => {
+        const key = el.getAttribute('data-schoonmaker-dagdeel'); // bv ma-ochtend
+        const isAvailable = !!daypartAvailability[key];
+        // Vind child wrappers
+        const availEl = el.querySelector('.beschikbaarheid_item_check-wrp.is-available');
+        const unavailEl = el.querySelector('.beschikbaarheid_item_check-wrp.is-unavalable, .beschikbaarheid_item_check-wrp.is-unavailable');
+        if (availEl) availEl.style.display = isAvailable ? 'flex' : 'none';
+        if (unavailEl) unavailEl.style.display = isAvailable ? 'none' : 'flex';
+      });
+    }
+  } catch (e) {
+    console.warn('[SchoonmakerForm] Kon dagdeel beschikbaarheid niet renderen:', e);
+  }
+  
   return schoonmakerEl;
+}
+
+/**
+ * Berekent dagdeel beschikbaarheid op basis van ruwe beschikbaarheidsuren.
+ * verwacht slots: [{ dag: 'maandag', uur: '09:00', status: 'beschikbaar' }, ...]
+ * @param {Array} slots
+ * @param {number} requiredHours
+ * @returns {Object} mapping 'ma-ochtend' => boolean
+ */
+function berekenDagdeelBeschikbaarheid(slots, requiredHours) {
+  const result = {};
+  if (!Array.isArray(slots) || slots.length === 0) return result;
+  // Define day short codes mapping consistent with dagdelenHelper.js
+  const dayMap = { maandag: 'ma', dinsdag: 'di', woensdag: 'wo', donderdag: 'do', vrijdag: 'vr', zaterdag: 'za', zondag: 'zo' };
+  // Daypart hour ranges (start inclusive, end exclusive) in hours
+  const dayparts = [
+    { code: 'ochtend', start: 7, end: 12 },
+    { code: 'middag', start: 12, end: 17 },
+    { code: 'avond', start: 17, end: 22 }
+  ];
+  // Groepeer beschikbaar uren per dag
+  const byDay = {};
+  slots.forEach(s => {
+    if (s.status !== 'beschikbaar') return;
+    const h = parseInt(String(s.uur).split(':')[0], 10);
+    if (isNaN(h)) return;
+    if (!byDay[s.dag]) byDay[s.dag] = new Set();
+    byDay[s.dag].add(h);
+  });
+  // Helper om aaneengesloten blokken te vinden
+  function contiguousBlocks(hourSet) {
+    const hours = Array.from(hourSet).sort((a,b)=>a-b);
+    const blocks = [];
+    let start = null, prev = null;
+    hours.forEach(h => {
+      if (start === null) { start = h; prev = h; return; }
+      if (h === prev + 1) { prev = h; return; }
+      blocks.push({ start, end: prev + 1, length: (prev + 1) - start }); // end exclusive
+      start = h; prev = h;
+    });
+    if (start !== null) blocks.push({ start, end: prev + 1, length: (prev + 1) - start });
+    return blocks;
+  }
+  Object.entries(byDay).forEach(([dag, hourSet]) => {
+    const blocks = contiguousBlocks(hourSet);
+    dayparts.forEach((dp, idx) => {
+      const key = `${dayMap[dag] || ''}-${dp.code}`;
+      let available = false;
+      if (requiredHours <= 0) {
+        // markeer dagdeel beschikbaar als er minimaal 1 uur aanwezig is in range
+        available = blocks.some(b => Math.max(b.start, dp.start) < Math.min(b.end, dp.end));
+      } else {
+        // 1) Block binnen dagdeel genoeg?
+        available = blocks.some(b => {
+          const overlap = Math.max(0, Math.min(b.end, dp.end) - Math.max(b.start, dp.start));
+          return overlap >= requiredHours;
+        });
+        // 2) Contigue blok dat dagdeel raakt én totale bloklengte >= requiredHours
+        if (!available) {
+          available = blocks.some(b => {
+            const overlaps = Math.max(b.start, dp.start) < Math.min(b.end, dp.end);
+            return overlaps && b.length >= requiredHours;
+          });
+        }
+        // 3) Combinatie met volgend dagdeel: een blok dat beide dagdelen raakt en totale overlap >= requiredHours
+        if (!available && idx < dayparts.length - 1) {
+          const next = dayparts[idx + 1];
+            available = blocks.some(b => {
+              const overlapCombined = Math.max(0, Math.min(b.end, next.end) - Math.max(b.start, dp.start));
+              // Vereist dat blok start vóór einde huidige dagdeel en eind na start volgend dagdeel
+              const spans = b.start < dp.end && b.end > next.start;
+              return spans && overlapCombined >= requiredHours;
+            });
+        }
+      }
+      result[key] = available;
+    });
+  });
+  return result;
 }
 
 /**
