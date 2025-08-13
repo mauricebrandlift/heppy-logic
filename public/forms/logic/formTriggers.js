@@ -665,79 +665,126 @@ export function initWeekSelectTrigger(formHandler, options = {}) {
   const config = {
     weekField: 'weeknr',
     infoField: 'weeknr',
-    maxWeeks: 8,
-    ...options
+    maxWeeks: 8, // aantal weken vooruit (offset) vanaf huidige week (inclusief grens)
+    ...options,
   };
 
   const formElement = formHandler.formElement;
   if (!formElement) {
     console.error('[formTriggers] Geen formulierelement gevonden in formHandler');
-    return () => {}; // Noop cleanup function
+    return () => {};
   }
 
   const weekInput = formElement.querySelector(`[data-field-name="${config.weekField}"]`);
   const infoElement = formElement.querySelector(`[data-field-info="${config.infoField}"]`);
-
   if (!weekInput || !infoElement) {
     console.error('[formTriggers] Kon weeknummer input of info element niet vinden');
     return () => {};
   }
 
-  const currentDate = new Date();
-  const currentWeek = getWeekNumber(currentDate);
+  const now = new Date();
+  const currentISOWeek = getISOWeek(now);
+  const currentYear = now.getFullYear();
+  const isoWeeksCurrentYear = weeksInISOYear(currentYear);
 
-  // Bereken de eerste geldige week (huidige week + 2)
-  const firstValidWeek = currentWeek + 2;
-  const maxValidWeek = currentWeek + config.maxWeeks;
-  weekInput.min = firstValidWeek;
-  weekInput.max = maxValidWeek;
-  weekInput.value = firstValidWeek;
-
-  updateWeekInfo(firstValidWeek, infoElement);
-
-  // Voeg een input event handler toe om waarden te valideren
-  weekInput.addEventListener('input', () => {
-    let value = parseInt(weekInput.value, 10) || 0;
-    
-    // Zorg ervoor dat de waarde tussen 1 en 52 ligt
-    if (value < 1) value = 1;
-    if (value > 52) value = 52;
-    
-    // Zorg ervoor dat de waarde binnen het toegestane bereik ligt
-    if (value < firstValidWeek) value = firstValidWeek;
-    if (value > maxValidWeek) value = maxValidWeek;
-    
-    // Update het veld met de gecorrigeerde waarde
-    if (value.toString() !== weekInput.value) {
-      weekInput.value = value;
+  // Bouw de lijst toegestane weken (weekNum & year) vanaf huidige week +2 t/m +maxWeeks
+  const allowedWeeks = [];
+  for (let offset = 2; offset <= config.maxWeeks; offset++) { // offset 2 = eerste geldige week
+    let targetWeek = currentISOWeek + offset;
+    let targetYear = currentYear;
+    let weeksInYear = isoWeeksCurrentYear;
+    while (targetWeek > weeksInYear) {
+      targetWeek -= weeksInYear;
+      targetYear += 1;
+      weeksInYear = weeksInISOYear(targetYear);
     }
-    
-    // Update de datumbereik informatie
-    updateWeekInfo(value, infoElement);
+    allowedWeeks.push({ week: targetWeek, year: targetYear });
+  }
+
+  if (allowedWeeks.length === 0) {
+    console.warn('[formTriggers] Geen toegestane weken berekend');
+    return () => {};
+  }
+
+  // Initialiseer met eerste toegestane week
+  const first = allowedWeeks[0];
+  weekInput.removeAttribute('min'); // we hanteren eigen validatie
+  weekInput.removeAttribute('max');
+  weekInput.value = String(first.week);
+  weekInput.dataset.weekYear = String(first.year); // optioneel: jaar bewaren
+  updateWeekInfo(first.week, first.year, infoElement);
+
+  // Sync met formHandler zodat submit direct mogelijk is
+  if (formHandler.formData) {
+    formHandler.formData[config.weekField] = weekInput.value;
+    if (formHandler.formState[config.weekField]) {
+      formHandler.formState[config.weekField].isTouched = true; // markeer als ingevuld
+    }
+  }
+  // Dispatch change event zodat bestaande validatie/updates lopen
+  weekInput.dispatchEvent(new Event('change', { bubbles: true }));
+
+  let lastValid = first.week;
+
+  weekInput.addEventListener('input', () => {
+    let raw = parseInt(weekInput.value, 10);
+    if (isNaN(raw)) {
+      weekInput.value = String(lastValid);
+      return;
+    }
+    // Vind of ingevoerde week in allowedWeeks zit (ongeacht jaar) – uniek binnen venster
+    const found = allowedWeeks.find(w => w.week === raw);
+    if (!found) {
+      // Corrigeer naar dichtstbijzijnde toegestane week
+      const nearest = allowedWeeks.reduce((acc, w) => {
+        const diff = Math.abs(w.week - raw);
+        if (!acc || diff < acc.diff) return { diff, w };
+        return acc;
+      }, null);
+      if (nearest) {
+        raw = nearest.w.week;
+      }
+    }
+    const selected = allowedWeeks.find(w => w.week === raw) || allowedWeeks[0];
+    weekInput.value = String(selected.week);
+    weekInput.dataset.weekYear = String(selected.year);
+    lastValid = selected.week;
+    updateWeekInfo(selected.week, selected.year, infoElement);
+    // Forceer change zodat formHandler validatie herwaardeert
+    weekInput.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
-  function updateWeekInfo(weekNumber, element) {
-    const year = currentDate.getFullYear();
-    const startDate = getStartDateOfWeek(weekNumber, year);
+  function updateWeekInfo(weekNumber, year, element) {
+    const startDate = getStartDateOfISOWeek(weekNumber, year);
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6);
-
-    element.textContent = `Week van maandag ${formatDate(startDate)} t/m zondag ${formatDate(endDate)}`;
+    element.textContent = `Week ${weekNumber} (${formatDate(startDate)} – ${formatDate(endDate)})`;
   }
 
-  function getWeekNumber(date) {
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  // ISO week helpers
+  function getISOWeek(date) {
+    const tmp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    // Donderdag in huidige week bepaalt weeknummer
+    tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7);
+    return weekNo;
   }
-
-  function getStartDateOfWeek(weekNumber, year) {
-    const firstDayOfYear = new Date(year, 0, 1);
-    const daysOffset = (weekNumber - 1) * 7 - firstDayOfYear.getDay() + 1;
-    return new Date(year, 0, daysOffset);
+  function weeksInISOYear(year) {
+    const dec28 = new Date(Date.UTC(year, 11, 28));
+    return getISOWeek(dec28); // 52 of 53
   }
-
+  function getStartDateOfISOWeek(week, year) {
+    const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+    const dayOfWeek = simple.getUTCDay() || 7;
+    if (dayOfWeek > 4) {
+      simple.setUTCDate(simple.getUTCDate() + 8 - dayOfWeek);
+    } else {
+      simple.setUTCDate(simple.getUTCDate() - (dayOfWeek - 1));
+    }
+    return simple;
+  }
   function formatDate(date) {
-    return `${date.getDate()} ${date.toLocaleString('default', { month: 'long' })}`;
+    return `${date.getUTCDate()} ${date.toLocaleString('nl-NL', { month: 'long', timeZone: 'UTC' })}`;
   }
 }
