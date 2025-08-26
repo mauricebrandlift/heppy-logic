@@ -53,6 +53,19 @@ export const validators = {
     }
     return null;
   },
+  // Integer validator (onderscheidend t.o.v. numeric puur voor semantiek)
+  integer: (value) => (/^-?\d+$/.test(value) ? null : 'Voer een geheel getal in.'),
+  // Nieuw: weeknrAllowed validator controleert of weeknummer in dynamische allowedWeeks lijst zit
+  weeknrAllowed: (value, fieldSchema) => {
+    if (!/^-?\d+$/.test(value)) return 'Voer een geheel weeknummer in.';
+    const intVal = parseInt(value, 10);
+    if (fieldSchema && Array.isArray(fieldSchema.allowedWeeks)) {
+      if (!fieldSchema.allowedWeeks.includes(intVal)) {
+        return 'Selecteer een geldige startweek.';
+      }
+    }
+    return null;
+  },
 };
 
 /**

@@ -701,6 +701,15 @@ export function initWeekSelectTrigger(formHandler, options = {}) {
     allowedWeeks.push({ week: targetWeek, year: targetYear });
   }
 
+  // Injecteer pure weeknummers in het schema veld (indien beschikbaar) voor validator
+  try {
+    if (formHandler && formHandler.formSchema && formHandler.formSchema.fields && formHandler.formSchema.fields[config.weekField]) {
+      formHandler.formSchema.fields[config.weekField].allowedWeeks = allowedWeeks.map(w => w.week);
+    }
+  } catch (e) {
+    console.warn('[formTriggers] Kon allowedWeeks niet injecteren in schema:', e);
+  }
+
   if (allowedWeeks.length === 0) {
     console.warn('[formTriggers] Geen toegestane weken berekend');
     return () => {};

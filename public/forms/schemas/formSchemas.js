@@ -125,14 +125,17 @@ export function getFormSchema(name) {
           label: 'Begin weeknummer',
           inputType: 'number',
           sanitizers: ['trim', 'numericOnly'],
-          validators: ['required', 'numeric', 'integer'],
+          // Validators: vereis integer én dat de waarde binnen de toegestane window valt
+          validators: ['required', 'integer', 'weeknrAllowed'],
           inputFilter: 'digitsOnly',
           persist: 'form',
           placeholder: '',
+          // allowedWeeks wordt dynamisch gevuld door week select init logic
+          allowedWeeks: [],
           messages: {
             required: 'Selecteer het begin weeknummer',
-            numeric: 'Gebruik alleen cijfers',
-            integer: 'Voer een heel weeknummer in'
+            integer: 'Voer een heel weeknummer in',
+            weeknrAllowed: 'Week buiten toegestane startperiode'
           }
         }
       },
