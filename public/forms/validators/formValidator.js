@@ -60,9 +60,9 @@ export const validators = {
     if (!/^-?\d+$/.test(value)) return 'Voer een geheel weeknummer in.';
     const intVal = parseInt(value, 10);
     if (fieldSchema && Array.isArray(fieldSchema.allowedWeeks)) {
-      if (!fieldSchema.allowedWeeks.includes(intVal)) {
-        return 'Selecteer een geldige startweek.';
-      }
+      // Als allowedWeeks nog niet gevuld is (lege lijst), beschouw dit als 'nog niet te valideren'
+      if (fieldSchema.allowedWeeks.length === 0) return null;
+      if (!fieldSchema.allowedWeeks.includes(intVal)) return 'Selecteer een geldige startweek.';
     }
     return null;
   },
