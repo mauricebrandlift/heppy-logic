@@ -45,8 +45,13 @@ export async function getExternalAddressDetails(postcode, huisnummer, correlatio
     throw err;
   }
 
-  const params = new URLSearchParams({ postcode, number: huisnummer });
-  const apiUrl = `${baseUrl}/addresses/?${params.toString()}`; // Pas endpoint aan indien nodig
+  // Normaliseer invoer voor v3: postcode zonder spatie, uppercase; huisnummer alleen numeriek gedeelte
+  const normalizedPostcode = String(postcode).replace(/\s+/g, '').toUpperCase();
+  const numberMatch = String(huisnummer).match(/^(\d+)/);
+  const normalizedNumber = numberMatch ? numberMatch[1] : String(huisnummer);
+
+  // v3 endpoint structuur: /lookup/{postcode}/{number}
+  const apiUrl = `${baseUrl}/lookup/${normalizedPostcode}/${normalizedNumber}`;
 
   console.log(JSON.stringify({ ...logMeta, level: 'INFO', message: `Externe API call naar: ${apiUrl}` }));
 
@@ -73,26 +78,25 @@ export async function getExternalAddressDetails(postcode, huisnummer, correlatio
     }
 
     const data = await response.json();
-    // De exacte structuur hieronder is afhankelijk van de Postcode API die je gebruikt.
-    // Dit is een voorbeeld gebaseerd op PostcodeAPI.nu.
-    const address = data?._embedded?.addresses?.[0];
 
-    if (!address) {
+    // v3 geeft direct een object terug (geen _embedded)
+    if (!data || !data.postcode || !data.number) {
       console.warn(JSON.stringify({ ...logMeta, level: 'WARN', message: 'Geen adres gevonden voor combinatie.', apiResponse: data }));
       const err = new Error('Geen adres gevonden voor de opgegeven postcode en huisnummer.');
       err.code = 404; // Not Found
       throw err;
     }
 
-    // Formatteer het resultaat naar een bruikbaar object voor je applicatie
     const resultaat = {
-      straat: address.street,
-      plaats: address.city?.label || address.city?.name, // Afhankelijk van API
-      postcode: address.postcode,
-      huisnummer: String(address.number), // Zorg dat het een string is
-      toevoeging: address.numberAddition || address.letter || null, // Afhankelijk van API
-      latitude: address.geo?.center?.wgs84?.coordinates?.[1],
-      longitude: address.geo?.center?.wgs84?.coordinates?.[0],
+      straat: data.street,
+      plaats: data.city, // city is string in v3
+      postcode: data.postcode,
+      huisnummer: String(data.number),
+      toevoeging: null, // v3 ondersteunt (nog) geen toevoeging in lookup response
+      latitude: Array.isArray(data.location?.coordinates) ? data.location.coordinates[1] : undefined,
+      longitude: Array.isArray(data.location?.coordinates) ? data.location.coordinates[0] : undefined,
+      // municipality: data.municipality, // Optioneel extra velden
+      // province: data.province,
     };
 
     console.log(JSON.stringify({ ...logMeta, level: 'INFO', message: 'Adres succesvol opgehaald.', adres: resultaat }));
