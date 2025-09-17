@@ -39,8 +39,15 @@ export default async function handler(req, res) {// Stel CORS headers in voor AL
 
   console.log(JSON.stringify({ ...logMeta, level: 'INFO', message: 'Request ontvangen voor prijsconfiguratie.' }));
   try {
-    // Gebruik de configService om prijsconfiguratie op te halen
-    const pricingData = await fetchPricingConfiguration(correlationId);
+    // Optionele flow filter uit query (Vercel edge / node: req.query of URL parsing)
+    let flowFilter = null;
+    try {
+      const urlObj = new URL(req.url, 'http://localhost');
+      flowFilter = urlObj.searchParams.get('flow');
+    } catch (_) {}
+
+    // Gebruik de configService om prijsconfiguratie op te halen (filter op flow indien opgegeven)
+    const pricingData = await fetchPricingConfiguration(correlationId, flowFilter || undefined);
     
     // Optioneel: data formatteren (wanneer gewenst)
     // const formattedData = formatPricingConfiguration(pricingData);
@@ -55,6 +62,7 @@ export default async function handler(req, res) {// Stel CORS headers in voor AL
     // Stuur de ongeformatteerde data terug voor compatibiliteit met bestaande frontend
     return res.status(200).json({
       correlationId: correlationId || 'not-provided',
+      flow: flowFilter || null,
       pricing: pricingData,
     });
   } catch (error) {

@@ -13,7 +13,7 @@ import { httpClient } from '../utils/apiClient.js';
  * @returns {Promise<Array>} - Array met prijsconfiguratie items
  * @throws {Error} - Bij problemen met de database connectie of query
  */
-export async function fetchPricingConfiguration(correlationId = 'not-provided') {
+export async function fetchPricingConfiguration(correlationId = 'not-provided', flow) {
   const { url: supabaseUrl, anonKey: supabaseAnonKey } = supabaseConfig;
   
   if (!supabaseUrl || !supabaseAnonKey) {
@@ -34,8 +34,16 @@ export async function fetchPricingConfiguration(correlationId = 'not-provided') 
   
   try {
     // Gebruik de httpClient utility voor consistente foutafhandeling
+    // Bouw query params voor optionele filtering op flow en alleen actieve records
+    const queryParams = [];
+    if (flow) {
+      queryParams.push(`flow=eq.${encodeURIComponent(flow)}`);
+    }
+    queryParams.push('active=eq.true');
+    const queryString = queryParams.length ? `?${queryParams.join('&')}` : '';
+
     const response = await httpClient(
-      `${supabaseUrl}/rest/v1/prijs_configuratie`,
+      `${supabaseUrl}/rest/v1/prijs_configuratie${queryString}`,
       {
         method: 'GET',
         headers: {

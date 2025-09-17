@@ -52,7 +52,7 @@ async function getPricingConfiguration() {
   
   try {
     console.log('🔄 [AbbOpdrachtForm] Ophalen prijsconfiguratie via API client...');
-    const result = await fetchPricingConfiguration();
+  const result = await fetchPricingConfiguration('abonnement');
     const data = result;
     
     console.log('✅ [AbbOpdrachtForm] Prijsconfiguratie opgehaald:', data);
