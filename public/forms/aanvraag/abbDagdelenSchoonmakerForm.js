@@ -471,8 +471,11 @@ async function fetchEnToonSchoonmakers(formElement, gebruikDagdelenFilter = fals
     // Voeg geen-voorkeur optie toe
     addNoPreferenceOption(formStatus.schoonmakersWrapper);
     
-    // Update form status
-    formHandler.validateField('schoonmakerKeuze');
+    // Update form status: herbereken submit-state i.p.v. niet-bestaande validateField
+    // (andere formulieren vertrouwen op de centrale validatie-flow in formHandler)
+    if (formHandler && typeof formHandler.updateSubmitState === 'function') {
+      formHandler.updateSubmitState();
+    }
     
     // Verberg eventuele error meldingen omdat we succesvol schoonmakers hebben geladen
     hideErrorMessage();
