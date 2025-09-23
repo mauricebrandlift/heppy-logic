@@ -101,7 +101,7 @@ export function initAbbOverzicht() {
         // Geen extra actie; alle data is al in de flow bewaard door eerdere stappen
       },
       onSuccess: () => {
-        // Volg hetzelfde patroon als andere stappen: eerst module laden + init, daarna navigerenn
+        // Volg hetzelfde patroon als andere stappen: eerst module laden + init, daarna navigeren
         import('./abbPersoonsgegevensForm.js')
           .then((m) => {
             if (m && typeof m.initAbbPersoonsgegevensForm === 'function') {
