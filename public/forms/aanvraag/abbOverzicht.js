@@ -91,17 +91,6 @@ export function initAbbOverzicht() {
 
   console.log('✅ [AbbOverzicht] Overzicht gevuld.');
 
-  // Zorg dat de volgende stap (persoonsgegevens) klaarstaat als we doorklikken
-  try {
-    import('./abbPersoonsgegevensForm.js').then((m) => {
-      if (m && typeof m.initAbbPersoonsgegevensForm === 'function') {
-        m.initAbbPersoonsgegevensForm();
-      }
-    }).catch((e) => console.warn('[AbbOverzicht] Kon persoonsgegevens stap niet preloaden:', e));
-  } catch (e) {
-    console.warn('[AbbOverzicht] Dynamische import niet ondersteund:', e);
-  }
-
   // Initialiseer deze stap als "formulier" zodat de Webflow-knop via formHandler werkt
   const schema = {
     name: 'abb_overzicht-form',
@@ -112,10 +101,22 @@ export function initAbbOverzicht() {
         // Geen extra actie; alle data is al in de flow bewaard door eerdere stappen
       },
       onSuccess: () => {
-        // Gebruik de globale Webflow navigatie
+        // Eerst naar de volgende slide navigeren
         if (typeof moveToNextSlide === 'function') {
           moveToNextSlide();
         }
+        // Daarna (asynchroon) de volgende stap initialiseren om event-collision te voorkomen
+        setTimeout(() => {
+          try {
+            import('./abbPersoonsgegevensForm.js').then((m) => {
+              if (m && typeof m.initAbbPersoonsgegevensForm === 'function') {
+                m.initAbbPersoonsgegevensForm();
+              }
+            }).catch((e) => console.warn('[AbbOverzicht] Kon persoonsgegevens stap niet laden na navigatie:', e));
+          } catch (e) {
+            console.warn('[AbbOverzicht] Dynamische import niet ondersteund:', e);
+          }
+        }, 0);
       }
     }
   };
