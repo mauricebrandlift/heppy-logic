@@ -100,4 +100,18 @@ export function initAbbOverzicht() {
   } catch (e) {
     console.warn('[AbbOverzicht] Dynamische import niet ondersteund:', e);
   }
+
+  // Bind de volgende-knop voor de slider vanuit het overzicht
+  const nextBtn = document.querySelector('[data-form-button="abb_overzicht"]');
+  if (nextBtn && !nextBtn._abbOverzichtBound) {
+    nextBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      try {
+        moveToNextSlide();
+      } catch (err) {
+        console.warn('[AbbOverzicht] moveToNextSlide() niet beschikbaar:', err);
+      }
+    });
+    nextBtn._abbOverzichtBound = true;
+  }
 }

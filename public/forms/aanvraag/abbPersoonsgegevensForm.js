@@ -4,8 +4,6 @@ import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
 
-const moveToNextSlide = window.moveToNextSlide || (() => {});
-
 export function initAbbPersoonsgegevensForm() {
   console.log('👤 [AbbPersoonsgegevens] Initialiseren…');
   const schema = getFormSchema('abb_persoonsgegevens-form');
