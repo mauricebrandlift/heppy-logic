@@ -127,6 +127,9 @@ function renderSchoonmaker(schoonmaker, dagdelenFilter = null) {
     // Voeg attributen toe volgens form schema
     radioEl.setAttribute('data-field-name', 'schoonmakerKeuze');
     radioEl.name = 'schoonmakerKeuze';
+  // Zorg dat template 'checked' niet per ongeluk overerft
+  radioEl.checked = false;
+  radioEl.removeAttribute('checked');
   }
   
   // Vul schoonmaker data in met de nieuwe data-schoonmaker attributen
@@ -429,7 +432,34 @@ function addNoPreferenceOption() {
       radio.name = 'schoonmakerKeuze';
       radio.setAttribute('data-field-name', 'schoonmakerKeuze');
       if (!radio.value) radio.value = 'geenVoorkeur';
+      // Default: niet geselecteerd bij laden of her-render
+      radio.checked = false;
+      radio.removeAttribute('checked');
     }
+  }
+}
+
+/**
+ * Leegt de huidige schoonmaker selectie (DOM + formHandler state) en
+ * zorgt dat de submit button wordt uitgeschakeld totdat er een keuze is.
+ * @param {HTMLFormElement} formElement
+ */
+function clearSchoonmakerKeuze(formElement) {
+  if (!formElement) return;
+  // Uncheck alle radio's in de groep
+  const radios = formElement.querySelectorAll('input[type="radio"][name="schoonmakerKeuze"]');
+  radios.forEach(r => { r.checked = false; r.removeAttribute('checked'); });
+
+  // Reset formHandler state zodat validateForm geen oude waarde gebruikt
+  try {
+    if (formHandler && formHandler.schema && formHandler.schema.name === 'abb_dagdelen-schoonmaker-form') {
+      formHandler.formData = { ...formHandler.formData, schoonmakerKeuze: '' };
+      if (typeof formHandler.updateSubmitState === 'function') {
+        formHandler.updateSubmitState();
+      }
+    }
+  } catch (e) {
+    console.warn('[SchoonmakerForm] Kon keuze reset niet volledig doorvoeren:', e);
   }
 }
 
@@ -497,7 +527,10 @@ async function fetchEnToonSchoonmakers(formElement, gebruikDagdelenFilter = fals
     // Voeg geen-voorkeur optie toe
     addNoPreferenceOption(formStatus.schoonmakersWrapper);
     
-    // Update form status: herbereken submit-state i.p.v. niet-bestaande validateField
+  // Leeg selectie na (her)render zodat knop disabled is tot er een keuze is
+  clearSchoonmakerKeuze(formElement);
+
+  // Update form status: herbereken submit-state i.p.v. niet-bestaande validateField
     // (andere formulieren vertrouwen op de centrale validatie-flow in formHandler)
     if (formHandler && typeof formHandler.updateSubmitState === 'function') {
       formHandler.updateSubmitState();
@@ -586,13 +619,14 @@ function initDagdeelSelectors(formElement) {
   
   // Maak een debounced update functie
   const updateSchoonmakers = debouncedDagdelenUpdate(() => {
-    fetchEnToonSchoonmakers(formElement, true);
+  fetchEnToonSchoonmakers(formElement, true);
   }, 500); // 500ms debounce
   
   // Voeg change listeners toe aan alle dagdeel checkboxes
   dagdeelCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', () => {
-      updateSchoonmakers();
+  // Bij wijziging dagdelen: herladen + selectie leegmaken zodra nieuwe lijst klaar is
+  updateSchoonmakers();
     });
   });
 }
@@ -661,6 +695,12 @@ export async function initAbbDagdelenSchoonmakerForm() {
     console.error('❌ [AbbDagdelenSchoonmakerForm] Formulier element niet gevonden');
     return;
   }
+
+  // Zorg dat er bij start geen selectie actief is en de knop disabled is
+  clearSchoonmakerKeuze(formElement);
+  if (formHandler && typeof formHandler.updateSubmitState === 'function') {
+    formHandler.updateSubmitState();
+  }
   
   // Initialiseer dagdeel selectie event listeners
   initDagdeelSelectors(formElement);
@@ -670,15 +710,7 @@ export async function initAbbDagdelenSchoonmakerForm() {
   
   // Check voor bestaande selectie (als we terugkomen vanaf een volgende stap)
   const flowData = loadFlowData('abonnement-aanvraag') || {};
-  
-  if (flowData.schoonmakerKeuze) {
-    const radio = document.querySelector(`input[name="schoonmakerKeuze"][value="${flowData.schoonmakerKeuze}"]`);
-    if (radio) {
-      radio.checked = true;
-      // Zorg dat formHandler state/validatie wordt geüpdatet
-      radio.dispatchEvent(new Event('change', { bubbles: true }));
-    }
-  }
+  // Geen auto-herstel van schoonmakerKeuze: gebruiker moet bewust kiezen in deze stap
   
   // Vink eventueel opgeslagen dagdelen aan
   if (Array.isArray(flowData.selectedDagdelen)) {
