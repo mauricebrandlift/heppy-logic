@@ -2,6 +2,7 @@
 // Overzicht-stap: toont alleen ingevulde gegevens uit de flow
 
 import { loadFlowData } from '../logic/formStorage.js';
+import { formHandler } from '../logic/formHandler.js';
 
 function setText(selector, text) {
   const els = document.querySelectorAll(selector);
@@ -101,17 +102,26 @@ export function initAbbOverzicht() {
     console.warn('[AbbOverzicht] Dynamische import niet ondersteund:', e);
   }
 
-  // Bind de volgende-knop voor de slider vanuit het overzicht
-  const nextBtn = document.querySelector('[data-form-button="abb_overzicht"]');
-  if (nextBtn && !nextBtn._abbOverzichtBound) {
-    nextBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      try {
-        moveToNextSlide();
-      } catch (err) {
-        console.warn('[AbbOverzicht] moveToNextSlide() niet beschikbaar:', err);
+  // Initialiseer deze stap als "formulier" zodat de Webflow-knop via formHandler werkt
+  const schema = {
+    name: 'abb_overzicht-form',
+    selector: '[data-form-name="abb_overzicht-form"]',
+    fields: {},
+    submit: {
+      action: async () => {
+        // Geen extra actie; alle data is al in de flow bewaard door eerdere stappen
+      },
+      onSuccess: () => {
+        // Gebruik de globale Webflow navigatie
+        if (typeof moveToNextSlide === 'function') {
+          moveToNextSlide();
+        }
       }
-    });
-    nextBtn._abbOverzichtBound = true;
+    }
+  };
+  try {
+    formHandler.init(schema);
+  } catch (e) {
+    console.warn('[AbbOverzicht] Kon formHandler niet initialiseren voor overzicht:', e);
   }
 }
