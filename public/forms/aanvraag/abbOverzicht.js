@@ -101,22 +101,18 @@ export function initAbbOverzicht() {
         // Geen extra actie; alle data is al in de flow bewaard door eerdere stappen
       },
       onSuccess: () => {
-        // Eerst naar de volgende slide navigeren
-        if (typeof moveToNextSlide === 'function') {
-          moveToNextSlide();
-        }
-        // Daarna (asynchroon) de volgende stap initialiseren om event-collision te voorkomen
-        setTimeout(() => {
-          try {
-            import('./abbPersoonsgegevensForm.js').then((m) => {
-              if (m && typeof m.initAbbPersoonsgegevensForm === 'function') {
-                m.initAbbPersoonsgegevensForm();
-              }
-            }).catch((e) => console.warn('[AbbOverzicht] Kon persoonsgegevens stap niet laden na navigatie:', e));
-          } catch (e) {
-            console.warn('[AbbOverzicht] Dynamische import niet ondersteund:', e);
-          }
-        }, 0);
+        // Volg hetzelfde patroon als andere stappen: eerst module laden + init, daarna navigeren
+        import('./abbPersoonsgegevensForm.js')
+          .then((m) => {
+            if (m && typeof m.initAbbPersoonsgegevensForm === 'function') {
+              m.initAbbPersoonsgegevensForm();
+            }
+            moveToNextSlide();
+          })
+          .catch((err) => {
+            console.error('[AbbOverzicht] Kon persoonsgegevens stap niet laden:', err);
+            moveToNextSlide();
+          });
       }
     }
   };
