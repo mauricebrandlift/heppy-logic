@@ -391,6 +391,32 @@ function renderSchoonmakers(schoonmakers, filterDagdelen = null) {
 }
 
 /**
+ * Bind change-events voor dynamisch gerenderde schoonmaker radio's zodat
+ * formHandler validatie en submit-state correct worden geüpdatet.
+ * @param {HTMLFormElement} formElement
+ */
+function bindSchoonmakerRadioEvents(formElement) {
+  if (!formElement) return;
+  const radios = formElement.querySelectorAll('input[type="radio"][name="schoonmakerKeuze"]');
+  radios.forEach((radio) => {
+    if (radio.dataset.bound === '1') return; // dubbele binding voorkomen
+    radio.addEventListener('change', (e) => {
+      try {
+        if (formHandler && typeof formHandler.handleInput === 'function') {
+          formHandler.handleInput('schoonmakerKeuze', e);
+        }
+        if (formHandler && typeof formHandler.updateSubmitState === 'function') {
+          formHandler.updateSubmitState();
+        }
+      } catch (err) {
+        console.warn('[SchoonmakerForm] Kon radio change niet verwerken:', err);
+      }
+    });
+    radio.dataset.bound = '1';
+  });
+}
+
+/**
  * Voeg de "geen voorkeur" radio-optie toe aan de lijst
  * @param {HTMLElement} wrapper - Container voor de opties 
  */
@@ -476,6 +502,9 @@ async function fetchEnToonSchoonmakers(formElement, gebruikDagdelenFilter = fals
     if (formHandler && typeof formHandler.updateSubmitState === 'function') {
       formHandler.updateSubmitState();
     }
+
+  // Bind events op de dynamisch gerenderde radio's
+  bindSchoonmakerRadioEvents(formElement);
     
     // Verberg eventuele error meldingen omdat we succesvol schoonmakers hebben geladen
     hideErrorMessage();
@@ -644,7 +673,11 @@ export async function initAbbDagdelenSchoonmakerForm() {
   
   if (flowData.schoonmakerKeuze) {
     const radio = document.querySelector(`input[name="schoonmakerKeuze"][value="${flowData.schoonmakerKeuze}"]`);
-    if (radio) radio.checked = true;
+    if (radio) {
+      radio.checked = true;
+      // Zorg dat formHandler state/validatie wordt geüpdatet
+      radio.dispatchEvent(new Event('change', { bubbles: true }));
+    }
   }
   
   // Vink eventueel opgeslagen dagdelen aan
@@ -657,5 +690,10 @@ export async function initAbbDagdelenSchoonmakerForm() {
     });
   }
   
+  // Zorg dat de submit-state klopt na init (start disabled tot er een keuze is)
+  if (formHandler && typeof formHandler.updateSubmitState === 'function') {
+    formHandler.updateSubmitState();
+  }
+
   console.log('✅ [AbbDagdelenSchoonmakerForm] Initialisatie voltooid');
 }
