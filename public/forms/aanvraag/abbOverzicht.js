@@ -71,11 +71,11 @@ export function initAbbOverzicht() {
   let schoonmakerText = '';
   if (flow.schoonmakerKeuze === 'geenVoorkeur') {
     schoonmakerText = 'Geen voorkeur';
+  } else if (flow.schoonmakerVoornaam) {
+    schoonmakerText = flow.schoonmakerVoornaam;
   } else if (flow.schoonmakerKeuze) {
-    // We hebben alleen het ID; we tonen dat neutraal
-    const id = String(flow.schoonmakerKeuze);
-    const shortId = id.length > 8 ? `…${id.slice(-8)}` : id;
-    schoonmakerText = `Geselecteerde schoonmaker (${shortId})`;
+    // fallback: laat niets extra zien als we geen naam hebben
+    schoonmakerText = '—';
   } else {
     schoonmakerText = '—';
   }
@@ -84,7 +84,8 @@ export function initAbbOverzicht() {
   // Uren en kosten
   const uren = flow.abb_uren != null ? formatNumber(flow.abb_uren) : '';
   setText('[data-overview="uren"]', uren);
-  const kosten = flow.abb_prijs != null ? formatCurrencyEUR(flow.abb_prijs) : '';
+  // Toon bedrag zonder €-teken
+  const kosten = flow.abb_prijs != null ? String(Number(flow.abb_prijs).toFixed(2)).replace('.', ',') : '';
   setText('[data-overview="kosten"]', kosten);
 
   console.log('✅ [AbbOverzicht] Overzicht gevuld.');

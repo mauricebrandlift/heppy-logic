@@ -664,6 +664,27 @@ export async function initAbbDagdelenSchoonmakerForm() {
       
       // Sla schoonmaker ID op
       flowData.schoonmakerKeuze = formData.schoonmakerKeuze;
+
+      // Sla voornaam van geselecteerde schoonmaker op voor overzicht (indien van toepassing)
+      try {
+        const formElement = document.querySelector(schema.selector);
+        if (formElement && formData.schoonmakerKeuze && formData.schoonmakerKeuze !== 'geenVoorkeur') {
+          const selectedRadio = formElement.querySelector(`input[type="radio"][name="schoonmakerKeuze"][value="${formData.schoonmakerKeuze}"]`);
+          if (selectedRadio) {
+            const card = selectedRadio.closest('[data-render-element="schoonmaker"]');
+            const naamEl = card ? card.querySelector('[data-schoonmaker="naam"]') : null;
+            const voornaam = naamEl ? (naamEl.textContent || '').trim() : '';
+            if (voornaam) {
+              flowData.schoonmakerVoornaam = voornaam;
+            }
+          }
+        } else {
+          // Geen voorkeur of niets gekozen: geen naam tonen in overzicht
+          if (flowData.schoonmakerVoornaam) delete flowData.schoonmakerVoornaam;
+        }
+      } catch (e) {
+        console.warn('[AbbDagdelenSchoonmakerForm] Kon voornaam niet opslaan voor overzicht:', e);
+      }
       
       // Verzamel geselecteerde dagdelen
       const formElement = document.querySelector(schema.selector);
