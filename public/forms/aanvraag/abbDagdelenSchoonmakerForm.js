@@ -682,8 +682,20 @@ export async function initAbbDagdelenSchoonmakerForm() {
     },
     onSuccess: () => {
       console.log('✅ [AbbDagdelenSchoonmakerForm] Formulier succesvol verwerkt, naar volgende slide...');
-
-      moveToNextSlide();
+      // Laad en initialiseer de overzicht-stap, navigeer daarna
+      import('./abbOverzicht.js')
+        .then((module) => {
+          try {
+            module.initAbbOverzicht();
+          } catch (e) {
+            console.warn('[AbbDagdelenSchoonmakerForm] Overzicht init gaf een waarschuwing:', e);
+          }
+          moveToNextSlide();
+        })
+        .catch((err) => {
+          console.error('[AbbDagdelenSchoonmakerForm] Kon overzicht stap niet laden:', err);
+          moveToNextSlide();
+        });
     }
   };
   
