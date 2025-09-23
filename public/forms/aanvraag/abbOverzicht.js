@@ -89,4 +89,15 @@ export function initAbbOverzicht() {
   setText('[data-overview="kosten"]', kosten);
 
   console.log('✅ [AbbOverzicht] Overzicht gevuld.');
+
+  // Zorg dat de volgende stap (persoonsgegevens) klaarstaat als we doorklikken
+  try {
+    import('./abbPersoonsgegevensForm.js').then((m) => {
+      if (m && typeof m.initAbbPersoonsgegevensForm === 'function') {
+        m.initAbbPersoonsgegevensForm();
+      }
+    }).catch((e) => console.warn('[AbbOverzicht] Kon persoonsgegevens stap niet preloaden:', e));
+  } catch (e) {
+    console.warn('[AbbOverzicht] Dynamische import niet ondersteund:', e);
+  }
 }

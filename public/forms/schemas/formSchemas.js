@@ -68,82 +68,48 @@ export function getFormSchema(name) {
         commonMessages.coverage,
         commonMessages.server,
         {
-          // Formulier-specifieke berichten
-          CUSTOM_SUCCESS: 'Je adresgegevens zijn succesvol gecontroleerd.',
-          LOCAL_ONLY: 'Deze actie is alleen beschikbaar voor lokale adressen.'
-        }
-      ),    },
-
-    // Formulier voor stap 2 van abonnement aanvraag - schoonmaak opdracht details
-    'abb_opdracht-form': {
-      name: 'abb_opdracht-form',
-      selector: '[data-form-name="abb_opdracht-form"]',
-      fields: {
-        abb_m2: {
-          label: 'Oppervlakte in m²',
-          inputType: 'number',
-          sanitizers: ['trim', 'numericOnly'],
-          validators: ['required', 'numeric', 'positiveNumber'],
-          inputFilter: 'digitsOnly',
-          persist: 'form',
-          placeholder: '80',
-          messages: {
-            required: 'Voer het aantal vierkante meters in',
-            numeric: 'Gebruik alleen cijfers',
-            positiveNumber: 'Het oppervlak moet groter dan 0 zijn'
-          }
-        },
-        abb_toiletten: {
-          label: 'Aantal toiletten',
-          inputType: 'number',
-          sanitizers: ['trim', 'numericOnly'],
-          validators: ['required', 'numeric', 'nonNegativeNumber'],
-          inputFilter: 'digitsOnly',
-          persist: 'form',
-          placeholder: '1',
-          messages: {
-            required: 'Voer het aantal toiletten in',
-            numeric: 'Gebruik alleen cijfers',
-            nonNegativeNumber: 'Aantal toiletten kan niet negatief zijn'
-          }
-        },
-        abb_badkamers: {
-          label: 'Aantal badkamers',
-          inputType: 'number',
-          sanitizers: ['trim', 'numericOnly'],
-          validators: ['required', 'numeric', 'nonNegativeNumber'],
-          inputFilter: 'digitsOnly',
-          persist: 'form',
-          placeholder: '1',
-          messages: {
-            required: 'Voer het aantal badkamers in',
-            numeric: 'Gebruik alleen cijfers',
-            nonNegativeNumber: 'Aantal badkamers kan niet negatief zijn'
-          }
-        },
-        weeknr: {
-          label: 'Begin weeknummer',
-          inputType: 'number',
-          sanitizers: ['trim', 'numericOnly'],
-          // Validators: vereis integer én dat de waarde binnen de toegestane window valt
-          validators: ['required', 'integer', 'weeknrAllowed'],
-          inputFilter: 'digitsOnly',
-          persist: 'form',
-          placeholder: '',
-          // allowedWeeks wordt dynamisch gevuld door week select init logic
-          allowedWeeks: [],
-          messages: {
-            required: 'Selecteer het begin weeknummer',
-            integer: 'Voer een heel weeknummer in',
-            weeknrAllowed: 'Week buiten toegestane startperiode'
-          }
-        }
-      },
-      // Custom berichten voor dit formulier
-      globalMessages: combineMessages(
-        commonMessages.general,
-        commonMessages.server,
-        {
+          // Formulier voor stap 5: persoonsgegevens
+          'abb_persoonsgegevens-form': {
+            name: 'abb_persoonsgegevens-form',
+            selector: '[data-form-name="abb_persoonsgegevens-form"]',
+            fields: {
+              // Gebruik herbruikbare commonFields waar mogelijk, met minimale overrides
+              voornaam: {
+                ...commonFields.voornaam,
+              },
+              achternaam: {
+                ...commonFields.achternaam,
+              },
+              telefoonnummer: {
+                ...commonFields.telefoon,
+                label: 'Telefoonnummer',
+                validators: ['required', 'numeric', 'minLength'],
+                minLength: 8,
+                inputFilter: 'digitsOnly',
+                messages: {
+                  // behoud bestaande numeric-message, voeg required/minLength toe waar nuttig
+                  ...(commonFields.telefoon.messages || {}),
+                  required: 'Telefoonnummer is verplicht',
+                  minLength: 'Voer een geldig telefoonnummer in'
+                }
+              },
+              emailadres: {
+                ...commonFields.email,
+                label: 'E-mailadres'
+              },
+              wachtwoord: {
+                ...commonFields.wachtwoord,
+              }
+            },
+            globalMessages: combineMessages(
+              commonMessages.general,
+              commonMessages.server,
+              {
+                CUSTOM_SUCCESS: 'Persoonsgegevens zijn opgeslagen.'
+              }
+            ),
+            // Submit logica wordt toegevoegd in abbPersoonsgegevensForm.js
+          },
           // Formulier-specifieke berichten
           CALCULATION_ERROR: 'Er is een fout opgetreden bij het berekenen van de prijs.',
           MIN_HOURS_NOTICE: 'Het minimum aantal uren voor een schoonmaak sessie is 3 uur.',
@@ -186,6 +152,83 @@ export function getFormSchema(name) {
         }
       ),
       // Submit logica wordt later toegevoegd in abbDagdelenSchoonmakerForm.js
+    },
+
+    // Formulier voor stap 5: persoonsgegevens
+    'abb_persoonsgegevens-form': {
+      name: 'abb_persoonsgegevens-form',
+      selector: '[data-form-name="abb_persoonsgegevens-form"]',
+      fields: {
+        voornaam: {
+          label: 'Voornaam',
+          inputType: 'text',
+          sanitizers: ['trim'],
+          validators: ['required', 'minLength'],
+          minLength: 2,
+          persist: 'form',
+          messages: {
+            required: 'Voornaam is verplicht',
+            minLength: 'Voornaam is te kort'
+          }
+        },
+        achternaam: {
+          label: 'Achternaam',
+          inputType: 'text',
+          sanitizers: ['trim'],
+          validators: ['required', 'minLength'],
+          minLength: 2,
+          persist: 'form',
+          messages: {
+            required: 'Achternaam is verplicht',
+            minLength: 'Achternaam is te kort'
+          }
+        },
+        telefoonnummer: {
+          label: 'Telefoonnummer',
+          inputType: 'text',
+          sanitizers: ['trim'],
+          validators: ['required', 'numeric', 'minLength'],
+          minLength: 8,
+          inputFilter: 'digitsOnly',
+          persist: 'form',
+          messages: {
+            required: 'Telefoonnummer is verplicht',
+            numeric: 'Gebruik alleen cijfers',
+            minLength: 'Voer een geldig telefoonnummer in'
+          }
+        },
+        emailadres: {
+          label: 'E-mailadres',
+          inputType: 'email',
+          sanitizers: ['trim'],
+          validators: ['required', 'email'],
+          persist: 'form',
+          messages: {
+            required: 'E-mailadres is verplicht',
+            email: 'Voer een geldig e-mailadres in'
+          }
+        },
+        wachtwoord: {
+          label: 'Wachtwoord',
+          inputType: 'password',
+          sanitizers: ['trim'],
+          validators: ['required', 'minLength'],
+          minLength: 8,
+          persist: 'none',
+          messages: {
+            required: 'Wachtwoord is verplicht',
+            minLength: 'Minimaal 8 tekens'
+          }
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Persoonsgegevens zijn opgeslagen.'
+        }
+      ),
+      // Submit logica wordt toegevoegd in abbPersoonsgegevensForm.js
     },    // Login formulier
     'inloggen-form': {
       name: 'inloggen-form',
