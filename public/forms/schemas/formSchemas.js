@@ -223,6 +223,25 @@ export function getFormSchema(name) {
       // Submit logica wordt toegevoegd in abbPersoonsgegevensForm.js
     },
 
+    // Formulier voor stap 6: betaling
+    'abb_betaling-form': {
+      name: 'abb_betaling-form',
+      selector: '[data-form-name="abb_betaling-form"]',
+      fields: {
+        akkoord_voorwaarden: {
+          ...commonFields.akkoordVoorwaarden,
+        },
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Betaling gestart.',
+        }
+      ),
+      // Submit logica in abbBetalingForm.js
+    },
+
   // Login formulier
     'inloggen-form': {
       name: 'inloggen-form',
