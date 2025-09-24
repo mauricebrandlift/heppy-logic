@@ -23,9 +23,18 @@ export function initAbbPersoonsgegevensForm() {
       saveFlowData('abonnement-aanvraag', flow);
     },
     onSuccess: () => {
-      console.log('✅ [AbbPersoonsgegevens] Opgeslagen, naar volgende stap…');
-      // Volgende stap initialisatie kan hier toegevoegd worden
-      moveToNextSlide();
+      console.log('✅ [AbbPersoonsgegevens] Opgeslagen, init betaalstap en ga door…');
+      import('./abbBetalingForm.js')
+        .then((m) => {
+          if (m && typeof m.initAbbBetalingForm === 'function') {
+            m.initAbbBetalingForm();
+          }
+          moveToNextSlide();
+        })
+        .catch((err) => {
+          console.error('[AbbPersoonsgegevens] Kon betaalstap niet laden:', err);
+          moveToNextSlide();
+        });
     }
   };
 
