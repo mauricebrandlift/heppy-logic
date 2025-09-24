@@ -3,25 +3,23 @@
 
 import { formHandler } from '../logic/formHandler.js';
 import { loadFlowData, saveFlowData } from '../logic/formStorage.js';
+import { apiClient } from '../../utils/api/client.js';
 
 async function fetchPublicConfig() {
-  const res = await fetch('/api/routes/stripe/public-config');
-  if (!res.ok) throw new Error('Kon Stripe config niet ophalen');
-  return res.json();
+  return await apiClient('/routes/stripe/public-config', { method: 'GET' });
 }
 
 async function createPaymentIntent(payload, idemKey) {
-  const headers = { 'Content-Type': 'application/json' };
-  if (idemKey) headers['X-Idempotency-Key'] = idemKey;
-  const res = await fetch('/api/routes/stripe/create-payment-intent', {
+  return await apiClient('/routes/stripe/create-payment-intent', {
     method: 'POST',
-    headers,
+    headers: idemKey ? { 'X-Idempotency-Key': idemKey } : undefined,
     body: JSON.stringify(payload),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data?.message || 'Kon PaymentIntent niet maken');
-  return data;
 }
+
+let stripeInstance = null;
+let elementsInstance = null;
+let paymentElementMounted = false;
 
 export async function initAbbBetalingForm() {
   console.log('💳 [AbbBetaling] Initialiseren…');
@@ -44,10 +42,10 @@ export async function initAbbBetalingForm() {
         if (!amountEur || isNaN(amountEur)) throw new Error('Ongeldig bedrag');
         const amountCents = Math.round(amountEur * 100);
 
-        const publicCfg = await fetchPublicConfig();
-        // Stripe.js via <script src="https://js.stripe.com/v3"> verwacht globale Stripe
-        if (!window.Stripe) throw new Error('Stripe.js niet geladen');
-        const stripe = window.Stripe(publicCfg.publishableKey);
+  const publicCfg = await fetchPublicConfig();
+  // Stripe.js via <script src="https://js.stripe.com/v3"> verwacht globale Stripe
+  if (!window.Stripe) throw new Error('Stripe.js niet geladen');
+  stripeInstance = window.Stripe(publicCfg.publishableKey);
 
         // Maak PaymentIntent
         const idem = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
@@ -64,11 +62,12 @@ export async function initAbbBetalingForm() {
         }, idem);
 
         // Mount Payment Element
-        const elements = stripe.elements({ clientSecret: intent.clientSecret, appearance: { theme: 'stripe' } });
-        const pe = elements.create('payment');
+        elementsInstance = stripeInstance.elements({ clientSecret: intent.clientSecret, appearance: { theme: 'stripe' } });
+        const pe = elementsInstance.create('payment');
         const mountEl = document.querySelector('[data-element="stripe-payment-element"]');
         if (!mountEl) throw new Error('Payment element container niet gevonden');
         pe.mount(mountEl);
+        paymentElementMounted = true;
 
         // Bewaar in flow voor latere referentie
         flow.paymentIntentId = intent.id;
@@ -90,13 +89,12 @@ export async function initAbbBetalingForm() {
   btn.addEventListener('click', async (e) => {
     // Alleen proberen te bevestigen als element al gemount is (na action)
     try {
-      const publicCfg = await fetchPublicConfig();
-      const flow = loadFlowData('abonnement-aanvraag') || {};
-      if (!window.Stripe) throw new Error('Stripe.js niet geladen');
-      const stripe = window.Stripe(publicCfg.publishableKey);
-      const elements = stripe.elements({ clientSecret: null }); // wordt geïnfereerd uit gemount element
-      const { error } = await stripe.confirmPayment({
-        elements,
+      if (!paymentElementMounted || !elementsInstance || !stripeInstance) {
+        // Eerste klik bereidt de betaling voor; tweede klik bevestigt
+        return;
+      }
+      const { error } = await stripeInstance.confirmPayment({
+        elements: elementsInstance,
         confirmParams: {
           return_url: window.location.href, // We blijven in-page; Stripe kan redirect nodig hebben voor iDEAL
         },
