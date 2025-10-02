@@ -1,55 +1,139 @@
 // public/utils/slides.js
-// Helper om naar een slide te springen op basis van data-form-name
-// Vereist dat Webflow slider structuur beschikbaar is en dat elke slide het formulier bevat of wrapper met data-form-name
+// Uitgebreide helper voor zowel Webflow slider (.w-slide) als Splide (.splide__slide)
+// Doel: naar een slide springen o.b.v. data-form-name of naar laatste slide.
 
 (function() {
-  if (window.jumpToSlideByFormName) return; // voorkom dubbele definitie
-  window.jumpToSlideByFormName = function(formName) {
+  if (window.jumpToSlideByFormName && window.jumpToLastSlide) return; // al geladen
+
+  function findSplideContext(target) {
+    const splideSlide = target.closest('.splide__slide');
+    if (!splideSlide) return null;
+    const root = splideSlide.closest('.splide');
+    if (!root) return null;
+    const instance = root.splide || null; // Splide voegt meestal .splide property toe aan root
+    if (!instance) return null;
+    const slides = Array.from(root.querySelectorAll('.splide__slide'));
+    const index = slides.indexOf(splideSlide);
+    return index >= 0 ? { instance, index, slides } : null;
+  }
+
+  function gotoSplideIndex(ctx) {
+    try {
+      ctx.instance.go(ctx.index);
+      return true;
+    } catch (e) {
+      console.warn('[Slides] Splide navigatie fout:', e);
+      return false;
+    }
+  }
+
+  function findWebflowContext(target) {
+    const slideEl = target.closest('.w-slide');
+    if (!slideEl) return null;
+    const slider = slideEl.closest('.w-slider');
+    if (!slider) return null;
+    const slides = Array.from(slider.querySelectorAll('.w-slide'));
+    const idx = slides.indexOf(slideEl);
+    if (idx === -1) return null;
+    return { slider, idx };
+  }
+
+  function gotoWebflowIndex(ctx) {
+    // Probeer nav dots eerst
+    const navDots = ctx.slider.querySelectorAll('.w-slider-nav div');
+    if (navDots && navDots[ctx.idx]) {
+      navDots[ctx.idx].click();
+      return true;
+    }
+    if (typeof window.moveToNextSlide === 'function') {
+      // fallback: iteratief vooruit
+      let currentIdx = 0;
+      const active = ctx.slider.querySelector('.w-slider-nav .w-active');
+      if (active) {
+        currentIdx = Array.from(ctx.slider.querySelectorAll('.w-slider-nav div')).indexOf(active);
+        if (currentIdx < 0) currentIdx = 0;
+      }
+      while (currentIdx < ctx.idx) {
+        window.moveToNextSlide();
+        currentIdx++;
+      }
+      return true;
+    }
+    console.warn('[Slides] Geen methode om Webflow slide te veranderen gevonden');
+    return false;
+  }
+
+  window.jumpToSlideByFormName = function(formName, { retry = 3, retryDelay = 50 } = {}) {
     try {
       const target = document.querySelector(`[data-form-name="${formName}"]`);
       if (!target) {
+        if (retry > 0) {
+          setTimeout(() => window.jumpToSlideByFormName(formName, { retry: retry - 1, retryDelay }), retryDelay);
+          return false;
+        }
         console.warn('[Slides] Geen element gevonden voor formName', formName);
         return false;
       }
-      // Vind dichtstbijzijnde slide
-      const slideEl = target.closest('.w-slide');
-      if (!slideEl) {
-        console.warn('[Slides] Geen .w-slide ancestor gevonden voor', formName);
-        return false;
+
+      // 1) Probeer Splide
+      const splideCtx = findSplideContext(target);
+      if (splideCtx) {
+        return gotoSplideIndex(splideCtx);
       }
-      const slider = slideEl.closest('.w-slider');
-      if (!slider) {
-        console.warn('[Slides] Geen slider gevonden.');
-        return false;
+
+      // 2) Probeer Webflow
+      const wfCtx = findWebflowContext(target);
+      if (wfCtx) {
+        return gotoWebflowIndex(wfCtx);
       }
-      const slides = Array.from(slider.querySelectorAll('.w-slide'));
-      const idx = slides.indexOf(slideEl);
-      if (idx === -1) return false;
-      // Webflow exposeert slider API via data / triggers - fallback gebruiken via nav dots of Arrow keys triggers.
-      // Simpele fallback: herhaaldelijk moveToNextSlide tot index bereikt.
-      if (typeof window.moveToNextSlide === 'function') {
-        const currentIndexEl = slider.querySelector('.w-slider-nav .w-active');
-        let currentIdx = -1;
-        if (currentIndexEl) {
-          currentIdx = Array.from(slider.querySelectorAll('.w-slider-nav div')).indexOf(currentIndexEl);
-        }
-        if (currentIdx === -1) currentIdx = 0;
-        while (currentIdx < idx) {
-          window.moveToNextSlide();
-          currentIdx++;
-        }
-        return true;
-      }
-      // Als nav dots bestaan, klik direct op de juiste dot
-      const navDots = slider.querySelectorAll('.w-slider-nav div');
-      if (navDots && navDots[idx]) {
-        navDots[idx].click();
-        return true;
-      }
+
+      console.warn('[Slides] Geen ondersteunde slider ancestor gevonden voor', formName);
       return false;
     } catch (e) {
       console.error('[Slides] Fout bij jumpToSlideByFormName:', e);
       return false;
     }
-  }
+  };
+
+  window.jumpToLastSlide = function({ selector = '.splide', retry = 3, retryDelay = 50 } = {}) {
+    try {
+      const splideRoot = document.querySelector(selector);
+      if (splideRoot && splideRoot.splide) {
+        const inst = splideRoot.splide;
+        const total = inst.Components.Elements.slides.length;
+        if (total > 0) {
+          inst.go(total - 1);
+          return true;
+        }
+      }
+      // Webflow fallback
+      const wfSlider = document.querySelector('.w-slider');
+      if (wfSlider) {
+        const slides = wfSlider.querySelectorAll('.w-slide');
+        if (slides.length) {
+          const target = slides[slides.length - 1];
+          // nav dots attempt
+            const navDots = wfSlider.querySelectorAll('.w-slider-nav div');
+            if (navDots && navDots.length >= slides.length) {
+              navDots[slides.length - 1].click();
+              return true;
+            }
+          if (typeof window.moveToNextSlide === 'function') {
+            // brute force
+            for (let i=0;i<slides.length;i++) window.moveToNextSlide();
+            return true;
+          }
+        }
+      }
+      if (retry > 0) {
+        setTimeout(() => window.jumpToLastSlide({ selector, retry: retry - 1, retryDelay }), retryDelay);
+        return false;
+      }
+      console.warn('[Slides] Geen slider gevonden voor jumpToLastSlide');
+      return false;
+    } catch (e) {
+      console.error('[Slides] Fout bij jumpToLastSlide:', e);
+      return false;
+    }
+  };
 })();
