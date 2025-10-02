@@ -10,8 +10,11 @@
     if (!splideSlide) return null;
     const root = splideSlide.closest('.splide');
     if (!root) return null;
-    const instance = root.splide || null; // Splide voegt meestal .splide property toe aan root
-    if (!instance) return null;
+    const instance = root.splide || (window.Splide && window.Splide.instances ? Object.values(window.Splide.instances).find(i => i?.root === root) : null);
+    if (!instance) {
+      console.warn('[Slides] Splide root gevonden maar geen instance (misschien init timing).');
+      return { instance: null, index: -1, slides: Array.from(root.querySelectorAll('.splide__slide')), root };
+    }
     const slides = Array.from(root.querySelectorAll('.splide__slide'));
     const index = slides.indexOf(splideSlide);
     return index >= 0 ? { instance, index, slides } : null;
@@ -78,6 +81,15 @@
       // 1) Probeer Splide
       const splideCtx = findSplideContext(target);
       if (splideCtx) {
+        if (!splideCtx.instance) {
+          // Probeer later opnieuw (Splide wellicht nog niet geïnitialiseerd)
+          if (retry > 0) {
+            setTimeout(() => window.jumpToSlideByFormName(formName, { retry: retry - 1, retryDelay }), retryDelay * 2);
+            return false;
+          }
+          console.warn('[Slides] Geen Splide instance beschikbaar na retries voor', formName, '- fallback naar lastSlide');
+          return window.jumpToLastSlide();
+        }
         return gotoSplideIndex(splideCtx);
       }
 

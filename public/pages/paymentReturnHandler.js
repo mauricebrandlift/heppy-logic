@@ -33,7 +33,11 @@ import '../utils/slides.js';
     }
 
     if (status === 'succeeded') {
-      gotoForm('abb_succes-form');
+      if (typeof window.jumpToLastSlide === 'function') {
+        setTimeout(()=>window.jumpToLastSlide(), 30);
+      } else {
+        gotoForm('abb_succes-form');
+      }
       // Schoon query zodat refresh clean is
       window.history.replaceState({}, document.title, cleanUrl);
       return;
