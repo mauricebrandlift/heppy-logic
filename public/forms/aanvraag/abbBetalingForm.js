@@ -34,6 +34,8 @@ export async function initAbbBetalingForm() {
   const redirectStatus = urlParams.get('redirect_status');
   const returnedIntentId = urlParams.get('payment_intent');
   const clientSecretFromUrl = urlParams.get('payment_intent_client_secret');
+  const processingMarker = urlParams.get('processing');
+  const retryMarker = urlParams.get('retry');
 
   // Helper om query parameters op te schonen na verwerking
   function cleanUrlQuery() {
@@ -143,6 +145,17 @@ export async function initAbbBetalingForm() {
 
   async function initStripeAndElement() {
     try {
+      // Indien we door early handler al expliciet in 'processing' of 'retry' zijn beland, blijven params aanwezig.
+      if (processingMarker && returnedIntentId) {
+        console.log('[AbbBetaling] Processing marker aanwezig, start alleen polling via redirect handler.');
+        const handled = await handleReturnFromRedirect();
+        if (handled) return; // geen nieuwe intent maken
+      }
+      if (retryMarker && returnedIntentId) {
+        console.log('[AbbBetaling] Retry marker aanwezig: haal status op en toon fout indien nodig.');
+        const handled = await handleReturnFromRedirect();
+        // handled zorgt voor foutmelding of success; maar gebruiker moet alsnog kunnen betalen -> ga door met aanmaken nieuw intent
+      }
       // Als we terugkomen van redirect en al een intent status hebben afgehandeld, hoef je niet opnieuw element te bouwen.
       if (returnedIntentId && (redirectStatus || urlParams.get('afterPayment'))) {
         const handled = await handleReturnFromRedirect();

@@ -24,23 +24,35 @@ import '../utils/slides.js';
     const status = res?.status;
     console.log('[PaymentReturnEarly] Status:', status);
     const cleanUrl = window.location.origin + window.location.pathname; // alleen path
-    if (status === 'succeeded') {
-      // Jump direct naar success slide; success module vult content later.
+
+    // Helper om naar een form slide te springen (betaling of success)
+    function gotoForm(formName) {
       if (typeof window.jumpToSlideByFormName === 'function') {
-        // Delay klein zodat slider DOM bestaat
-        setTimeout(()=>window.jumpToSlideByFormName('abb_succes-form'), 30);
+        setTimeout(()=>window.jumpToSlideByFormName(formName), 30);
       }
+    }
+
+    if (status === 'succeeded') {
+      gotoForm('abb_succes-form');
+      // Schoon query zodat refresh clean is
       window.history.replaceState({}, document.title, cleanUrl);
       return;
     }
     if (status === 'processing') {
-      // Laat betaalstap init doorgaan; betalingscript zal polling doen.
-      window.history.replaceState({}, document.title, cleanUrl + '?processing=1');
+      // We willen dat abbBetalingForm.js gaat poll'en -> zorg dat script geladen wordt en houd originele Stripe params (niet verwijderen!)
+      try {
+        await import('../forms/aanvraag/abbBetalingForm.js').then(m => m?.initAbbBetalingForm && m.initAbbBetalingForm());
+      } catch(e) { console.warn('[PaymentReturnEarly] Kon abbBetalingForm niet laden voor processing', e); }
+      gotoForm('abb_betaling-form');
       return;
     }
     if (['requires_payment_method','canceled','requires_action'].includes(status)) {
-      // We blijven op betaalstap (die wordt later geladen). Eventueel marker voor fout.
-      window.history.replaceState({}, document.title, cleanUrl + '?retry=1');
+      // Betaling mislukt / extra actie nodig: laad betaal slide voor retry.
+      try {
+        await import('../forms/aanvraag/abbBetalingForm.js').then(m => m?.initAbbBetalingForm && m.initAbbBetalingForm());
+      } catch(e) { console.warn('[PaymentReturnEarly] Kon abbBetalingForm niet laden voor retry', e); }
+      gotoForm('abb_betaling-form');
+      // Laat parameters staan zodat abbBetalingForm status kan interpreteren en fout tonen
       return;
     }
   } catch (e) {
