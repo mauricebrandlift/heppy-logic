@@ -19,7 +19,12 @@ async function createPaymentIntent(payload, idemKey) {
 
 let stripeInstance = null;
 let elementsInstance = null;
-let paymentElementMounted = false;
+let paymentElement = null;
+let paymentReady = false;
+
+function formatCurrency(amount) {
+  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(amount);
+}
 
 export async function initAbbBetalingForm() {
   console.log('💳 [AbbBetaling] Initialiseren…');
@@ -35,80 +40,110 @@ export async function initAbbBetalingForm() {
         messages: { required: 'Je moet akkoord gaan met de voorwaarden' },
       },
     },
-    submit: {
-      action: async () => {
-        const flow = loadFlowData('abonnement-aanvraag') || {};
-        const amountEur = Number(flow.abb_prijs);
-        if (!amountEur || isNaN(amountEur)) throw new Error('Ongeldig bedrag');
-        const amountCents = Math.round(amountEur * 100);
-
-  const publicCfg = await fetchPublicConfig();
-  // Stripe.js via <script src="https://js.stripe.com/v3"> verwacht globale Stripe
-  if (!window.Stripe) throw new Error('Stripe.js niet geladen');
-  stripeInstance = window.Stripe(publicCfg.publishableKey);
-
-        // Maak PaymentIntent
-        const idem = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
-        const intent = await createPaymentIntent({
-          amount: amountCents,
-          currency: publicCfg.currency,
-          description: 'Heppy abonnement eerste betaling',
-          customerEmail: flow.emailadres || undefined,
-          metadata: {
-            flow: 'abonnement',
-            aanvraagId: flow.aanvraagId || '',
-            klantEmail: flow.emailadres || '',
-          },
-        }, idem);
-
-        // Mount Payment Element
-        elementsInstance = stripeInstance.elements({ clientSecret: intent.clientSecret, appearance: { theme: 'stripe' } });
-        const pe = elementsInstance.create('payment');
-        const mountEl = document.querySelector('[data-element="stripe-payment-element"]');
-        if (!mountEl) throw new Error('Payment element container niet gevonden');
-        pe.mount(mountEl);
-        paymentElementMounted = true;
-
-        // Bewaar in flow voor latere referentie
-        flow.paymentIntentId = intent.id;
-        saveFlowData('abonnement-aanvraag', flow);
-      },
-      onSuccess: async () => {
-        // De daadwerkelijke confirm gebeurt via aparte betaal-knop klik (zelfde submit-knop)
-        // Hier geen slide-navigatie; we blijven op de betaalstap tot confirm is afgerond.
-      }
-    }
+    submit: { action: async () => {}, onSuccess: () => {} }
   };
 
   formHandler.init(schema);
 
-  // Bind submit-knop voor confirm flow
   const formEl = document.querySelector(schema.selector);
-  const btn = formEl?.querySelector('[data-form-button="abb_betaling-form"]');
-  if (!btn) return;
-  btn.addEventListener('click', async (e) => {
-    // Alleen proberen te bevestigen als element al gemount is (na action)
+  if (!formEl) return;
+  const payBtn = formEl.querySelector('[data-form-button="abb_betaling-form"]');
+  const akkoordCb = formEl.querySelector('[data-field-name="akkoord_voorwaarden"]');
+  const errorEl = formEl.querySelector('[data-error-for="global"]');
+  const amountDisplay = formEl.querySelector('[data-element="payment-amount"]');
+
+  // Disable pay button until ready
+  if (payBtn) payBtn.disabled = true;
+
+  async function initStripeAndElement() {
     try {
-      if (!paymentElementMounted || !elementsInstance || !stripeInstance) {
-        // Eerste klik bereidt de betaling voor; tweede klik bevestigt
-        return;
-      }
-      const { error } = await stripeInstance.confirmPayment({
-        elements: elementsInstance,
-        confirmParams: {
-          return_url: window.location.href, // We blijven in-page; Stripe kan redirect nodig hebben voor iDEAL
+      const flow = loadFlowData('abonnement-aanvraag') || {};
+      const baseAmountPerSession = Number(flow.abb_prijs);
+      if (!baseAmountPerSession || isNaN(baseAmountPerSession)) throw new Error('Ongeldig bedrag');
+      const frequentie = flow.frequentie; // 'perweek' | 'pertweeweek'
+      const sessionsPer4W = frequentie === 'perweek' ? 4 : 2;
+      const bundleAmountEur = baseAmountPerSession * sessionsPer4W;
+      if (amountDisplay) amountDisplay.textContent = formatCurrency(bundleAmountEur);
+
+      const publicCfg = await fetchPublicConfig();
+      if (!window.Stripe) throw new Error('Stripe.js niet geladen');
+      stripeInstance = window.Stripe(publicCfg.publishableKey);
+
+      const idem = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      const intent = await createPaymentIntent({
+        amount: Math.round(bundleAmountEur * 100),
+        currency: publicCfg.currency,
+        description: `Heppy abonnement (${sessionsPer4W}x / 4w)` ,
+        customerEmail: flow.emailadres || undefined,
+        metadata: {
+          flow: 'abonnement',
+            aanvraagId: flow.aanvraagId || '',
+            klantEmail: flow.emailadres || '',
+            frequentie: frequentie || '',
+            sessionsPerCycle: sessionsPer4W,
+            prijsPerSessie: baseAmountPerSession.toFixed(2),
         },
-      });
-      if (error) {
-        console.error('Payment error:', error);
-        const errEl = formEl.querySelector('[data-error-for="global"]');
-        if (errEl) errEl.textContent = error.message || 'Betaling mislukt. Probeer opnieuw.';
+      }, idem);
+
+      elementsInstance = stripeInstance.elements({ clientSecret: intent.clientSecret, appearance: { theme: 'stripe' } });
+      paymentElement = elementsInstance.create('payment');
+      const mountEl = document.querySelector('[data-element="stripe-payment-element"]');
+      if (!mountEl) throw new Error('Payment element container niet gevonden');
+      paymentElement.mount(mountEl);
+      paymentReady = true;
+
+      flow.paymentIntentId = intent.id;
+      flow.bundleAmount = bundleAmountEur.toFixed(2);
+      flow.sessionsPer4W = sessionsPer4W;
+      saveFlowData('abonnement-aanvraag', flow);
+
+      if (akkoordCb && akkoordCb.checked && payBtn) payBtn.disabled = false;
+      console.log('✅ [AbbBetaling] Stripe Payment Element klaar.');
+    } catch (err) {
+      console.error('❌ [AbbBetaling] Init fout:', err);
+      if (errorEl) errorEl.textContent = err.message || 'Kon betaalmodule niet initialiseren.';
+    }
+  }
+
+  // Start direct initialisatie
+  initStripeAndElement();
+
+  // Enable/disable knop op akkoord
+  if (akkoordCb) {
+    akkoordCb.addEventListener('change', () => {
+      if (payBtn) {
+        payBtn.disabled = !(akkoordCb.checked && paymentReady);
+      }
+    });
+  }
+
+  if (payBtn) {
+    payBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (!paymentReady || !stripeInstance || !elementsInstance) return;
+      if (!akkoordCb?.checked) {
+        if (errorEl) errorEl.textContent = 'Ga eerst akkoord met de voorwaarden.';
         return;
       }
-      // Succes: door naar volgende slide
-      if (typeof window.moveToNextSlide === 'function') window.moveToNextSlide();
-    } catch (err) {
-      console.error('Confirm error:', err);
-    }
-  });
+      payBtn.disabled = true;
+      if (errorEl) errorEl.textContent = '';
+      try {
+        const { error } = await stripeInstance.confirmPayment({
+          elements: elementsInstance,
+          confirmParams: { return_url: window.location.href },
+        });
+        if (error) {
+          console.error('Payment error:', error);
+          if (errorEl) errorEl.textContent = error.message || 'Betaling mislukt. Probeer opnieuw.';
+          payBtn.disabled = false;
+          return;
+        }
+        if (typeof window.moveToNextSlide === 'function') window.moveToNextSlide();
+      } catch (err) {
+        console.error('Confirm error:', err);
+        if (errorEl) errorEl.textContent = err.message || 'Onbekende fout bij bevestigen.';
+        payBtn.disabled = false;
+      }
+    });
+  }
 }
