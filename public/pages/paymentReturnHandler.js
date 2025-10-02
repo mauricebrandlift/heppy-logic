@@ -2,7 +2,6 @@
 // Vroege redirect-afhandeling vóór individuele form init zodat we niet onnodig op stap 1 blijven.
 import { loadFlowData, saveFlowData } from '../forms/logic/formStorage.js';
 import { apiClient } from '../utils/api/client.js';
-import '../utils/slides.js';
 
 (async function handlePaymentReturnEarly(){
   try {
@@ -25,59 +24,23 @@ import '../utils/slides.js';
     console.log('[PaymentReturnEarly] Status:', status);
     const cleanUrl = window.location.origin + window.location.pathname; // alleen path
 
-    // Helper om naar een form slide te springen (betaling of success)
-    function gotoForm(formName) {
-      if (typeof window.jumpToSlideByFormName === 'function') {
-        setTimeout(()=>window.jumpToSlideByFormName(formName), 30);
-      }
-    }
 
     if (status === 'succeeded') {
-      const showSuccess = () => {
-        const existing = document.querySelector('[data-form-name="abb_succes-form"]');
-        if (existing) {
-          existing.style.display = '';
-          return true;
-        }
-        // Inject fallback container
-        const container = document.createElement('div');
-        container.setAttribute('data-form-name','abb_succes-form');
-        container.style.padding = '2rem';
-        container.style.border = '1px solid #e0e0e0';
-        container.style.borderRadius = '8px';
-        container.innerHTML = '<h2>Bedankt! 🎉</h2><p>Je betaling is geslaagd.</p><p data-success="bedrag"></p><p data-success="frequentie"></p>';
-        document.body.appendChild(container);
-        return true;
-      };
-
-      const attemptNav = () => {
-        if (typeof window.jumpToLastSlide === 'function') {
-          const ok = window.jumpToLastSlide();
-          if (!ok) showSuccess();
-        } else if (!window.jumpToSlideByFormName || !window.jumpToSlideByFormName('abb_succes-form')) {
-          showSuccess();
-        }
-      };
-      setTimeout(attemptNav, 30);
-      // Schoon query zodat refresh clean is
-      window.history.replaceState({}, document.title, cleanUrl);
-      return;
+      // Redirect naar dedicated succes pagina
+      const base = window.location.origin;
+      const flow = loadFlowData('abonnement-aanvraag') || {};
+      const intentParam = encodeURIComponent(intentId);
+      // Meegeven van eventueel minimale info voor client-side bevestiging
+      const extra = flow.frequentie ? `&freq=${encodeURIComponent(flow.frequentie)}` : '';
+      window.location.replace(`${base}/aanvragen/succes/abonnement?pi=${intentParam}${extra}`);
+      return; // Stop verdere verwerking
     }
     if (status === 'processing') {
-      // We willen dat abbBetalingForm.js gaat poll'en -> zorg dat script geladen wordt en houd originele Stripe params (niet verwijderen!)
-      try {
-        await import('../forms/aanvraag/abbBetalingForm.js').then(m => m?.initAbbBetalingForm && m.initAbbBetalingForm());
-      } catch(e) { console.warn('[PaymentReturnEarly] Kon abbBetalingForm niet laden voor processing', e); }
-      gotoForm('abb_betaling-form');
-      return;
+      // Laat bestaande flow doorgaan: user komt terug op betaal stap en polling in betaalmodule.
+      return; // Geen redirect; user blijft waar hij is.
     }
     if (['requires_payment_method','canceled','requires_action'].includes(status)) {
-      // Betaling mislukt / extra actie nodig: laad betaal slide voor retry.
-      try {
-        await import('../forms/aanvraag/abbBetalingForm.js').then(m => m?.initAbbBetalingForm && m.initAbbBetalingForm());
-      } catch(e) { console.warn('[PaymentReturnEarly] Kon abbBetalingForm niet laden voor retry', e); }
-      gotoForm('abb_betaling-form');
-      // Laat parameters staan zodat abbBetalingForm status kan interpreteren en fout tonen
+      // Laat user terugvallen op betaal stap zonder redirect.
       return;
     }
   } catch (e) {
