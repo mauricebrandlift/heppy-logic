@@ -99,8 +99,17 @@
         return gotoWebflowIndex(wfCtx);
       }
 
-      console.warn('[Slides] Geen ondersteunde slider ancestor gevonden voor', formName);
-      return false;
+      // 3) Fallback: geen slider → toon alleen dit form element en verberg andere forms (hard switch)
+      console.warn('[Slides] Geen slider ancestor. Gebruik directe fallback voor', formName);
+      const allForms = Array.from(document.querySelectorAll('[data-form-name]'));
+      allForms.forEach(el => {
+        if (el === target) {
+          el.style.display = '';
+        } else {
+          el.style.display = 'none';
+        }
+      });
+      return true;
     } catch (e) {
       console.error('[Slides] Fout bij jumpToSlideByFormName:', e);
       return false;
@@ -136,6 +145,15 @@
             return true;
           }
         }
+      }
+      // Fallback direct (geen slider). Laatste form-name element tonen.
+      const formEls = Array.from(document.querySelectorAll('[data-form-name]'));
+      if (formEls.length) {
+        formEls.forEach((el, idx) => {
+          el.style.display = (idx === formEls.length - 1) ? '' : 'none';
+        });
+        console.warn('[Slides] Fallback jumpToLastSlide zonder slider structuur.');
+        return true;
       }
       if (retry > 0) {
         setTimeout(() => window.jumpToLastSlide({ selector, retry: retry - 1, retryDelay }), retryDelay);
