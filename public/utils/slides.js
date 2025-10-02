@@ -109,6 +109,21 @@
           el.style.display = 'none';
         }
       });
+      // Start observer om later alsnog naar echte slider te springen als Splide init vertraagd is
+      let observed = false;
+      const observer = new MutationObserver(() => {
+        const splideCtxLate = findSplideContext(target);
+        if (splideCtxLate && splideCtxLate.instance) {
+          console.log('[Slides] Late Splide instance gevonden, navigeer opnieuw naar', formName);
+          gotoSplideIndex(splideCtxLate);
+          observer.disconnect();
+        }
+      });
+      if (!findSplideContext(target)?.instance) {
+        observer.observe(document.documentElement, { childList: true, subtree: true });
+        observed = true;
+      }
+      if (observed) console.log('[Slides] Observer actief voor late Splide init');
       return true;
     } catch (e) {
       console.error('[Slides] Fout bij jumpToSlideByFormName:', e);

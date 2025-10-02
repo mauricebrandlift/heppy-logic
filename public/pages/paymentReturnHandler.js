@@ -33,11 +33,32 @@ import '../utils/slides.js';
     }
 
     if (status === 'succeeded') {
-      if (typeof window.jumpToLastSlide === 'function') {
-        setTimeout(()=>window.jumpToLastSlide(), 30);
-      } else {
-        gotoForm('abb_succes-form');
-      }
+      const showSuccess = () => {
+        const existing = document.querySelector('[data-form-name="abb_succes-form"]');
+        if (existing) {
+          existing.style.display = '';
+          return true;
+        }
+        // Inject fallback container
+        const container = document.createElement('div');
+        container.setAttribute('data-form-name','abb_succes-form');
+        container.style.padding = '2rem';
+        container.style.border = '1px solid #e0e0e0';
+        container.style.borderRadius = '8px';
+        container.innerHTML = '<h2>Bedankt! 🎉</h2><p>Je betaling is geslaagd.</p><p data-success="bedrag"></p><p data-success="frequentie"></p>';
+        document.body.appendChild(container);
+        return true;
+      };
+
+      const attemptNav = () => {
+        if (typeof window.jumpToLastSlide === 'function') {
+          const ok = window.jumpToLastSlide();
+          if (!ok) showSuccess();
+        } else if (!window.jumpToSlideByFormName || !window.jumpToSlideByFormName('abb_succes-form')) {
+          showSuccess();
+        }
+      };
+      setTimeout(attemptNav, 30);
       // Schoon query zodat refresh clean is
       window.history.replaceState({}, document.title, cleanUrl);
       return;
