@@ -3,6 +3,7 @@
 import { initAbbAdresForm } from '../forms/aanvraag/abbAdresForm.js';
 import '../utils/slides.js';
 import '../forms/aanvraag/abbSuccesForm.js';
+import './paymentReturnHandler.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Zoek het formulier op basis van de schema-selector met data-form-name
