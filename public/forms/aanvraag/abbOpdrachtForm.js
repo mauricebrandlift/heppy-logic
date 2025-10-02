@@ -273,7 +273,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
   const schema = getFormSchema('abb_opdracht-form');
   
   // Voeg berekening trigger toe voor elk veld dat impact heeft op de berekening
-  ['abb_m2', 'abb_toiletten', 'abb_badkamers'].forEach(fieldName => {
+  ['frequentie','abb_m2', 'abb_toiletten', 'abb_badkamers'].forEach(fieldName => {
     if (schema.fields[fieldName]) {
       if (!schema.fields[fieldName].triggers) {
         schema.fields[fieldName].triggers = [];
@@ -296,7 +296,8 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       // Sla de formuliergegevens op in de flow data
       const flowData = loadFlowData('abonnement-aanvraag') || {};
       
-      // Update de flow data met huidige formuliergegevens
+  // Update de flow data met huidige formuliergegevens
+  flowData.frequentie = formData.frequentie; // sla frequentie op
       flowData.abb_m2 = formData.abb_m2;
       flowData.abb_toiletten = formData.abb_toiletten;
       flowData.abb_badkamers = formData.abb_badkamers;
@@ -311,7 +312,8 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       // Voor backward compatibility, sla ook op in de global field data
       saveGlobalFieldData('abb_m2', formData.abb_m2);
       saveGlobalFieldData('abb_toiletten', formData.abb_toiletten);
-      saveGlobalFieldData('abb_badkamers', formData.abb_badkamers);
+  saveGlobalFieldData('abb_badkamers', formData.abb_badkamers);
+  saveGlobalFieldData('frequentie', formData.frequentie);
       saveGlobalFieldData('weeknr', formData.weeknr); // Sla ook op in global data    },    onSuccess: () => {
       console.log('✅ [AbbOpdrachtForm] Formulier succesvol verwerkt, naar volgende slide...');
       
@@ -343,7 +345,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
   const formElement = document.querySelector(schema.selector);
   
   // Controleer elk veld en vul het in met opgeslagen waarden indien beschikbaar
-  ['abb_m2', 'abb_toiletten', 'abb_badkamers', 'weeknr'].forEach(key => {
+  ['frequentie','abb_m2', 'abb_toiletten', 'abb_badkamers', 'weeknr'].forEach(key => {
     // Eerst proberen uit flow data te halen
     if (flowData[key]) {
       formData[key] = flowData[key];

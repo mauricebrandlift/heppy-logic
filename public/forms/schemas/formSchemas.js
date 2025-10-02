@@ -74,6 +74,16 @@ export function getFormSchema(name) {
       name: 'abb_opdracht-form',
       selector: '[data-form-name="abb_opdracht-form"]',
       fields: {
+        frequentie: {
+          label: 'Frequentie schoonmaak',
+          inputType: 'radio',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'form',
+          messages: {
+            required: 'Kies een frequentie (per week of per twee weken)'
+          }
+        },
         abb_m2: {
           label: 'Oppervlakte in m²',
           inputType: 'number',
