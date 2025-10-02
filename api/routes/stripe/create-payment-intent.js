@@ -31,6 +31,24 @@ export default async function handler(req, res) {
       payload.idempotencyKey = String(headerIdem);
     }
 
+    // Basic payload validation & logging (no secrets)
+    const rawAmount = payload.amount;
+    if (!rawAmount || !Number.isInteger(rawAmount) || rawAmount <= 0) {
+      console.warn(JSON.stringify({ level: 'WARN', correlationId, route: 'stripe/create-payment-intent', msg: 'Invalid amount', rawAmount }));
+      return res.status(400).json({ correlationId, message: 'Invalid amount' });
+    }
+
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'stripe/create-payment-intent',
+      action: 'create_intent_request',
+      amount: rawAmount,
+      currency: payload.currency || defaultCurrency,
+      metadata: payload.metadata || null,
+      idempotencyKey: payload.idempotencyKey || headerIdem || null
+    }));
+
     const result = await createPaymentIntent({
       secretKey,
       defaultCurrency,
@@ -38,8 +56,27 @@ export default async function handler(req, res) {
       correlationId,
     });
 
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'stripe/create-payment-intent',
+      action: 'create_intent_success',
+      intentId: result.id,
+      status: result.status,
+      amount: result.amount,
+      currency: result.currency
+    }));
+
     return res.status(200).json({ correlationId, ...result });
   } catch (error) {
+    console.error(JSON.stringify({
+      level: 'ERROR',
+      correlationId,
+      route: 'stripe/create-payment-intent',
+      action: 'create_intent_failure',
+      message: error.message,
+      code: error.code
+    }));
     return handleErrorResponse(res, error, 500, correlationId);
   }
 }

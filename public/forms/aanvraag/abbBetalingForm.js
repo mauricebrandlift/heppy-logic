@@ -65,7 +65,8 @@ export async function initAbbBetalingForm() {
       const bundleAmountEur = baseAmountPerSession * sessionsPer4W;
       if (amountDisplay) amountDisplay.textContent = formatCurrency(bundleAmountEur);
 
-      const publicCfg = await fetchPublicConfig();
+  console.log('[AbbBetaling] Flow data voor intent:', { frequentie, baseAmountPerSession, sessionsPer4W, bundleAmountEur });
+  const publicCfg = await fetchPublicConfig().catch(err => { throw new Error('Config fetch failed: ' + err.message); });
       if (!window.Stripe) throw new Error('Stripe.js niet geladen');
       stripeInstance = window.Stripe(publicCfg.publishableKey);
 
@@ -84,11 +85,17 @@ export async function initAbbBetalingForm() {
             prijsPerSessie: baseAmountPerSession.toFixed(2),
         },
       }, idem);
+      console.log('[AbbBetaling] Intent response:', intent);
 
       elementsInstance = stripeInstance.elements({ clientSecret: intent.clientSecret, appearance: { theme: 'stripe' } });
       paymentElement = elementsInstance.create('payment');
       const mountEl = document.querySelector('[data-element="stripe-payment-element"]');
       if (!mountEl) throw new Error('Payment element container niet gevonden');
+      paymentElement.on('ready', () => console.log('[AbbBetaling] Payment Element ready'));
+      paymentElement.on('loaderror', (e) => {
+        console.error('[AbbBetaling] Payment Element loaderror event:', e);
+        if (errorEl) errorEl.textContent = 'Laden van betaalcomponent mislukt.';
+      });
       paymentElement.mount(mountEl);
       paymentReady = true;
 
@@ -120,7 +127,10 @@ export async function initAbbBetalingForm() {
   if (payBtn) {
     payBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      if (!paymentReady || !stripeInstance || !elementsInstance) return;
+      if (!paymentReady || !stripeInstance || !elementsInstance) {
+        console.warn('[AbbBetaling] confirmPayment geblokkeerd: element niet ready', { paymentReady, stripe: !!stripeInstance, elements: !!elementsInstance });
+        return;
+      }
       if (!akkoordCb?.checked) {
         if (errorEl) errorEl.textContent = 'Ga eerst akkoord met de voorwaarden.';
         return;
@@ -128,6 +138,7 @@ export async function initAbbBetalingForm() {
       payBtn.disabled = true;
       if (errorEl) errorEl.textContent = '';
       try {
+        console.log('[AbbBetaling] confirmPayment start');
         const { error } = await stripeInstance.confirmPayment({
           elements: elementsInstance,
           confirmParams: { return_url: window.location.href },
