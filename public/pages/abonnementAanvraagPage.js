@@ -1,6 +1,8 @@
 // public/pages/abonnementAanvraagPage.js
 
 import { initAbbAdresForm } from '../forms/aanvraag/abbAdresForm.js';
+import '../utils/slides.js';
+import '../forms/aanvraag/abbSuccesForm.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Zoek het formulier op basis van de schema-selector met data-form-name
@@ -12,4 +14,5 @@ document.addEventListener('DOMContentLoaded', () => {
   } else {
     console.log('🚫 Geen abonnement adres formulier gevonden op deze pagina.');
   }
+  // Success slide initialisatie wordt automatisch gedaan in abbSuccesForm.js als aanwezig
 });

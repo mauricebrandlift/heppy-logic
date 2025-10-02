@@ -28,6 +28,92 @@ function formatCurrency(amount) {
 
 export async function initAbbBetalingForm() {
   console.log('💳 [AbbBetaling] Initialiseren…');
+  // Detecteer of we terugkomen van een redirect-based betaalmethode (iDEAL e.d.)
+  // We tonen de success slide pas NA terugkomst en bevestigde status.
+  const urlParams = new URLSearchParams(window.location.search);
+  const redirectStatus = urlParams.get('redirect_status');
+  const returnedIntentId = urlParams.get('payment_intent');
+  const clientSecretFromUrl = urlParams.get('payment_intent_client_secret');
+
+  // Helper om query parameters op te schonen na verwerking
+  function cleanUrlQuery() {
+    const cleanUrl = window.location.origin + window.location.pathname;
+    window.history.replaceState({}, document.title, cleanUrl);
+  }
+
+  async function retrieveIntentStatus(id) {
+    try {
+      const res = await apiClient(`/routes/stripe/retrieve-payment-intent?id=${encodeURIComponent(id)}`, { method: 'GET' });
+      return res;
+    } catch (e) {
+      console.error('[AbbBetaling] Fout bij ophalen intent status:', e);
+      return null;
+    }
+  }
+
+  async function handleReturnFromRedirect() {
+    console.log('[AbbBetaling] Terugkomst detectie', { redirectStatus, returnedIntentId });
+    if (!returnedIntentId) return; // Geen intent id -> geen redirect flow
+    // Lees lokale flow (zou intent id moeten bevatten)
+    const flow = loadFlowData('abonnement-aanvraag') || {};
+    if (!flow.paymentIntentId) {
+      flow.paymentIntentId = returnedIntentId; // fallback zodat success module intent kan tonen
+      saveFlowData('abonnement-aanvraag', flow);
+    }
+    // Ophalen actuele status voor zekerheid
+    const intent = await retrieveIntentStatus(returnedIntentId);
+    if (!intent) {
+      console.warn('[AbbBetaling] Geen intent info beschikbaar na redirect.');
+      cleanUrlQuery();
+      return;
+    }
+    console.log('[AbbBetaling] Intent status na redirect:', intent.status);
+    if (intent.status === 'succeeded') {
+      // Ga direct naar success slide (data-form-name="abb_succes-form") als beschikbaar
+      if (typeof window.jumpToSlideByFormName === 'function') {
+        window.jumpToSlideByFormName('abb_succes-form');
+      } else if (typeof window.moveToNextSlide === 'function') {
+        // fallback: probeer gewoon één slide verder; aannames: success slide volgt betaling
+        window.moveToNextSlide();
+      }
+      cleanUrlQuery();
+      return true;
+    }
+    if (intent.status === 'processing') {
+      // Start polling tot max 60s
+      let attempts = 0;
+      const maxAttempts = 12; // 12 * 5s = 60s
+      const interval = setInterval(async () => {
+        attempts++;
+        const latest = await retrieveIntentStatus(returnedIntentId);
+        if (!latest) return; // probeer volgende ronde
+        console.log('[AbbBetaling] Polling intent status:', latest.status);
+        if (latest.status === 'succeeded') {
+          clearInterval(interval);
+          if (typeof window.jumpToSlideByFormName === 'function') {
+            window.jumpToSlideByFormName('abb_succes-form');
+          } else if (typeof window.moveToNextSlide === 'function') {
+            window.moveToNextSlide();
+          }
+          cleanUrlQuery();
+        } else if (['requires_payment_method','canceled','requires_action'].includes(latest.status) || attempts >= maxAttempts) {
+          clearInterval(interval);
+          // Laat gebruiker opnieuw proberen; we blijven op betaal slide
+          const errorEl = document.querySelector('[data-error-for="global"]');
+          if (errorEl) errorEl.textContent = 'Betaling nog niet afgerond. Probeer opnieuw.';
+          cleanUrlQuery();
+        }
+      }, 5000);
+      return true; // we hebben handling opgestart
+    }
+    if (['requires_payment_method','canceled','requires_action'].includes(intent.status)) {
+      const errorEl = document.querySelector('[data-error-for="global"]');
+      if (errorEl) errorEl.textContent = 'Betaling niet gelukt. Je kunt het opnieuw proberen.';
+      cleanUrlQuery();
+      return true;
+    }
+    return false;
+  }
   const schema = {
     name: 'abb_betaling-form',
     selector: '[data-form-name="abb_betaling-form"]',
@@ -57,6 +143,14 @@ export async function initAbbBetalingForm() {
 
   async function initStripeAndElement() {
     try {
+      // Als we terugkomen van redirect en al een intent status hebben afgehandeld, hoef je niet opnieuw element te bouwen.
+      if (returnedIntentId && (redirectStatus || urlParams.get('afterPayment'))) {
+        const handled = await handleReturnFromRedirect();
+        if (handled) {
+          console.log('[AbbBetaling] Redirect-flow afgehandeld, skip element init.');
+          return;
+        }
+      }
       const flow = loadFlowData('abonnement-aanvraag') || {};
       const baseAmountPerSession = Number(flow.abb_prijs);
       if (!baseAmountPerSession || isNaN(baseAmountPerSession)) throw new Error('Ongeldig bedrag');
@@ -141,7 +235,10 @@ export async function initAbbBetalingForm() {
         console.log('[AbbBetaling] confirmPayment start');
         const { error } = await stripeInstance.confirmPayment({
           elements: elementsInstance,
-          confirmParams: { return_url: window.location.href },
+          confirmParams: {
+            // Voeg eenvoudige marker toe zodat we weten dat we terugkomen uit betaalredirect
+            return_url: window.location.origin + window.location.pathname + '?afterPayment=1'
+          },
         });
         if (error) {
           console.error('Payment error:', error);
@@ -149,7 +246,22 @@ export async function initAbbBetalingForm() {
           payBtn.disabled = false;
           return;
         }
-        if (typeof window.moveToNextSlide === 'function') window.moveToNextSlide();
+        // Bij redirect-based methoden (iDEAL) komen we hier niet terug. Bij instant methoden (kaart zonder 3DS) wel.
+        // In dat geval kunnen we direct status ophalen en naar success gaan.
+        const flow = loadFlowData('abonnement-aanvraag') || {};
+        if (flow.paymentIntentId) {
+          const latest = await retrieveIntentStatus(flow.paymentIntentId);
+          if (latest && latest.status === 'succeeded') {
+            if (typeof window.jumpToSlideByFormName === 'function') {
+              window.jumpToSlideByFormName('abb_succes-form');
+            } else if (typeof window.moveToNextSlide === 'function') {
+              window.moveToNextSlide();
+            }
+          } else {
+            // Anders laten we de gebruiker staan; polling kan handmatig gestart worden (niet kritisch voor kaart payments).
+            console.log('[AbbBetaling] Geen directe success status na confirm (non redirect).');
+          }
+        }
       } catch (err) {
         console.error('Confirm error:', err);
         if (errorEl) errorEl.textContent = err.message || 'Onbekende fout bij bevestigen.';
