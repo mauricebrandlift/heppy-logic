@@ -123,6 +123,7 @@ function resetRadioState(container, contextLabel = '') {
   if (radio) {
     radio.checked = false;
     radio.removeAttribute('checked');
+    radio.defaultChecked = false;
     radio.setAttribute('aria-checked', 'false');
   }
 
