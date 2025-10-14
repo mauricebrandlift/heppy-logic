@@ -164,7 +164,7 @@ export function getFormSchema(name) {
           inputType: 'radio',
           sanitizers: ['trim'],
           validators: ['required'],
-          persist: 'form',
+          persist: 'none',
           messages: {
             required: 'Selecteer een schoonmaker of "geen voorkeur"'
           }

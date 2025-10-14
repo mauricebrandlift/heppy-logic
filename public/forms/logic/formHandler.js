@@ -294,7 +294,26 @@ export const formHandler = {
       return;
     }
 
-    const formSpecificSavedData = loadFormData(schema.name) || {};
+    const rawSavedData = loadFormData(schema.name) || {};
+    const formSpecificSavedData = {};
+    const removedSavedKeys = [];
+
+    Object.entries(rawSavedData).forEach(([fieldName, value]) => {
+      const fieldConfig = schema.fields?.[fieldName];
+      if (fieldConfig && fieldConfig.persist === 'form') {
+        formSpecificSavedData[fieldName] = value;
+      } else {
+        removedSavedKeys.push(fieldName);
+      }
+    });
+
+    if (removedSavedKeys.length > 0) {
+      console.log(
+        `🧹 [FormHandler] Verwijderen van niet-persisterende opgeslagen velden voor ${schema.name}:`,
+        removedSavedKeys
+      );
+      saveFormData(schema.name, formSpecificSavedData);
+    }
     this.formData = {};
     this.formState = {};
     this._triggerCleanupFunctions = [];
