@@ -174,7 +174,7 @@ export function getFormSchema(name) {
           label: 'Voorkeursdagdelen',
           inputType: 'checkbox',
           validators: ['optional'],
-          persist: 'form'
+          persist: 'none'
         }
       },
       globalMessages: combineMessages(

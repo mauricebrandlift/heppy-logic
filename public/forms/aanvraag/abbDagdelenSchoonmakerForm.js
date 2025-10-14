@@ -371,11 +371,6 @@ function renderSchoonmakers(schoonmakers, filterDagdelen = null) {
   if (formStatus.emptyElement) {
     if (schoonmakers.length === 0) {
       formStatus.emptyElement.style.display = '';
-      // Optioneel aangepaste tekst op basis van filter
-      const msg = filterDagdelen ? 'Geen schoonmakers op deze dagdelen.' : 'Geen schoonmakers beschikbaar in jouw regio.';
-      if (!formStatus.emptyElement.getAttribute('data-static')) {
-        formStatus.emptyElement.textContent = msg;
-      }
     } else {
       formStatus.emptyElement.style.display = 'none';
     }
@@ -689,13 +684,17 @@ export async function initAbbDagdelenSchoonmakerForm() {
       // Verzamel geselecteerde dagdelen
       const formElement = document.querySelector(schema.selector);
       const selectedDagdelen = getSelectedDagdelenFromForm(formElement);
-      const dagdelenDB = convertUIDagdelenNaarDB(selectedDagdelen);
-      
-      // Sla dagdelen op
-      flowData.dagdelenVoorkeur = dagdelenDB;
-      flowData.selectedDagdelen = selectedDagdelen; // Voor eventuele UI updates later
-      
-      // Sla op in flow data
+
+      // Verwijder eventuele opgeslagen dagdelen-voorkeuren zodat er niets wordt geprefilled
+      if ('dagdelenVoorkeur' in flowData) delete flowData.dagdelenVoorkeur;
+      if ('selectedDagdelen' in flowData) delete flowData.selectedDagdelen;
+
+      // (optioneel) gebruik selectedDagdelen runtime voor logging/debugging
+      if (selectedDagdelen.length > 0) {
+        console.debug('[AbbDagdelenSchoonmakerForm] Dagdelen geselecteerd (niet persistent opgeslagen):', selectedDagdelen);
+      }
+
+      // Sla overige flow data (zoals schoonmakerkeuze) op, zonder dagdelen in storage te houden
       saveFlowData('abonnement-aanvraag', flowData);
       
       // Voor backward compatibility
@@ -744,15 +743,10 @@ export async function initAbbDagdelenSchoonmakerForm() {
   // Check voor bestaande selectie (als we terugkomen vanaf een volgende stap)
   const flowData = loadFlowData('abonnement-aanvraag') || {};
   // Geen auto-herstel van schoonmakerKeuze: gebruiker moet bewust kiezen in deze stap
-  
-  // Vink eventueel opgeslagen dagdelen aan
-  if (Array.isArray(flowData.selectedDagdelen)) {
-    flowData.selectedDagdelen.forEach(dagdeel => {
-      const checkbox = formElement.querySelector(`input[data-field-name="dagdeel"][data-dagdeel="${dagdeel}"]`);
-      if (checkbox) {
-        checkbox.checked = true;
-      }
-    });
+  if ('dagdelenVoorkeur' in flowData || 'selectedDagdelen' in flowData) {
+    delete flowData.dagdelenVoorkeur;
+    delete flowData.selectedDagdelen;
+    saveFlowData('abonnement-aanvraag', flowData);
   }
   
   // Zorg dat de submit-state klopt na init (start disabled tot er een keuze is)
