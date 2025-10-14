@@ -103,17 +103,29 @@ function updateLoadingState(isLoading) {
   }
 }
 
-function resetRadioState(container) {
+function resetRadioState(container, contextLabel = '') {
   if (!container) return;
 
   const radio = container.querySelector('input[type="radio"]');
+  const label = radio ? radio.closest('label, .w-radio') : null;
+
+  const beforeState = {
+    context: contextLabel,
+    containerClasses: container ? Array.from(container.classList || []) : [],
+    labelClasses: label ? Array.from(label.classList || []) : [],
+    radioChecked: radio ? radio.checked : null,
+    radioAriaChecked: radio ? radio.getAttribute('aria-checked') : null,
+    labelAriaChecked: label ? label.getAttribute('aria-checked') : null,
+  };
+
+  console.debug('[SchoonmakerForm] Reset radio state - before', beforeState);
+
   if (radio) {
     radio.checked = false;
     radio.removeAttribute('checked');
     radio.setAttribute('aria-checked', 'false');
   }
 
-  const label = radio ? radio.closest('label, .w-radio') : null;
   const targets = [container, label].filter(Boolean);
 
   targets.forEach((el) => {
@@ -125,6 +137,17 @@ function resetRadioState(container) {
       el.setAttribute('aria-selected', 'false');
     }
   });
+
+  const afterState = {
+    context: contextLabel,
+    containerClasses: container ? Array.from(container.classList || []) : [],
+    labelClasses: label ? Array.from(label.classList || []) : [],
+    radioChecked: radio ? radio.checked : null,
+    radioAriaChecked: radio ? radio.getAttribute('aria-checked') : null,
+    labelAriaChecked: label ? label.getAttribute('aria-checked') : null,
+  };
+
+  console.debug('[SchoonmakerForm] Reset radio state - after', afterState);
 }
 
 /**
@@ -145,7 +168,7 @@ function renderSchoonmaker(schoonmaker, dagdelenFilter = null) {
   const schoonmakerEl = sourceTemplate.cloneNode(true);
   schoonmakerEl.style.display = 'block'; // Maak zichtbaar
 
-  resetRadioState(schoonmakerEl);
+  resetRadioState(schoonmakerEl, 'clone');
   
   // Voeg id toe als waarde voor de radio button
   const radioEl = schoonmakerEl.querySelector('input[type="radio"]');
@@ -678,8 +701,8 @@ export async function initAbbDagdelenSchoonmakerForm() {
   
   if (formStatus.schoonmakerTemplate) {
     if (!formStatus.schoonmakerPrototype) {
-      formStatus.schoonmakerPrototype = formStatus.schoonmakerTemplate.cloneNode(true);
-      resetRadioState(formStatus.schoonmakerPrototype);
+  formStatus.schoonmakerPrototype = formStatus.schoonmakerTemplate.cloneNode(true);
+  resetRadioState(formStatus.schoonmakerPrototype, 'prototype');
     }
     formStatus.schoonmakerTemplate.style.display = 'none';
   } else if (!formStatus.schoonmakerPrototype) {
