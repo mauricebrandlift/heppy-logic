@@ -38,6 +38,7 @@ const pricingConfig = {
 const calculation = {
   hours: 0,              // berekende uren
   adjustedHours: 0,      // afgeronde uren (minimum 3, afgerond naar boven per half uur)
+  minAllowedHours: 0,    // minimum aantal uren dat gekozen mag worden (half uur naar boven afgerond)
   price: 0               // berekende prijs
 };
 
@@ -157,6 +158,21 @@ function roundHoursUp(hours) {
 }
 
 /**
+ * Formatteer uren voor UI-weergave (afronden op halve uur stappen)
+ * @param {number} hours
+ * @returns {string}
+ */
+function formatHours(hours) {
+  if (typeof hours !== 'number' || Number.isNaN(hours)) {
+    return '0';
+  }
+
+  const normalized = Math.round((hours + Number.EPSILON) * 2) / 2;
+  const formatted = normalized % 1 === 0 ? normalized.toFixed(0) : normalized.toFixed(1);
+  return formatted.replace('.0', '');
+}
+
+/**
  * Bereken de prijs op basis van de afgeronde uren en het uurtarief
  * @param {number} hours - Afgeronde uren
  * @returns {number} - Berekende prijs
@@ -175,7 +191,17 @@ function updateCalculationUI(formElement) {
   // Update uren weergave
   const urenField = formElement.querySelector('[data-field-total="calculate_form_abb_uren"]');
   if (urenField) {
-    urenField.textContent = `${calculation.adjustedHours}`;
+    urenField.textContent = formatHours(calculation.adjustedHours);
+  }
+  
+  // Update minimum uren weergave
+  const minUrenField = formElement.querySelector('[data-field-total="calculate_form__min_abb_uren"]');
+  if (minUrenField) {
+    const minHoursValue =
+      (calculation.minAllowedHours && calculation.minAllowedHours > 0)
+        ? calculation.minAllowedHours
+        : roundHoursUp(pricingConfig.minHours || 0);
+    minUrenField.textContent = formatHours(minHoursValue);
   }
   
   // Update prijs weergave
@@ -189,12 +215,19 @@ function updateCalculationUI(formElement) {
   // Update de flow data met de berekende waarden
   flowData.abb_uren = calculation.adjustedHours.toString();
   flowData.abb_prijs = calculation.price.toFixed(2);
+  const minHoursForStorage =
+    (calculation.minAllowedHours && calculation.minAllowedHours > 0)
+      ? calculation.minAllowedHours
+      : roundHoursUp(pricingConfig.minHours || 0);
+
+  flowData.abb_min_uren = minHoursForStorage.toString();
   
   saveFlowData('abonnement-aanvraag', flowData);
   
   // Voor backward compatibility, sla ook op in de global field data
   saveGlobalFieldData('abb_uren', calculation.adjustedHours.toString());
   saveGlobalFieldData('abb_prijs', calculation.price.toFixed(2));
+  saveGlobalFieldData('abb_min_uren', minHoursForStorage.toString());
 }
 
 /**
@@ -217,6 +250,7 @@ async function performCalculations(formData, formElement) {  // Zorg ervoor dat 
   
   // Rond uren af naar boven (minimum 3 uur, per half uur)
   calculation.adjustedHours = roundHoursUp(calculatedHours);
+  calculation.minAllowedHours = calculation.adjustedHours;
   
   // Bereken prijs
   calculation.price = calculatePrice(calculation.adjustedHours);
@@ -235,13 +269,32 @@ function setupHourButtons(formElement) {
   // Krijg de knoppen
   const increaseBtn = formElement.querySelector('[data-btn="uren_up"]');
   const decreaseBtn = formElement.querySelector('[data-btn="uren_down"]');
+
+  const getMinAllowedHours = () => {
+    if (calculation.minAllowedHours && calculation.minAllowedHours > 0) {
+      return calculation.minAllowedHours;
+    }
+
+    if (calculation.hours && calculation.hours > 0) {
+      return roundHoursUp(calculation.hours);
+    }
+
+    return roundHoursUp(pricingConfig.minHours || 0);
+  };
+
+  const normaliseHalfStep = (value) => {
+    return Math.round((value + Number.EPSILON) * 2) / 2;
+  };
   
   if (increaseBtn) {
     increaseBtn.addEventListener('click', function(e) {
       e.preventDefault();
+      const current = calculation.adjustedHours && calculation.adjustedHours > 0
+        ? calculation.adjustedHours
+        : getMinAllowedHours();
       
       // Verhoog de uren met een half uur
-      calculation.adjustedHours += 0.5;
+      calculation.adjustedHours = normaliseHalfStep(current + 0.5);
       
       // Update de prijs
       calculation.price = calculatePrice(calculation.adjustedHours);
@@ -255,16 +308,23 @@ function setupHourButtons(formElement) {
     decreaseBtn.addEventListener('click', function(e) {
       e.preventDefault();
       
-      // Minimum van 3 uur of de berekende uren als die hoger zijn
-      const minHours = Math.max(pricingConfig.minHours || 3, calculation.hours);
+      const minHours = getMinAllowedHours();
+
+      const current = calculation.adjustedHours && calculation.adjustedHours > 0
+        ? calculation.adjustedHours
+        : minHours;
       
       // Als we al op het minimum zitten, doe niets
-      if (calculation.adjustedHours <= minHours) {
+      if (current <= minHours) {
+        calculation.adjustedHours = normaliseHalfStep(minHours);
+        calculation.price = calculatePrice(calculation.adjustedHours);
+        updateCalculationUI(formElement);
         return;
       }
       
       // Verlaag de uren met een half uur, maar niet onder het minimum
-      calculation.adjustedHours = Math.max(calculation.adjustedHours - 0.5, minHours);
+      const nextValue = current - 0.5;
+      calculation.adjustedHours = normaliseHalfStep(Math.max(nextValue, minHours));
       
       // Update de prijs
       calculation.price = calculatePrice(calculation.adjustedHours);
@@ -340,6 +400,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       // Zorg ervoor dat de berekende waarden ook in de flow data worden opgeslagen
       flowData.abb_uren = calculation.adjustedHours.toString();
       flowData.abb_prijs = calculation.price.toFixed(2);
+  flowData.abb_min_uren = calculation.minAllowedHours.toString();
       
       saveFlowData('abonnement-aanvraag', flowData);
       
@@ -348,7 +409,8 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       saveGlobalFieldData('abb_toiletten', formData.abb_toiletten);
       saveGlobalFieldData('abb_badkamers', formData.abb_badkamers);
       saveGlobalFieldData('frequentie', formData.frequentie);
-      saveGlobalFieldData('weeknr', formData.weeknr); // Sla ook op in global data
+  saveGlobalFieldData('weeknr', formData.weeknr); // Sla ook op in global data
+  saveGlobalFieldData('abb_min_uren', calculation.minAllowedHours.toString());
     },
     onSuccess: () => {
       console.log('✅ [AbbOpdrachtForm] Formulier succesvol verwerkt, naar volgende slide...');
