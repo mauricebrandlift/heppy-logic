@@ -103,6 +103,30 @@ function updateLoadingState(isLoading) {
   }
 }
 
+function resetRadioState(container) {
+  if (!container) return;
+
+  const radio = container.querySelector('input[type="radio"]');
+  if (radio) {
+    radio.checked = false;
+    radio.removeAttribute('checked');
+    radio.setAttribute('aria-checked', 'false');
+  }
+
+  const label = radio ? radio.closest('label, .w-radio') : null;
+  const targets = [container, label].filter(Boolean);
+
+  targets.forEach((el) => {
+    el.classList.remove('w--redirected-checked', 'w--redirected-focus');
+    if (el.hasAttribute('aria-checked')) {
+      el.setAttribute('aria-checked', 'false');
+    }
+    if (el.hasAttribute('aria-selected')) {
+      el.setAttribute('aria-selected', 'false');
+    }
+  });
+}
+
 /**
  * Rendert een schoonmaker in de UI met geavanceerde beschikbaarheidsweergave
  * 
@@ -120,6 +144,8 @@ function renderSchoonmaker(schoonmaker, dagdelenFilter = null) {
   // Kloon het template
   const schoonmakerEl = sourceTemplate.cloneNode(true);
   schoonmakerEl.style.display = 'block'; // Maak zichtbaar
+
+  resetRadioState(schoonmakerEl);
   
   // Voeg id toe als waarde voor de radio button
   const radioEl = schoonmakerEl.querySelector('input[type="radio"]');
@@ -653,6 +679,7 @@ export async function initAbbDagdelenSchoonmakerForm() {
   if (formStatus.schoonmakerTemplate) {
     if (!formStatus.schoonmakerPrototype) {
       formStatus.schoonmakerPrototype = formStatus.schoonmakerTemplate.cloneNode(true);
+      resetRadioState(formStatus.schoonmakerPrototype);
     }
     formStatus.schoonmakerTemplate.style.display = 'none';
   } else if (!formStatus.schoonmakerPrototype) {
