@@ -5,6 +5,8 @@ import { getFormSchema } from '../schemas/formSchemas.js';
 import { fetchPricingConfiguration } from '../../utils/api/index.js';
 import { saveGlobalFieldData, loadGlobalFieldData, saveFlowData, loadFlowData } from '../logic/formStorage.js';
 import { initWeekSelectTrigger } from '../logic/formTriggers.js';
+import { validateForm } from '../validators/formValidator.js';
+import { showFieldErrors, syncRadioGroupStyles } from '../ui/formUi.js';
 // Import moveToNextSlide van Webflow indien nodig
 // In een live omgeving is deze functie waarschijnlijk globaal beschikbaar door Webflow
 
@@ -49,6 +51,7 @@ function setRadioGroupValue(formElement, fieldName, value){
   if(!formElement || !value) return;
   const radios = formElement.querySelectorAll(`input[type="radio"][data-field-name="${fieldName}"]`);
   radios.forEach(r => { r.checked = (r.value === value); });
+  syncRadioGroupStyles(formElement, fieldName);
 }
 
 /**
@@ -302,8 +305,27 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
     // Voeg submit logica toe aan het schema
   schema.submit = {
     action: async (formData) => {
+      const formElement = formHandler.formElement || document.querySelector(schema.selector);
+
+      const { isFormValid, fieldErrors } = validateForm(formHandler.formData, schema, formHandler.formState);
+      if (!isFormValid) {
+        if (formElement && fieldErrors) {
+          Object.entries(fieldErrors).forEach(([fieldName, message]) => {
+            if (message) {
+              showFieldErrors(formElement, fieldName, message);
+            }
+          });
+        }
+
+        formHandler.updateSubmitState();
+
+        const error = new Error('Niet alle verplichte velden zijn ingevuld.');
+        error.code = 'REQUIRED_FIELDS_MISSING';
+        throw error;
+      }
+
       // Voer een laatste berekening uit om zeker te zijn van correcte waarden
-      await performCalculations(formData, document.querySelector(schema.selector));
+      await performCalculations(formData, formElement || document.querySelector(schema.selector));
       
       // Sla de formuliergegevens op in de flow data
       const flowData = loadFlowData('abonnement-aanvraag') || {};
@@ -375,9 +397,11 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       formData[key] = value;
       if(key === 'frequentie'){
         setRadioGroupValue(formElement, 'frequentie', value);
+        formHandler.formData[key] = value;
       } else {
         const el = formElement.querySelector(`[data-field-name="${key}"]`);
         if(el) el.value = value;
+        formHandler.formData[key] = value;
       }
     }
   });
@@ -393,6 +417,8 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
   if (formData.abb_m2 || formData.abb_toiletten || formData.abb_badkamers) {
     await performCalculations(formData, formElement);
   }
+
+  formHandler.updateSubmitState();
     console.log('✅ [AbbOpdrachtForm] Initialisatie voltooid');
 }
 

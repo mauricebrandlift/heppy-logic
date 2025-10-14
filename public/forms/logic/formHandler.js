@@ -14,6 +14,7 @@ import {
   showError,
   hideError,
   isErrorVisible,
+  syncRadioGroupStyles,
 } from '../ui/formUi.js';
 import {
   saveFormData,
@@ -144,6 +145,9 @@ export const formHandler = {
           targetRadio.checked = true;
         }
       }
+      if (name) {
+        syncRadioGroupStyles(this.formElement, name);
+      }
     } else if (fieldElement.type === 'checkbox') {
       // Voor checkboxes: zet checked status op basis van waarde
       fieldElement.checked = (value === 'true' || value === true);
@@ -258,10 +262,10 @@ export const formHandler = {
         // Pas sanitization toe op de geladen waarde
         this.formData[fieldName] = sanitizeField(valueToLoad, fieldConfig, fieldName);
         
-        // Voor radio/checkbox: NIET overschrijven - laat DOM intact
         if (fieldConfig.inputType === 'radio' || fieldConfig.inputType === 'checkbox') {
+          this._setFieldValue(fieldEl, this.formData[fieldName]);
           console.log(
-            `🔄 [FormHandler] Veld '${fieldName}' (${fieldConfig.inputType}): DOM intact gelaten, formData ingesteld op: ${this.formData[fieldName]}`
+            `🔄 [FormHandler] Veld '${fieldName}' (${fieldConfig.inputType}) ingesteld op geladen waarde: ${this.formData[fieldName]}`
           );
         } else {
           this._setFieldValue(fieldEl, this.formData[fieldName]);
@@ -274,10 +278,10 @@ export const formHandler = {
         const initialRawValue = this._getFieldValue(fieldEl); // Gebruik helper voor radio/checkbox support
         this.formData[fieldName] = sanitizeField(initialRawValue, fieldConfig, fieldName); // Sanitize deze waarde
         
-        // Voor radio/checkbox: NOOIT DOM overschrijven - laat Webflow/script values intact
         if (fieldConfig.inputType === 'radio' || fieldConfig.inputType === 'checkbox') {
+          this._setFieldValue(fieldEl, this.formData[fieldName]);
           console.log(
-            `🔄 [FormHandler] Veld '${fieldName}' (${fieldConfig.inputType}): DOM intact gelaten, formData gelezen als: '${this.formData[fieldName]}'`
+            `🔄 [FormHandler] Veld '${fieldName}' (${fieldConfig.inputType}) ingesteld op huidige DOM waarde: '${this.formData[fieldName]}'`
           );
         } else {
           // Update het DOM-element alleen als de sanitization de waarde heeft veranderd
@@ -324,8 +328,9 @@ export const formHandler = {
       // Stel opgeslagen waarde in als default, maar NIET voor radio/checkbox (DOM intact laten)
       if (this.formData[fieldName] != null) {
         if (fieldConfig.inputType === 'radio' || fieldConfig.inputType === 'checkbox') {
+          this._setFieldValue(fieldEl, this.formData[fieldName]);
           console.log(
-            `🔄 [FormHandler] Veld '${fieldName}' (${fieldConfig.inputType}): DOM intact gelaten bij tweede loop, formData: ${this.formData[fieldName]}`
+            `🔄 [FormHandler] Veld '${fieldName}' (${fieldConfig.inputType}) gesynchroniseerd met opgeslagen waarde: ${this.formData[fieldName]}`
           );
         } else {
           fieldEl.value = this.formData[fieldName];
@@ -441,6 +446,10 @@ export const formHandler = {
     this.formData[fieldName] = cleanValue;
     this.formState[fieldName].isTouched = true; // Markeer het veld als 'touched'.
     console.log(`📝 [FormHandler] Data voor '${fieldName}' geüpdatet naar: '${cleanValue}'`);
+
+    if (fieldSchema.inputType === 'radio') {
+      syncRadioGroupStyles(this.formElement, fieldName);
+    }
 
     // Logica voor het persisteren (opslaan) van de veldwaarde.
     const persistType = fieldSchema.persist;

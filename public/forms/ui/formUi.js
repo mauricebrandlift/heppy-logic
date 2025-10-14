@@ -172,3 +172,39 @@ export function hideError(errorEl) {
   errorEl.textContent = '';
   errorEl.classList.add('hide');
 }
+
+/**
+ * Synchroniseer stylingklassen voor custom radio groepen (bijv. Webflow "radio-fancy").
+ * Zet de actieve klasse op het omliggende label en verwijdert deze van niet-geselecteerde opties.
+ * @param {HTMLFormElement} formEl
+ * @param {string} fieldName
+ * @param {Object} [options]
+ * @param {string} [options.activeClass='is-checked']
+ * @param {string[]} [options.wrapperSelectors=['.w-radio', '.radio-fancy_field']]
+ */
+export function syncRadioGroupStyles(formEl, fieldName, options = {}) {
+  if (!formEl || !fieldName) return;
+
+  const {
+    activeClass = 'is-checked',
+    wrapperSelectors = ['.w-radio', '.radio-fancy_field'],
+  } = options;
+
+  const radios = formEl.querySelectorAll(`input[type="radio"][data-field-name="${fieldName}"]`);
+  if (!radios.length) return;
+
+  radios.forEach((radio) => {
+    const isActive = !!radio.checked;
+
+    // Toggle Webflow helper class zodat styling matcht alsof gebruiker zelf klikte
+    radio.classList.toggle('w--redirected-checked', isActive);
+    radio.setAttribute('aria-checked', isActive ? 'true' : 'false');
+
+    wrapperSelectors.forEach((selector) => {
+      const wrapper = radio.closest(selector);
+      if (wrapper) {
+        wrapper.classList.toggle(activeClass, isActive);
+      }
+    });
+  });
+}
