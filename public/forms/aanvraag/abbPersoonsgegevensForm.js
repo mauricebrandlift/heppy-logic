@@ -59,7 +59,7 @@ export function initAbbPersoonsgegevensForm() {
     });
     // Na prefill: update submit state
     if (typeof formHandler.updateSubmitState === 'function') {
-      formHandler.updateSubmitState();
+      formHandler.updateSubmitState('abb_persoonsgegevens-form');
     }
   }
 }

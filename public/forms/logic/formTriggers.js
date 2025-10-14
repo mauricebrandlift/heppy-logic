@@ -52,6 +52,15 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
     return () => {};
   }
 
+  const formName = formHandler.schema?.name;
+  if (!formName) {
+    console.error('[formTriggers] Kon formName niet bepalen voor addressLookup trigger');
+    return () => {};
+  }
+
+  const runInContext = (cb) => formHandler.runWithFormContext(formName, cb, { createIfMissing: false });
+  const getSchema = () => runInContext(() => formHandler.schema);
+
   let debounceTimeout = null;
   let lastProcessedValues = { postcode: '', huisnummer: '' };
 
@@ -60,7 +69,7 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
    * volgens de validators in het schema
    */
   function areFieldsValid(postcode, huisnummer) {
-    const schema = formHandler.schema;
+    const schema = getSchema();
     if (!schema || !schema.fields) return false;
 
     const postcodeField = schema.fields[config.postcodeField];
@@ -120,10 +129,12 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
         plaatsInput.value = '';
         
         // Update ook formHandler.formData indien beschikbaar
-        if (formHandler.formData) {
-          formHandler.formData[config.straatField] = '';
-          formHandler.formData[config.plaatsField] = '';
-        }
+        runInContext(() => {
+          if (formHandler.formData) {
+            formHandler.formData[config.straatField] = '';
+            formHandler.formData[config.plaatsField] = '';
+          }
+        });
         
         // Trigger change events om andere logica te laten weten dat de velden zijn bijgewerkt
         straatInput.dispatchEvent(new Event('change', { bubbles: true }));
@@ -134,8 +145,9 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
           // Gebruik de error code ADDRESS_NOT_FOUND die in commonMessages.js gedefinieerd is
           const errorCode = 'ADDRESS_NOT_FOUND';
           let errorMessage = 'Geen geldig adres gevonden. Controleer of uw postcode en huisnummer correct zijn ingevoerd.';// Gebruik de foutmelding uit het schema indien beschikbaar
-          if (formHandler.schema && formHandler.schema.globalMessages && formHandler.schema.globalMessages[errorCode]) {
-            errorMessage = formHandler.schema.globalMessages[errorCode];
+          const schema = getSchema();
+          if (schema && schema.globalMessages && schema.globalMessages[errorCode]) {
+            errorMessage = schema.globalMessages[errorCode];
           }
           
           showError(errorContainer, errorMessage);
@@ -148,7 +160,7 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
         if (huisnummerContainer) huisnummerContainer.classList.add('has-error');
         
         // Update submit button status om te voorkomen dat formulier verstuurd kan worden
-        formHandler.updateSubmitState();
+  formHandler.updateSubmitState(formName);
         
         return;
       }      // Als het adres succesvol is opgehaald, verwijder eventuele foutmeldingen en foutstatussen
@@ -170,17 +182,19 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
       straatInput.value = addressDetails.straat;
       plaatsInput.value = addressDetails.plaats;
         // Update formHandler.formData
-      if (formHandler.formData) {
-        formHandler.formData[config.straatField] = addressDetails.straat;
-        formHandler.formData[config.plaatsField] = addressDetails.plaats;
-      }
+      runInContext(() => {
+        if (formHandler.formData) {
+          formHandler.formData[config.straatField] = addressDetails.straat;
+          formHandler.formData[config.plaatsField] = addressDetails.plaats;
+        }
+      });
       
       // Trigger change events om andere logica te laten weten dat de velden zijn bijgewerkt
       straatInput.dispatchEvent(new Event('change', { bubbles: true }));
       plaatsInput.dispatchEvent(new Event('change', { bubbles: true }));
       
       // Update submit button status nu de velden zijn ingevuld
-      formHandler.updateSubmitState();
+  formHandler.updateSubmitState(formName);
         } catch (error) {
       console.error('[formTriggers] Fout bij ophalen adresgegevens:', error);
       
@@ -189,16 +203,18 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
       plaatsInput.value = '';
       
       // Update ook formHandler.formData indien beschikbaar
-      if (formHandler.formData) {
-        formHandler.formData[config.straatField] = '';
-        formHandler.formData[config.plaatsField] = '';
-      }
+      runInContext(() => {
+        if (formHandler.formData) {
+          formHandler.formData[config.straatField] = '';
+          formHandler.formData[config.plaatsField] = '';
+        }
+      });
         // Trigger change events om andere logica te laten weten dat de velden zijn bijgewerkt
       straatInput.dispatchEvent(new Event('change', { bubbles: true }));
       plaatsInput.dispatchEvent(new Event('change', { bubbles: true }));
       
       // Update submit button status om te zorgen dat de knop disabled wordt
-      formHandler.updateSubmitState();
+  formHandler.updateSubmitState(formName);
       
       // Toon een gebruiksvriendelijke foutmelding gebaseerd op het type fout
       const errorContainer = formElement.querySelector('[data-error-for="global"]');
@@ -219,8 +235,10 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
         }
         
         // Haal foutmelding op uit schema, of gebruik standaard foutmelding
-        let errorMessage = 'Er is een fout opgetreden bij het ophalen van uw adres.';        if (formHandler.schema && formHandler.schema.globalMessages && formHandler.schema.globalMessages[errorCode]) {
-          errorMessage = formHandler.schema.globalMessages[errorCode];
+        let errorMessage = 'Er is een fout opgetreden bij het ophalen van uw adres.';
+        const schema = getSchema();
+        if (schema && schema.globalMessages && schema.globalMessages[errorCode]) {
+          errorMessage = schema.globalMessages[errorCode];
         }
         
         showError(errorContainer, errorMessage);
@@ -233,7 +251,7 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
       if (huisnummerContainer) huisnummerContainer.classList.add('has-error');
       
       // Update submit button status om te zorgen dat de knop disabled wordt
-      formHandler.updateSubmitState();
+  formHandler.updateSubmitState(formName);
     }
   }  /**
    * Event handler met debounce voor input events
@@ -256,31 +274,30 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
     }
     
     // Reset de straat- en plaatsnaam velden als ze bestaan
-    if (formHandler.formData) {
-      // Als een van de postcode of huisnummer velden is gewijzigd,
-      // moeten we de afhankelijke velden ook resetten totdat de API is aangeroepen
-      if (formHandler.schema && formHandler.schema.fields) {
-        const serverValidatedFields = Object.entries(formHandler.schema.fields)
-          .filter(([_, fieldConfig]) => fieldConfig.requiresServerValidation)
-          .filter(([_, fieldConfig]) => {
-            // Check if this field depends on the changed field
-            return fieldConfig.validationDependsOn && 
-              (fieldConfig.validationDependsOn.includes('postcode') || 
-               fieldConfig.validationDependsOn.includes('huisnummer'));
-          })
-          .map(([fieldName]) => fieldName);
-        
-        // Reset all server-validated fields that depend on postcode/huisnummer
-        serverValidatedFields.forEach(fieldName => {
-          formHandler.formData[fieldName] = '';
-          const fieldEl = formElement.querySelector(`[data-field-name="${fieldName}"]`);
-          if (fieldEl) fieldEl.value = '';
-        });
-        
-        // Update the submit button status to reflect these changes
-        formHandler.updateSubmitState();
+    runInContext(() => {
+      if (!formHandler.formData || !formHandler.schema || !formHandler.schema.fields) {
+        return;
       }
-    }
+
+      const serverValidatedFields = Object.entries(formHandler.schema.fields)
+        .filter(([_, fieldConfig]) => fieldConfig.requiresServerValidation)
+        .filter(([_, fieldConfig]) => {
+          return (
+            fieldConfig.validationDependsOn &&
+            (fieldConfig.validationDependsOn.includes('postcode') ||
+              fieldConfig.validationDependsOn.includes('huisnummer'))
+          );
+        })
+        .map(([fieldName]) => fieldName);
+
+      serverValidatedFields.forEach((fieldName) => {
+        formHandler.formData[fieldName] = '';
+        const fieldEl = formElement.querySelector(`[data-field-name="${fieldName}"]`);
+        if (fieldEl) fieldEl.value = '';
+      });
+
+      formHandler.updateSubmitState(formName);
+    });
     
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(lookupAndFillAddress, 500);

@@ -377,7 +377,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
           });
         }
 
-        formHandler.updateSubmitState();
+  formHandler.updateSubmitState('abb_opdracht-form');
 
         const error = new Error('Niet alle verplichte velden zijn ingevuld.');
         error.code = 'REQUIRED_FIELDS_MISSING';
@@ -480,7 +480,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
     await performCalculations(formData, formElement);
   }
 
-  formHandler.updateSubmitState();
+  formHandler.updateSubmitState('abb_opdracht-form');
     console.log('✅ [AbbOpdrachtForm] Initialisatie voltooid');
 }
 

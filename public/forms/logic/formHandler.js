@@ -41,6 +41,80 @@ export const formHandler = {
   formData: {}, // Huidige waarden van alle velden
   formState: {}, // State per veld (bijv. isTouched)
   _triggerCleanupFunctions: [], // Opslag voor cleanup functie van triggers
+  _contexts: new Map(), // Opslag voor formuliercontexten per form name
+  _activeFormName: null,
+
+  _saveActiveContext() {
+    if (!this._activeFormName) return;
+    this._contexts.set(this._activeFormName, {
+      schema: this.schema,
+      formElement: this.formElement,
+      formData: this.formData,
+      formState: this.formState,
+      triggerCleanupFunctions: this._triggerCleanupFunctions,
+    });
+  },
+
+  _loadContext(formName, { createIfMissing = true } = {}) {
+    if (!formName) return null;
+    if (this._activeFormName === formName && this.schema) {
+      return {
+        schema: this.schema,
+        formElement: this.formElement,
+        formData: this.formData,
+        formState: this.formState,
+        triggerCleanupFunctions: this._triggerCleanupFunctions,
+      };
+    }
+
+    this._saveActiveContext();
+
+    let context = this._contexts.get(formName);
+    if (!context) {
+      if (!createIfMissing) return null;
+      context = {
+        schema: null,
+        formElement: null,
+        formData: {},
+        formState: {},
+        triggerCleanupFunctions: [],
+      };
+      this._contexts.set(formName, context);
+    }
+
+    this.schema = context.schema;
+    this.formElement = context.formElement;
+    this.formData = context.formData;
+    this.formState = context.formState;
+    this._triggerCleanupFunctions = context.triggerCleanupFunctions || [];
+    this._activeFormName = formName;
+
+    return context;
+  },
+
+  activate(formName) {
+    this._loadContext(formName, { createIfMissing: false });
+  },
+
+  runWithFormContext(formName, fn, { createIfMissing = false } = {}) {
+    if (!formName || typeof fn !== 'function') {
+      return;
+    }
+
+    const previousFormName = this._activeFormName;
+    const context = this._loadContext(formName, { createIfMissing });
+    if (!context) {
+      return;
+    }
+
+    try {
+      return fn(context);
+    } finally {
+      if (previousFormName && previousFormName !== formName) {
+        this._loadContext(previousFormName, { createIfMissing: false });
+      }
+    }
+  },
 
   /**
    * 🔌 Initialiseert triggers op basis van het schema
@@ -163,19 +237,19 @@ export const formHandler = {
    * @param {string} fieldName - Naam van het veld
    * @param {Object} fieldConfig - Configuratie van het veld
    */
-  _bindFieldEvents(fieldElement, fieldName, fieldConfig) {
+  _bindFieldEvents(fieldElement, fieldName, fieldConfig, formName) {
     if (fieldElement.type === 'radio') {
       // Voor radio buttons: bind change event op alle radios in de groep
       const name = fieldElement.name || fieldElement.getAttribute('data-field-name');
       if (name) {
         const allRadios = this.formElement.querySelectorAll(`input[name="${name}"], input[data-field-name="${name}"]`);
         allRadios.forEach(radio => {
-          radio.addEventListener('change', (e) => this.handleInput(fieldName, e));
+          radio.addEventListener('change', (e) => this.handleInput(fieldName, e, formName));
         });
       }
     } else {
       // Voor andere velden: gewoon change event
-      fieldElement.addEventListener('change', (e) => this.handleInput(fieldName, e));
+      fieldElement.addEventListener('change', (e) => this.handleInput(fieldName, e, formName));
     }
 
     // Input filters toepassen indien gedefinieerd
@@ -212,6 +286,7 @@ export const formHandler = {
    */
   init(schema) {
     console.log(`🚀 [FormHandler] Init formulier: ${schema.name} (selector: ${schema.selector})`);
+    const context = this._loadContext(schema.name) || {};
     this.schema = schema;
     this.formElement = document.querySelector(schema.selector);
     if (!this.formElement) {
@@ -220,8 +295,18 @@ export const formHandler = {
     }
 
     const formSpecificSavedData = loadFormData(schema.name) || {};
-    this.formData = {}; // Reset formData
+    this.formData = {};
     this.formState = {};
+    this._triggerCleanupFunctions = [];
+    this._activeFormName = schema.name;
+
+    context.schema = this.schema;
+    context.formElement = this.formElement;
+    context.formData = this.formData;
+    context.formState = this.formState;
+    context.triggerCleanupFunctions = this._triggerCleanupFunctions;
+    this._contexts.set(schema.name, context);
+
     clearErrors(this.formElement);
     clearGlobalError(this.formElement);
     console.log(
@@ -295,9 +380,9 @@ export const formHandler = {
       }
 
       this.formState[fieldName] = { isTouched: false };
-      
+
       // Bind events using helper function (handles radio buttons correctly)
-      this._bindFieldEvents(fieldEl, fieldName, fieldConfig);
+      this._bindFieldEvents(fieldEl, fieldName, fieldConfig, schema.name);
     });
 
     console.log(`🔄 [FormHandler] Initial formData state na laden:`, this.formData);
@@ -316,37 +401,6 @@ export const formHandler = {
     // Initialiseer triggers indien aanwezig in het schema
     this._initTriggers();
 
-    // Voor elk veld: zet value, init state en bind input-event
-    Object.keys(schema.fields).forEach((fieldName) => {
-      const fieldConfig = schema.fields[fieldName];
-      const fieldEl = this.formElement.querySelector(`[data-field-name="${fieldName}"]`);
-      if (!fieldEl) {
-        console.warn(`⚠️ [FormHandler] Veld '${fieldName}' niet gevonden in DOM`);
-        return;
-      }
-
-      // Stel opgeslagen waarde in als default, maar NIET voor radio/checkbox (DOM intact laten)
-      if (this.formData[fieldName] != null) {
-        if (fieldConfig.inputType === 'radio' || fieldConfig.inputType === 'checkbox') {
-          this._setFieldValue(fieldEl, this.formData[fieldName]);
-          console.log(
-            `🔄 [FormHandler] Veld '${fieldName}' (${fieldConfig.inputType}) gesynchroniseerd met opgeslagen waarde: ${this.formData[fieldName]}`
-          );
-        } else {
-          fieldEl.value = this.formData[fieldName];
-          console.log(
-            `🔄 [FormHandler] Veld '${fieldName}' ingesteld op opgeslagen waarde: ${this.formData[fieldName]}`
-          );
-        }
-      }
-
-      // Init state (bijv. voor touched/dirty tracking)
-      this.formState[fieldName] = { isTouched: false };
-
-      // Bind input event: sanitize, valideer, sla op, update UI
-      fieldEl.addEventListener('change', (e) => this.handleInput(fieldName, e));
-    });
-
     // Bind click op custom submit-knop specifiek voor dit formulier
     const submitBtn = this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
     if (!submitBtn) {
@@ -355,6 +409,7 @@ export const formHandler = {
       );
     } else {
       submitBtn.addEventListener('click', (e) => {
+        this._loadContext(schema.name);
         // Voer client-side validatie uit direct bij de klik, voordat handleSubmit wordt aangeroepen.
         const { isFormValid: isFormCurrentlyValid, fieldErrors: currentFieldErrors } = validateForm(
           this.formData,
@@ -400,11 +455,11 @@ export const formHandler = {
         }
 
         // Als het formulier hier wel geldig is, ga dan pas naar de handleSubmit flow
-        this.handleSubmit(e);
+        this.handleSubmit(e, schema.name);
       });
     }
     // Update de submit button state direct na initialisatie en het binden van alle events
-    this.updateSubmitState();
+    this.updateSubmitState(schema.name);
   },
 
   /**
@@ -421,7 +476,8 @@ export const formHandler = {
    * @param {string} fieldName - Naam van het veld
    * @param {Event} event - Input-event met raw waarde
    */
-  handleInput(fieldName, event) {
+  handleInput(fieldName, event, formName = this._activeFormName) {
+    this._loadContext(formName);
     const fieldSchema = this.schema.fields[fieldName];
     if (!fieldSchema) {
       console.warn(`[FormHandler] Geen fieldSchema gevonden voor '${fieldName}' in handleInput.`);
@@ -560,7 +616,16 @@ export const formHandler = {
    * Gebruikt validateForm om de globale validatie-status te bepalen.
    * Controleert ook of velden die server-validatie nodig hebben ingevuld zijn.
    */
-  updateSubmitState() {
+  updateSubmitState(formName = this._activeFormName) {
+    const context = this._loadContext(formName, { createIfMissing: false });
+    if (!context && !this.schema) {
+      return;
+    }
+
+    if (!this.schema) {
+      return;
+    }
+
     const { isFormValid: basicFormValid } = validateForm(this.formData, this.schema, this.formState);
     
     // Haal alle velden op die server-validatie vereisen 
@@ -604,7 +669,8 @@ export const formHandler = {
    *
    * @param {Event} event - Submit-event van het formulier
    */
-  async handleSubmit(event) {
+  async handleSubmit(event, formName = this._activeFormName) {
+    this._loadContext(formName);
     event.preventDefault();
     clearErrors(this.formElement);
     clearGlobalError(this.formElement);
@@ -657,16 +723,25 @@ export const formHandler = {
    * 🧹 Ruimt alle resources op die door het formulier worden gebruikt.
    * Dient aangeroepen te worden wanneer een formulier niet meer nodig is.
    */
-  destroy() {
-    console.log(`🧹 [FormHandler] Opruimen van formulier: ${this.schema?.name}`);
+  destroy(formName = this._activeFormName) {
+    const context = this._loadContext(formName, { createIfMissing: false });
+    if (!context) {
+      return;
+    }
 
-    // Ruim triggers op
+    console.log(`🧹 [FormHandler] Opruimen van formulier: ${context.schema?.name}`);
+
     this._cleanupTriggers();
 
-    // Reset state
-    this.schema = null;
-    this.formElement = null;
-    this.formData = {};
-    this.formState = {};
+    this._contexts.delete(formName);
+
+    if (this._activeFormName === formName) {
+      this.schema = null;
+      this.formElement = null;
+      this.formData = {};
+      this.formState = {};
+      this._triggerCleanupFunctions = [];
+      this._activeFormName = null;
+    }
   },
 };

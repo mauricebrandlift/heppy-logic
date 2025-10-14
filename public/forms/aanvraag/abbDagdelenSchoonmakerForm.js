@@ -401,10 +401,10 @@ function bindSchoonmakerRadioEvents(formElement) {
     radio.addEventListener('change', (e) => {
       try {
         if (formHandler && typeof formHandler.handleInput === 'function') {
-          formHandler.handleInput('schoonmakerKeuze', e);
+          formHandler.handleInput('schoonmakerKeuze', e, 'abb_dagdelen-schoonmaker-form');
         }
         if (formHandler && typeof formHandler.updateSubmitState === 'function') {
-          formHandler.updateSubmitState();
+          formHandler.updateSubmitState('abb_dagdelen-schoonmaker-form');
         }
       } catch (err) {
         console.warn('[SchoonmakerForm] Kon radio change niet verwerken:', err);
@@ -447,11 +447,15 @@ function clearSchoonmakerKeuze(formElement) {
 
   // Reset formHandler state zodat validateForm geen oude waarde gebruikt
   try {
-    if (formHandler && formHandler.schema && formHandler.schema.name === 'abb_dagdelen-schoonmaker-form') {
-      formHandler.formData = { ...formHandler.formData, schoonmakerKeuze: '' };
-      if (typeof formHandler.updateSubmitState === 'function') {
-        formHandler.updateSubmitState();
-      }
+    if (formHandler && typeof formHandler.runWithFormContext === 'function') {
+      formHandler.runWithFormContext('abb_dagdelen-schoonmaker-form', () => {
+        if (formHandler.formData) {
+          formHandler.formData.schoonmakerKeuze = '';
+        }
+        if (typeof formHandler.updateSubmitState === 'function') {
+          formHandler.updateSubmitState('abb_dagdelen-schoonmaker-form');
+        }
+      });
     }
   } catch (e) {
     console.warn('[SchoonmakerForm] Kon keuze reset niet volledig doorvoeren:', e);
@@ -528,7 +532,7 @@ async function fetchEnToonSchoonmakers(formElement, gebruikDagdelenFilter = fals
   // Update form status: herbereken submit-state i.p.v. niet-bestaande validateField
     // (andere formulieren vertrouwen op de centrale validatie-flow in formHandler)
     if (formHandler && typeof formHandler.updateSubmitState === 'function') {
-      formHandler.updateSubmitState();
+      formHandler.updateSubmitState('abb_dagdelen-schoonmaker-form');
     }
 
   // Bind events op de dynamisch gerenderde radio's
@@ -731,7 +735,7 @@ export async function initAbbDagdelenSchoonmakerForm() {
   // Zorg dat er bij start geen selectie actief is en de knop disabled is
   clearSchoonmakerKeuze(formElement);
   if (formHandler && typeof formHandler.updateSubmitState === 'function') {
-    formHandler.updateSubmitState();
+    formHandler.updateSubmitState('abb_dagdelen-schoonmaker-form');
   }
   
   // Initialiseer dagdeel selectie event listeners
@@ -751,7 +755,7 @@ export async function initAbbDagdelenSchoonmakerForm() {
   
   // Zorg dat de submit-state klopt na init (start disabled tot er een keuze is)
   if (formHandler && typeof formHandler.updateSubmitState === 'function') {
-    formHandler.updateSubmitState();
+    formHandler.updateSubmitState('abb_dagdelen-schoonmaker-form');
   }
 
   console.log('✅ [AbbDagdelenSchoonmakerForm] Initialisatie voltooid');
