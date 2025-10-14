@@ -109,6 +109,7 @@ function resetRadioState(container, contextLabel = '') {
   const radio = container.querySelector('input[type="radio"]');
   const label = radio ? radio.closest('label, .w-radio') : null;
   const redirectedTargets = container.querySelectorAll('.w--redirected-checked, .w--redirected-focus');
+  const isCheckedTargets = container.querySelectorAll('.is-checked');
 
   const beforeState = {
     context: contextLabel,
@@ -126,12 +127,14 @@ function resetRadioState(container, contextLabel = '') {
     radio.removeAttribute('checked');
     radio.defaultChecked = false;
     radio.setAttribute('aria-checked', 'false');
+    radio.dispatchEvent(new Event('change', { bubbles: true }));
   }
 
   const targets = [container, label].filter(Boolean);
 
   targets.forEach((el) => {
     el.classList.remove('w--redirected-checked', 'w--redirected-focus');
+    el.classList.remove('is-checked');
     if (el.hasAttribute('aria-checked')) {
       el.setAttribute('aria-checked', 'false');
     }
@@ -148,6 +151,10 @@ function resetRadioState(container, contextLabel = '') {
     if (el.hasAttribute('aria-selected')) {
       el.setAttribute('aria-selected', 'false');
     }
+  });
+
+  isCheckedTargets.forEach((el) => {
+    el.classList.remove('is-checked');
   });
 
   const afterState = {
