@@ -482,6 +482,7 @@ function addNoPreferenceOption() {
       radio.checked = false;
       radio.removeAttribute('checked');
     }
+    resetRadioState(formStatus.geenVoorkeurElement, 'geen-voorkeur-init');
   }
 }
 
@@ -495,6 +496,10 @@ function clearSchoonmakerKeuze(formElement) {
   // Uncheck alle radio's in de groep
   const radios = formElement.querySelectorAll('input[type="radio"][name="schoonmakerKeuze"]');
   radios.forEach(r => { r.checked = false; r.removeAttribute('checked'); });
+
+  if (formStatus.geenVoorkeurElement) {
+    resetRadioState(formStatus.geenVoorkeurElement, 'geen-voorkeur-clear');
+  }
 
   // Reset formHandler state zodat validateForm geen oude waarde gebruikt
   try {
