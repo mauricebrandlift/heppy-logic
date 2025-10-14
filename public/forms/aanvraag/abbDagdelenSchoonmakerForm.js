@@ -29,6 +29,7 @@ const formStatus = {
   isLoading: false,
   schoonmakersWrapper: null, // [data-element="schoonmakers-list"]
   schoonmakerTemplate: null,
+  schoonmakerPrototype: null,
   totaalSchoonmakers: 0,
   totaalElement: null,        // [data-element="schoonmakers-total"]
   geenVoorkeurElement: null,  // [data-element="schoonmakers-geen-voorkeur"]
@@ -110,13 +111,14 @@ function updateLoadingState(isLoading) {
  * @returns {HTMLElement} - Het schoonmaker element
  */
 function renderSchoonmaker(schoonmaker, dagdelenFilter = null) {
-  if (!formStatus.schoonmakerTemplate) {
-    console.error('❌ [SchoonmakerForm] Geen schoonmaker template gevonden');
+  const sourceTemplate = formStatus.schoonmakerPrototype || formStatus.schoonmakerTemplate;
+  if (!sourceTemplate) {
+    console.error('❌ [SchoonmakerForm] Geen schoonmaker template beschikbaar om te klonen');
     return null;
   }
   
   // Kloon het template
-  const schoonmakerEl = formStatus.schoonmakerTemplate.cloneNode(true);
+  const schoonmakerEl = sourceTemplate.cloneNode(true);
   schoonmakerEl.style.display = 'block'; // Maak zichtbaar
   
   // Voeg id toe als waarde voor de radio button
@@ -648,11 +650,13 @@ export async function initAbbDagdelenSchoonmakerForm() {
   // Vind het template voor een schoonmaker item
   formStatus.schoonmakerTemplate = document.querySelector('[data-render-element="schoonmaker"]');
   
-  // Verberg het template als het gevonden is
   if (formStatus.schoonmakerTemplate) {
+    if (!formStatus.schoonmakerPrototype) {
+      formStatus.schoonmakerPrototype = formStatus.schoonmakerTemplate.cloneNode(true);
+    }
     formStatus.schoonmakerTemplate.style.display = 'none';
-  } else {
-    console.error('❌ [SchoonmakerForm] Geen schoonmaker template gevonden met attribuut [data-render-element="schoonmaker"]');
+  } else if (!formStatus.schoonmakerPrototype) {
+    console.error('❌ [SchoonmakerForm] Geen schoonmaker template gevonden met attribuut [data-render-element="schoonmaker"] en geen fallback prototype beschikbaar');
   }
   
   // Voeg submit handler toe aan schema
