@@ -744,9 +744,14 @@ export async function initAbbDagdelenSchoonmakerForm() {
   
   // Initialiseer dagdeel selectie event listeners
   initDagdeelSelectors(formElement);
-  
-  // Haal initiële schoonmakers op (zonder dagdelen filter)
-  await fetchEnToonSchoonmakers(formElement, false);
+
+  const hasPresetDagdelen = !!formElement.querySelector('input[type="checkbox"][data-field-name="dagdeel"]:checked');
+
+  if (hasPresetDagdelen) {
+    await fetchEnToonSchoonmakers(formElement, true);
+  } else {
+    await fetchEnToonSchoonmakers(formElement, false);
+  }
   
   // Check voor bestaande selectie (als we terugkomen vanaf een volgende stap)
   const flowData = loadFlowData('abonnement-aanvraag') || {};
