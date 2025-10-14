@@ -40,6 +40,18 @@ const calculation = {
 };
 
 /**
+ * Zet de waarde van een radio group (data-field-name=fieldName) op basis van value
+ * @param {HTMLElement} formElement
+ * @param {string} fieldName
+ * @param {string} value
+ */
+function setRadioGroupValue(formElement, fieldName, value){
+  if(!formElement || !value) return;
+  const radios = formElement.querySelectorAll(`input[type="radio"][data-field-name="${fieldName}"]`);
+  radios.forEach(r => { r.checked = (r.value === value); });
+}
+
+/**
  * Haal de prijsconfiguratie op van de backend API
  * @returns {Promise<boolean>} true als het ophalen is gelukt, false als er een fout optrad
  */
@@ -312,9 +324,11 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       // Voor backward compatibility, sla ook op in de global field data
       saveGlobalFieldData('abb_m2', formData.abb_m2);
       saveGlobalFieldData('abb_toiletten', formData.abb_toiletten);
-  saveGlobalFieldData('abb_badkamers', formData.abb_badkamers);
-  saveGlobalFieldData('frequentie', formData.frequentie);
-      saveGlobalFieldData('weeknr', formData.weeknr); // Sla ook op in global data    },    onSuccess: () => {
+      saveGlobalFieldData('abb_badkamers', formData.abb_badkamers);
+      saveGlobalFieldData('frequentie', formData.frequentie);
+      saveGlobalFieldData('weeknr', formData.weeknr); // Sla ook op in global data
+    },
+    onSuccess: () => {
       console.log('✅ [AbbOpdrachtForm] Formulier succesvol verwerkt, naar volgende slide...');
       
       // Import en initialiseer de volgende stap: dagdelen & schoonmaker keuze
@@ -338,31 +352,42 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
   // Set up de uren +/- knoppen
   setupHourButtons(document.querySelector(schema.selector));
     // Haal eventuele opgeslagen flow data op
-  const flowData = loadFlowData('abonnement-aanvraag') || {};
+    const flowData = loadFlowData('abonnement-aanvraag') || {};
   
   // Bereid formulierdata voor met waarden uit de flow of uit de velden zelf
   const formData = {};
   const formElement = document.querySelector(schema.selector);
   
   // Controleer elk veld en vul het in met opgeslagen waarden indien beschikbaar
-  ['frequentie','abb_m2', 'abb_toiletten', 'abb_badkamers', 'weeknr'].forEach(key => {
-    // Eerst proberen uit flow data te halen
-    if (flowData[key]) {
-      formData[key] = flowData[key];
-      
-      // Vul het veld ook in de UI in
+  // Veldprefill met fallback volgorde: flowData → globalFieldData → huidige DOM
+  const prefFields = ['frequentie','abb_m2','abb_toiletten','abb_badkamers','weeknr'];
+  prefFields.forEach(key => {
+    let value = flowData[key];
+    if(value == null){
+      const globalVal = loadGlobalFieldData(key);
+      if(globalVal != null) value = globalVal;
+    }
+    if(!value){
       const el = formElement.querySelector(`[data-field-name="${key}"]`);
-      if (el) {
-        el.value = flowData[key];
-      }
-    } else {
-      // Anders uit het huidige formulier halen
-      const el = formElement.querySelector(`[data-field-name="${key}"]`);
-      if (el && el.value) {
-        formData[key] = el.value;
+      if(el && el.value) value = el.value;
+    }
+    if(value != null){
+      formData[key] = value;
+      if(key === 'frequentie'){
+        setRadioGroupValue(formElement, 'frequentie', value);
+      } else {
+        const el = formElement.querySelector(`[data-field-name="${key}"]`);
+        if(el) el.value = value;
       }
     }
   });
+
+  // Als frequentie gezet is, ook opslaan in flow/global (consistente state)
+  if(formData.frequentie){
+    flowData.frequentie = formData.frequentie;
+    saveGlobalFieldData('frequentie', formData.frequentie);
+    saveFlowData('abonnement-aanvraag', flowData);
+  }
   
   // Als er voldoende gegevens zijn, voer dan een berekening uit
   if (formData.abb_m2 || formData.abb_toiletten || formData.abb_badkamers) {
