@@ -79,6 +79,30 @@ export function getFormSchema(name) {
         }
       )
     },
+    'schoonmaak-frequentie-form': {
+      name: 'schoonmaak-frequentie-form',
+      selector: '[data-form-name="schoonmaak-frequentie-form"]',
+      fields: {
+        frequentie: {
+          label: 'Schoonmaak frequentie',
+          inputType: 'radio',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none',
+          messages: {
+            required: 'Kies een schoonmaakoptie om verder te gaan.'
+          }
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          INVALID_SELECTION: 'Kies een geldige schoonmaakoptie.',
+          DEFAULT: 'Er ging iets mis bij het verwerken van je keuze. Probeer het opnieuw.'
+        }
+      )
+    },
     'abb_adres-form': {
       name: 'abb_adres-form',
       selector: '[data-form-name="abb_adres-form"]',
