@@ -441,6 +441,7 @@ export const formHandler = {
       submitBtn.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
+        console.log('[FormHandler] Submit button click onderschept', { formName: this.schema.name });
         this._loadContext(schema.name);
         // Voer client-side validatie uit direct bij de klik, voordat handleSubmit wordt aangeroepen.
         const { isFormValid: isFormCurrentlyValid, fieldErrors: currentFieldErrors } = validateForm(
@@ -703,6 +704,7 @@ export const formHandler = {
    */
   async handleSubmit(event, formName = this._activeFormName) {
     this._loadContext(formName);
+  console.log('[FormHandler] handleSubmit start', { formName });
     event.preventDefault();
     clearErrors(this.formElement);
     clearGlobalError(this.formElement);

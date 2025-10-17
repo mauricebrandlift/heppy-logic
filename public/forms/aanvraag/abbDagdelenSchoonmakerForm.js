@@ -25,20 +25,24 @@ const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
 const NEXT_FORM_NAME = 'abb_overzicht-form';
 
 function goToFormStep(nextFormName) {
+  console.log('[AbbDagdelenSchoonmakerForm] goToFormStep →', nextFormName);
   if (window.navigateToFormStep) {
     const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
     if (navigated) {
+      console.log('[AbbDagdelenSchoonmakerForm] navigateToFormStep succesvol', nextFormName);
       return true;
     }
     console.warn('[AbbDagdelenSchoonmakerForm] navigateToFormStep kon niet navigeren, probeer fallback.');
   }
 
   if (window.jumpToSlideByFormName) {
+    console.log('[AbbDagdelenSchoonmakerForm] Fallback jumpToSlideByFormName', nextFormName);
     window.jumpToSlideByFormName(nextFormName);
     return true;
   }
 
   if (window.moveToNextSlide) {
+    console.log('[AbbDagdelenSchoonmakerForm] Fallback moveToNextSlide (geen target match)');
     window.moveToNextSlide();
     return true;
   }

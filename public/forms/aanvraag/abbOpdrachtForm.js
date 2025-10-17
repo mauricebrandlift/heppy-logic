@@ -12,20 +12,24 @@ const FORM_NAME = 'abb_opdracht-form';
 const NEXT_FORM_NAME = 'abb_dagdelen-schoonmaker-form';
 
 function goToFormStep(nextFormName) {
+  console.log('[AbbOpdrachtForm] goToFormStep →', nextFormName);
   if (window.navigateToFormStep) {
     const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
     if (navigated) {
+      console.log('[AbbOpdrachtForm] navigateToFormStep succesvol', nextFormName);
       return true;
     }
     console.warn('[AbbOpdrachtForm] navigateToFormStep kon niet navigeren, probeer fallback.');
   }
 
   if (window.jumpToSlideByFormName) {
+    console.log('[AbbOpdrachtForm] Fallback jumpToSlideByFormName', nextFormName);
     window.jumpToSlideByFormName(nextFormName);
     return true;
   }
 
   if (window.moveToNextSlide) {
+    console.log('[AbbOpdrachtForm] Fallback moveToNextSlide (geen target match)');
     window.moveToNextSlide();
     return true;
   }

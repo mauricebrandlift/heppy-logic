@@ -9,20 +9,24 @@ const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
 const NEXT_FORM_NAME = 'abb_persoonsgegevens-form';
 
 function goToFormStep(nextFormName) {
+  console.log('[AbbOverzicht] goToFormStep →', nextFormName);
   if (window.navigateToFormStep) {
     const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
     if (navigated) {
+      console.log('[AbbOverzicht] navigateToFormStep succesvol', nextFormName);
       return true;
     }
     console.warn('[AbbOverzicht] navigateToFormStep kon niet navigeren, probeer fallback.');
   }
 
   if (window.jumpToSlideByFormName) {
+    console.log('[AbbOverzicht] Fallback jumpToSlideByFormName', nextFormName);
     window.jumpToSlideByFormName(nextFormName);
     return true;
   }
 
   if (window.moveToNextSlide) {
+    console.log('[AbbOverzicht] Fallback moveToNextSlide (geen target match)');
     window.moveToNextSlide();
     return true;
   }

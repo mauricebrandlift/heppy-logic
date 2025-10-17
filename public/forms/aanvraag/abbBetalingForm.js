@@ -10,20 +10,24 @@ const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
 const SUCCESS_FORM_NAME = 'abb_succes-form';
 
 function goToFormStep(nextFormName) {
+  console.log('[AbbBetaling] goToFormStep →', nextFormName);
   if (window.navigateToFormStep) {
     const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
     if (navigated) {
+      console.log('[AbbBetaling] navigateToFormStep succesvol', nextFormName);
       return true;
     }
     console.warn('[AbbBetaling] navigateToFormStep kon niet navigeren, probeer fallback.');
   }
 
   if (window.jumpToSlideByFormName) {
+    console.log('[AbbBetaling] Fallback jumpToSlideByFormName', nextFormName);
     window.jumpToSlideByFormName(nextFormName);
     return true;
   }
 
   if (window.moveToNextSlide) {
+    console.log('[AbbBetaling] Fallback moveToNextSlide (geen target match)');
     window.moveToNextSlide();
     return true;
   }

@@ -158,6 +158,7 @@
   };
 
   window.navigateToFormStep = function(currentFormName, nextFormName, { retry = 3, retryDelay = 80 } = {}) {
+    console.log('[Slides] navigateToFormStep request', { currentFormName, nextFormName, retry, retryDelay, navigationLock });
     if (!nextFormName) {
       console.warn('[Slides] navigateToFormStep vereist nextFormName');
       return false;
@@ -165,34 +166,48 @@
 
     const target = document.querySelector(`[data-form-name="${nextFormName}"]`);
     if (!target) {
-      console.warn('[Slides] navigateToFormStep kon target niet vinden voor', nextFormName);
+      console.warn('[Slides] navigateToFormStep kon target niet vinden voor', nextFormName, 'beschikbare namen:', Array.from(document.querySelectorAll('[data-form-name]')).map((el) => el.getAttribute('data-form-name')));
       return false;
     }
 
     if (!acquireNavigationLock()) {
-      console.warn('[Slides] Navigatie geblokkeerd door lopende overgang');
+      console.warn('[Slides] Navigatie geblokkeerd door lopende overgang', { currentFormName, nextFormName, navigationLock });
       return false;
     }
 
     const splideCtx = findSplideContext(target);
 
-    const succeeded = window.jumpToSlideByFormName
-      ? window.jumpToSlideByFormName(nextFormName, { retry, retryDelay })
-      : (typeof window.moveToNextSlide === 'function' ? (window.moveToNextSlide(), true) : false);
+    let succeeded = false;
+    if (window.jumpToSlideByFormName) {
+      console.log('[Slides] Probeer jumpToSlideByFormName', { nextFormName, retry, retryDelay });
+      succeeded = window.jumpToSlideByFormName(nextFormName, { retry, retryDelay });
+    } else if (typeof window.moveToNextSlide === 'function') {
+      console.log('[Slides] jumpToSlideByFormName niet beschikbaar, fallback moveToNextSlide');
+      window.moveToNextSlide();
+      succeeded = true;
+    } else {
+      console.warn('[Slides] Geen bekende navigatiefunctie beschikbaar voor', nextFormName);
+    }
 
     if (!succeeded) {
       releaseNavigationLock();
+      console.warn('[Slides] Navigatie mislukt, lock vrijgegeven', { currentFormName, nextFormName });
       return false;
     }
 
+    console.log('[Slides] Navigatie gestart', { currentFormName, nextFormName, hasSplide: !!(splideCtx && splideCtx.instance) });
     if (splideCtx && splideCtx.instance) {
       const releaseOnMove = () => {
+        console.log('[Slides] Splide moved, lock vrijgegeven', { currentFormName, nextFormName });
         releaseNavigationLock();
         splideCtx.instance.off('moved', releaseOnMove);
       };
       splideCtx.instance.on('moved', releaseOnMove);
     } else {
-      setTimeout(() => releaseNavigationLock(), 600);
+      setTimeout(() => {
+        console.log('[Slides] Geen splide context, lock vrijgegeven via timeout', { currentFormName, nextFormName });
+        releaseNavigationLock();
+      }, 600);
     }
 
     return true;
