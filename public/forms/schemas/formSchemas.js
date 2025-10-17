@@ -30,6 +30,55 @@ export function getFormSchema(name) {
       // Geen submit-logica hier; wordt in addressCheckForm.js toegevoegd
       // Geen triggers in dit formulier; simpel postcodeschema
     },
+    'geen-dekking_form': {
+      name: 'geen-dekking_form',
+      selector: '[data-form-name="geen-dekking_form"]',
+      fields: {
+        plaats: {
+          label: 'Plaats',
+          inputType: 'text',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'global',
+          messages: {
+            required: 'Plaats is verplicht'
+          }
+        },
+        straat: {
+          label: 'Straat',
+          inputType: 'text',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'global',
+          messages: {
+            required: 'Straat is verplicht'
+          }
+        },
+        naam: {
+          label: 'Naam',
+          inputType: 'text',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none',
+          messages: {
+            required: 'Vul je naam in'
+          }
+        },
+        emailadres: {
+          ...commonFields.email,
+          persist: 'none'
+        }
+      },
+      // Submit logica wordt toegevoegd in geenDekkingForm.js
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Bedankt! We laten het je weten zodra we actief zijn in jouw regio.',
+          DUPLICATE_ENTRY: 'Je staat al op onze wachtlijst.'
+        }
+      )
+    },
     'abb_adres-form': {
       name: 'abb_adres-form',
       selector: '[data-form-name="abb_adres-form"]',

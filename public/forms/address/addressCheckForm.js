@@ -50,14 +50,31 @@ export function initAddressCheckForm() {
 
         // Deel gegevens op voor vervolgformulieren
         const normalizedToevoeging = toevoeging || '';
+        const straatValue = addressDetails.straat || '';
+        const plaatsValue = addressDetails.plaats || '';
+
         saveGlobalFieldData('postcode', postcode);
         saveGlobalFieldData('huisnummer', huisnummer);
         saveGlobalFieldData('toevoeging', normalizedToevoeging);
+        if (straatValue) {
+          saveGlobalFieldData('straat', straatValue);
+          saveGlobalFieldData('straatnaam', straatValue);
+        }
+        if (plaatsValue) {
+          saveGlobalFieldData('plaats', plaatsValue);
+        }
 
         const flowData = loadFlowData('abonnement-aanvraag') || {};
         flowData.postcode = postcode;
         flowData.huisnummer = huisnummer;
         flowData.toevoeging = normalizedToevoeging;
+        if (straatValue) {
+          flowData.straat = straatValue;
+          flowData.straatnaam = straatValue;
+        }
+        if (plaatsValue) {
+          flowData.plaats = plaatsValue;
+        }
         saveFlowData('abonnement-aanvraag', flowData);
         
         console.log(`[addressCheckForm] Attempting to check coverage for Plaats: ${addressDetails.plaats}`);
