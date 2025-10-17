@@ -3,7 +3,12 @@
 
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
-import { saveGlobalFieldData, saveFlowData, loadFlowData } from '../logic/formStorage.js';
+import {
+  saveGlobalFieldData,
+  saveFlowData,
+  loadFlowData,
+  loadGlobalFieldData,
+} from '../logic/formStorage.js';
 
 const FORM_NAME = 'schoonmaak-frequentie-form';
 
@@ -59,6 +64,27 @@ export function initSchoonmaakFrequentieForm() {
       `[SchoonmaakFrequentieForm] Form element ${schema.selector} niet gevonden na initialisatie.`
     );
     return;
+  }
+
+  const storedSelection =
+    loadGlobalFieldData('schoonmaak_optie') || loadGlobalFieldData('frequentie');
+
+  if (storedSelection) {
+    const radioToSelect = formElement.querySelector(
+      `input[type="radio"][data-field-name="frequentie"][value="${storedSelection}"]`
+    );
+
+    if (radioToSelect) {
+      radioToSelect.checked = true;
+      formHandler.formData.frequentie = storedSelection;
+
+      formHandler.formState.frequentie = {
+        ...(formHandler.formState.frequentie || {}),
+        isTouched: true,
+      };
+
+      formHandler.handleInput('frequentie', { target: radioToSelect, type: 'prefill' }, FORM_NAME);
+    }
   }
 
   console.log(
