@@ -52,6 +52,16 @@ function formatNumber(value) {
   return new Intl.NumberFormat('nl-NL', { maximumFractionDigits: 1 }).format(num);
 }
 
+function formatFrequentie(value) {
+  if (!value) return '—';
+  const mapping = {
+    perweek: 'Elke week (1× per week)',
+    pertweeweek: 'Om de week (1× per 2 weken)',
+  };
+  const normalized = String(value).trim().toLowerCase();
+  return mapping[normalized] || value;
+}
+
 // Bepaal maandag (ISO) van een gegeven week in een jaar
 function getMondayOfISOWeek(week, year) {
   // 4 januari is altijd in week 1 volgens ISO 8601
@@ -82,7 +92,8 @@ export function initAbbOverzicht() {
   const flow = loadFlowData('abonnement-aanvraag') || {};
 
   // Frequentie (optioneel in flow)
-  setText('[data-overview="frequentie"]', flow.abb_frequentie || flow.frequentie || '—');
+  const frequentieValue = flow.abb_frequentie || flow.frequentie || '';
+  setText('[data-overview="frequentie"]', formatFrequentie(frequentieValue));
 
   // Startweek: weeknr + datum-range
   const weeknr = flow.weeknr || flow.startweek || '';
