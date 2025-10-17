@@ -4,6 +4,8 @@
 import { stripeConfig } from '../../config/index.js';
 import { handleErrorResponse } from '../../utils/errorHandler.js';
 import { createPaymentIntent } from '../../intents/stripePaymentIntent.js';
+import { fetchPricingConfiguration, formatPricingConfiguration } from '../../services/configService.js';
+import { calculateAbonnementPricing } from '../../services/pricingCalculator.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -31,19 +33,58 @@ export default async function handler(req, res) {
       payload.idempotencyKey = String(headerIdem);
     }
 
-    // Basic payload validation & logging (no secrets)
-    const rawAmount = payload.amount;
-    if (!rawAmount || !Number.isInteger(rawAmount) || rawAmount <= 0) {
-      console.warn(JSON.stringify({ level: 'WARN', correlationId, route: 'stripe/create-payment-intent', msg: 'Invalid amount', rawAmount }));
-      return res.status(400).json({ correlationId, message: 'Invalid amount' });
+    let finalAmount = null;
+    const originalAmount = payload.amount;
+    let pricingDetails = null;
+    let flowContextDescription = payload.description;
+    let metadata = payload.metadata || {};
+
+    if (payload.flowContext?.flow === 'abonnement') {
+      const pricingRows = await fetchPricingConfiguration(correlationId, 'abonnement');
+      if (!Array.isArray(pricingRows) || pricingRows.length === 0) {
+        const err = new Error('Geen prijsconfiguratie gevonden voor abonnement.');
+        err.code = 500;
+        throw err;
+      }
+
+      const pricingConfig = formatPricingConfiguration(pricingRows);
+      pricingDetails = calculateAbonnementPricing(payload.flowContext, pricingConfig);
+
+      finalAmount = pricingDetails.bundleAmountCents;
+      flowContextDescription = `Heppy abonnement (${pricingDetails.sessionsPerCycle}x / 4w)`;
+
+      metadata = {
+        ...metadata,
+        calc_source: 'server-validated',
+        calc_requested_hours: pricingDetails.requestedHours.toFixed(2),
+        calc_min_hours: pricingDetails.minHours.toFixed(2),
+        calc_price_per_session: pricingDetails.pricePerSession.toFixed(2),
+        calc_sessions_per_cycle: pricingDetails.sessionsPerCycle,
+        calc_price_per_hour: pricingDetails.pricePerHour.toFixed(2),
+      };
     }
+
+    if (!finalAmount) {
+      if (!originalAmount || !Number.isInteger(originalAmount) || originalAmount <= 0) {
+        console.warn(JSON.stringify({ level: 'WARN', correlationId, route: 'stripe/create-payment-intent', msg: 'Invalid amount', rawAmount: originalAmount }));
+        return res.status(400).json({ correlationId, message: 'Invalid amount' });
+      }
+      finalAmount = originalAmount;
+    }
+
+    payload.amount = finalAmount;
+    payload.metadata = metadata;
+    if (!payload.currency) {
+      payload.currency = defaultCurrency;
+    }
+    payload.description = flowContextDescription || payload.description || undefined;
 
     console.log(JSON.stringify({
       level: 'INFO',
       correlationId,
       route: 'stripe/create-payment-intent',
       action: 'create_intent_request',
-      amount: rawAmount,
+      amount: finalAmount,
       currency: payload.currency || defaultCurrency,
       metadata: payload.metadata || null,
       idempotencyKey: payload.idempotencyKey || headerIdem || null
@@ -64,10 +105,16 @@ export default async function handler(req, res) {
       intentId: result.id,
       status: result.status,
       amount: result.amount,
-      currency: result.currency
+      currency: result.currency,
+      pricingDetails,
     }));
 
-    return res.status(200).json({ correlationId, ...result });
+    const responsePayload = { correlationId, ...result };
+    if (pricingDetails) {
+      responsePayload.pricingDetails = pricingDetails;
+    }
+
+    return res.status(200).json(responsePayload);
   } catch (error) {
     console.error(JSON.stringify({
       level: 'ERROR',

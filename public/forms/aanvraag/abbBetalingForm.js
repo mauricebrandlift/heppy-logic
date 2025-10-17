@@ -187,31 +187,47 @@ export async function initAbbBetalingForm() {
         }
       }
       const flow = loadFlowData('abonnement-aanvraag') || {};
-      const baseAmountPerSession = Number(flow.abb_prijs);
-      if (!baseAmountPerSession || isNaN(baseAmountPerSession)) throw new Error('Ongeldig bedrag');
-      const frequentie = flow.frequentie; // 'perweek' | 'pertweeweek'
-      const sessionsPer4W = frequentie === 'perweek' ? 4 : 2;
+    const baseAmountPerSession = Number(flow.abb_prijs);
+    if (!baseAmountPerSession || isNaN(baseAmountPerSession)) throw new Error('Ongeldig bedrag');
+    const frequentie = flow.frequentie; // 'perweek' | 'pertweeweek'
+    const sessionsPer4W = frequentie === 'pertweeweek' ? 2 : 4;
       const bundleAmountEur = baseAmountPerSession * sessionsPer4W;
       if (amountDisplay) amountDisplay.textContent = formatCurrency(bundleAmountEur);
 
-  console.log('[AbbBetaling] Flow data voor intent:', { frequentie, baseAmountPerSession, sessionsPer4W, bundleAmountEur });
-  const publicCfg = await fetchPublicConfig().catch(err => { throw new Error('Config fetch failed: ' + err.message); });
+    console.log('[AbbBetaling] Flow data voor intent:', { frequentie, baseAmountPerSession, sessionsPer4W, bundleAmountEur });
+    const publicCfg = await fetchPublicConfig().catch(err => { throw new Error('Config fetch failed: ' + err.message); });
       if (!window.Stripe) throw new Error('Stripe.js niet geladen');
       stripeInstance = window.Stripe(publicCfg.publishableKey);
 
       const idem = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+      const flowContext = {
+        flow: 'abonnement',
+        frequentie,
+        requestedHours: flow.abb_uren,
+        abb_m2: flow.abb_m2,
+        abb_toiletten: flow.abb_toiletten,
+        abb_badkamers: flow.abb_badkamers,
+        abb_min_uren: flow.abb_min_uren,
+      };
+
       const intent = await createPaymentIntent({
-        amount: Math.round(bundleAmountEur * 100),
         currency: publicCfg.currency,
         description: `Heppy abonnement (${sessionsPer4W}x / 4w)` ,
         customerEmail: flow.emailadres || undefined,
         metadata: {
           flow: 'abonnement',
-            aanvraagId: flow.aanvraagId || '',
-            klantEmail: flow.emailadres || '',
-            frequentie: frequentie || '',
-            sessionsPerCycle: sessionsPer4W,
-            prijsPerSessie: baseAmountPerSession.toFixed(2),
+          aanvraagId: flow.aanvraagId || '',
+          klantEmail: flow.emailadres || '',
+          frequentie: frequentie || '',
+          sessionsPerCycle: sessionsPer4W,
+          prijsPerSessie: baseAmountPerSession.toFixed(2),
+          quoteBundle: bundleAmountEur.toFixed(2),
+        },
+        flowContext,
+        clientQuote: {
+          pricePerSession: baseAmountPerSession,
+          bundleAmount: bundleAmountEur,
+          requestedHours: flow.abb_uren ? Number(flow.abb_uren) : undefined,
         },
       }, idem);
       console.log('[AbbBetaling] Intent response:', intent);
@@ -229,8 +245,24 @@ export async function initAbbBetalingForm() {
       paymentReady = true;
 
       flow.paymentIntentId = intent.id;
-      flow.bundleAmount = bundleAmountEur.toFixed(2);
-      flow.sessionsPer4W = sessionsPer4W;
+      const serverBundleAmount = intent?.amount ? intent.amount / 100 : bundleAmountEur;
+      if (amountDisplay) amountDisplay.textContent = formatCurrency(serverBundleAmount);
+
+      flow.sessionsPer4W = intent?.pricingDetails?.sessionsPerCycle || sessionsPer4W;
+      flow.bundleAmount = serverBundleAmount.toFixed(2);
+      flow.bundleAmountValidated = serverBundleAmount.toFixed(2);
+
+      if (intent?.pricingDetails) {
+        const { pricePerSession, requestedHours } = intent.pricingDetails;
+        if (typeof pricePerSession === 'number' && !Number.isNaN(pricePerSession)) {
+          flow.abb_prijs = pricePerSession.toFixed(2);
+        }
+        if (typeof requestedHours === 'number' && !Number.isNaN(requestedHours)) {
+          flow.abb_uren = requestedHours.toString();
+        }
+        flow.serverPricing = intent.pricingDetails;
+      }
+
       saveFlowData('abonnement-aanvraag', flow);
 
       if (akkoordCb && akkoordCb.checked && payBtn) payBtn.disabled = false;
