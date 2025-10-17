@@ -2,7 +2,12 @@
 
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
-import { fetchAddressDetails, fetchCoverageStatus, ApiError as FrontendApiError } from '../../utils/api/index.js';
+import { saveGlobalFieldData, saveFlowData, loadFlowData } from '../logic/formStorage.js';
+import {
+  fetchAddressDetails,
+  fetchCoverageStatus,
+  ApiError as FrontendApiError,
+} from '../../utils/api/index.js';
 import { showError, hideError } from '../ui/formUi.js';
 
 const FORM_NAME = 'postcode-form';
@@ -29,7 +34,7 @@ export function initAddressCheckForm() {
     action: async (formData) => { // formData wordt meegegeven door formHandler
       console.log('✅ [addressCheckForm] Validatie succesvol, custom action gestart met formData:', formData);
 
-      const { postcode, huisnummer } = formData;
+      const { postcode, huisnummer, toevoeging = '' } = formData;
       console.log(`[addressCheckForm] Attempting to fetch address for Postcode: ${postcode}, Huisnummer: ${huisnummer}`);
 
       try {
@@ -42,6 +47,18 @@ export function initAddressCheckForm() {
           error.code = 'ADDRESS_NOT_FOUND';
           throw error;
         }
+
+        // Deel gegevens op voor vervolgformulieren
+        const normalizedToevoeging = toevoeging || '';
+        saveGlobalFieldData('postcode', postcode);
+        saveGlobalFieldData('huisnummer', huisnummer);
+        saveGlobalFieldData('toevoeging', normalizedToevoeging);
+
+        const flowData = loadFlowData('abonnement-aanvraag') || {};
+        flowData.postcode = postcode;
+        flowData.huisnummer = huisnummer;
+        flowData.toevoeging = normalizedToevoeging;
+        saveFlowData('abonnement-aanvraag', flowData);
         
         console.log(`[addressCheckForm] Attempting to check coverage for Plaats: ${addressDetails.plaats}`);
         // Stap 2: Dekking controleren op basis van de opgehaalde plaats
