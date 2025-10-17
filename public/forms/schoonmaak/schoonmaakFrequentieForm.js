@@ -3,7 +3,7 @@
 
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
-import { saveGlobalFieldData } from '../logic/formStorage.js';
+import { saveGlobalFieldData, saveFlowData, loadFlowData } from '../logic/formStorage.js';
 
 const FORM_NAME = 'schoonmaak-frequentie-form';
 
@@ -35,7 +35,17 @@ export function initSchoonmaakFrequentieForm() {
         throw error;
       }
 
-      saveGlobalFieldData('frequentie', frequentie);
+      saveGlobalFieldData('schoonmaak_optie', frequentie);
+
+      const isSubscription = frequentie === 'perweek' || frequentie === 'pertweeweek';
+
+      if (isSubscription) {
+        saveGlobalFieldData('frequentie', frequentie);
+
+        const flowData = loadFlowData('abonnement-aanvraag') || {};
+        flowData.frequentie = frequentie;
+        saveFlowData('abonnement-aanvraag', flowData);
+      }
 
       window.location.href = redirectUrl;
     },
