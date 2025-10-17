@@ -43,6 +43,9 @@ export const formHandler = {
   _triggerCleanupFunctions: [], // Opslag voor cleanup functie van triggers
   _contexts: new Map(), // Opslag voor formuliercontexten per form name
   _activeFormName: null,
+  _fieldListeners: [],
+  _submitButton: null,
+  _submitClickHandler: null,
 
   _saveActiveContext() {
     if (!this._activeFormName) return;
@@ -52,6 +55,9 @@ export const formHandler = {
       formData: this.formData,
       formState: this.formState,
       triggerCleanupFunctions: this._triggerCleanupFunctions,
+      fieldListeners: this._fieldListeners,
+      submitButton: this._submitButton,
+      submitClickHandler: this._submitClickHandler,
     });
   },
 
@@ -78,6 +84,9 @@ export const formHandler = {
         formData: {},
         formState: {},
         triggerCleanupFunctions: [],
+        fieldListeners: [],
+        submitButton: null,
+        submitClickHandler: null,
       };
       this._contexts.set(formName, context);
     }
@@ -87,6 +96,9 @@ export const formHandler = {
     this.formData = context.formData;
     this.formState = context.formState;
     this._triggerCleanupFunctions = context.triggerCleanupFunctions || [];
+    this._fieldListeners = context.fieldListeners || [];
+    this._submitButton = context.submitButton || null;
+    this._submitClickHandler = context.submitClickHandler || null;
     this._activeFormName = formName;
 
     return context;
@@ -238,24 +250,32 @@ export const formHandler = {
    * @param {Object} fieldConfig - Configuratie van het veld
    */
   _bindFieldEvents(fieldElement, fieldName, fieldConfig, formName) {
+    const registerListener = (element, type, handler) => {
+      if (!element || !handler) return;
+      element.addEventListener(type, handler);
+      this._fieldListeners.push({ element, type, handler });
+    };
+
     if (fieldElement.type === 'radio') {
       // Voor radio buttons: bind change event op alle radios in de groep
       const name = fieldElement.name || fieldElement.getAttribute('data-field-name');
       if (name) {
         const allRadios = this.formElement.querySelectorAll(`input[name="${name}"], input[data-field-name="${name}"]`);
         allRadios.forEach(radio => {
-          radio.addEventListener('change', (e) => this.handleInput(fieldName, e, formName));
+          const handler = (e) => this.handleInput(fieldName, e, formName);
+          registerListener(radio, 'change', handler);
         });
       }
     } else {
       // Voor andere velden: gewoon change event
-      fieldElement.addEventListener('change', (e) => this.handleInput(fieldName, e, formName));
+      const handler = (e) => this.handleInput(fieldName, e, formName);
+      registerListener(fieldElement, 'change', handler);
     }
 
     // Input filters toepassen indien gedefinieerd
     if (fieldConfig.inputFilter && inputFilters[fieldConfig.inputFilter]) {
       const filterFunction = inputFilters[fieldConfig.inputFilter];
-      fieldElement.addEventListener('keydown', filterFunction);
+      registerListener(fieldElement, 'keydown', filterFunction);
       console.log(
         `🔒 [FormHandler] Input filter '${fieldConfig.inputFilter}' toegepast op veld '${fieldName}'.`
       );
@@ -292,6 +312,22 @@ export const formHandler = {
     if (!this.formElement) {
       console.error(`❌ [FormHandler] Form element ${schema.selector} niet gevonden`);
       return;
+    }
+
+    // Verwijder eerder gebonden veld- en submit-listeners om dubbele handlers te voorkomen
+    if (this._fieldListeners?.length) {
+      this._fieldListeners.forEach(({ element, type, handler }) => {
+        if (element && handler) {
+          element.removeEventListener(type, handler);
+        }
+      });
+      this._fieldListeners = [];
+    }
+
+    if (this._submitButton && this._submitClickHandler) {
+      this._submitButton.removeEventListener('click', this._submitClickHandler);
+      this._submitButton = null;
+      this._submitClickHandler = null;
     }
 
     if (!this.formElement.__formHandlerSubmitBound) {
@@ -335,6 +371,9 @@ export const formHandler = {
     context.formData = this.formData;
     context.formState = this.formState;
     context.triggerCleanupFunctions = this._triggerCleanupFunctions;
+  context.fieldListeners = this._fieldListeners;
+  context.submitButton = this._submitButton;
+  context.submitClickHandler = this._submitClickHandler;
     this._contexts.set(schema.name, context);
 
     clearErrors(this.formElement);
@@ -438,7 +477,7 @@ export const formHandler = {
         `❌ [FormHandler] Submit button [data-form-button="${this.schema.name}"] niet gevonden in ${schema.selector}`
       );
     } else {
-      submitBtn.addEventListener('click', (e) => {
+      const submitClickHandler = (e) => {
         e.preventDefault();
         e.stopPropagation();
         console.log('[FormHandler] Submit button click onderschept', { formName: this.schema.name });
@@ -489,7 +528,13 @@ export const formHandler = {
 
         // Als het formulier hier wel geldig is, ga dan pas naar de handleSubmit flow
         this.handleSubmit(e, schema.name);
-      });
+      };
+
+      submitBtn.addEventListener('click', submitClickHandler);
+      this._submitButton = submitBtn;
+      this._submitClickHandler = submitClickHandler;
+      context.submitButton = submitBtn;
+      context.submitClickHandler = submitClickHandler;
     }
     // Update de submit button state direct na initialisatie en het binden van alle events
     this.updateSubmitState(schema.name);
