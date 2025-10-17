@@ -59,14 +59,11 @@ export function initGeenDekkingForm() {
     },
     onSuccess: () => {
       console.log('[GeenDekkingForm] Wachtlijst-aanvraag succesvol verwerkt.');
-      const submitButton = formHandler.formElement?.querySelector(`[data-form-button="${FORM_NAME}"]`);
-      if (submitButton) {
-        submitButton.classList.add('is-disabled');
-        const label = submitButton.querySelector('div');
-        if (label) {
-          label.textContent = 'Je staat op de wachtlijst!';
-        }
-      }
+      formHandler.showSuccessState(FORM_NAME, {
+        messageAttributeValue: FORM_NAME,
+        successDisplay: 'flex',
+        hideForm: true,
+      });
     }
   };
 

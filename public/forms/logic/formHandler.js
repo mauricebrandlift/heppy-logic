@@ -15,6 +15,8 @@ import {
   hideError,
   isErrorVisible,
   syncRadioGroupStyles,
+  showSuccessMessage,
+  hideSuccessMessage,
 } from '../ui/formUi.js';
 import {
   saveFormData,
@@ -46,6 +48,7 @@ export const formHandler = {
   _fieldListeners: [],
   _submitButton: null,
   _submitClickHandler: null,
+  _successState: null,
 
   _saveActiveContext() {
     if (!this._activeFormName) return;
@@ -58,6 +61,7 @@ export const formHandler = {
       fieldListeners: this._fieldListeners,
       submitButton: this._submitButton,
       submitClickHandler: this._submitClickHandler,
+      successState: this._successState,
     });
   },
 
@@ -87,6 +91,7 @@ export const formHandler = {
         fieldListeners: [],
         submitButton: null,
         submitClickHandler: null,
+        successState: null,
       };
       this._contexts.set(formName, context);
     }
@@ -100,6 +105,7 @@ export const formHandler = {
     this._submitButton = context.submitButton || null;
     this._submitClickHandler = context.submitClickHandler || null;
     this._activeFormName = formName;
+    this._successState = context.successState || null;
 
     return context;
   },
@@ -365,15 +371,17 @@ export const formHandler = {
     this.formState = {};
     this._triggerCleanupFunctions = [];
     this._activeFormName = schema.name;
+    this._successState = null;
 
     context.schema = this.schema;
     context.formElement = this.formElement;
     context.formData = this.formData;
     context.formState = this.formState;
     context.triggerCleanupFunctions = this._triggerCleanupFunctions;
-  context.fieldListeners = this._fieldListeners;
-  context.submitButton = this._submitButton;
-  context.submitClickHandler = this._submitClickHandler;
+    context.fieldListeners = this._fieldListeners;
+    context.submitButton = this._submitButton;
+    context.submitClickHandler = this._submitClickHandler;
+    context.successState = this._successState;
     this._contexts.set(schema.name, context);
 
     clearErrors(this.formElement);
@@ -734,6 +742,149 @@ export const formHandler = {
       );
     }
   },
+
+  showSuccessState(formName = this._activeFormName, options = {}) {
+    const context = this._loadContext(formName, { createIfMissing: false });
+    if (!context) {
+      console.warn(
+        `[FormHandler] Geen context gevonden voor formulier '${formName}' bij showSuccessState.`
+      );
+      return;
+    }
+
+    const {
+      successElementSelector,
+      successElement,
+      successDisplay = 'flex',
+      hideForm = true,
+      messageAttr,
+      messageAttribute,
+      messageAttributeValue,
+      scrollIntoView = true,
+      focusSelector,
+      focusElement,
+      formContainerSelector,
+      formContainer,
+    } = options;
+
+    const attrValue =
+      successElementSelector || successElement
+        ? null
+        : messageAttr ?? messageAttribute ?? messageAttributeValue ?? context.schema?.name;
+
+    let resolvedSuccessElement = successElement || null;
+    if (!resolvedSuccessElement) {
+      if (successElementSelector) {
+        resolvedSuccessElement = document.querySelector(successElementSelector);
+      } else if (attrValue) {
+        resolvedSuccessElement = document.querySelector(`[data-success-message="${attrValue}"]`);
+      }
+    }
+
+    if (!resolvedSuccessElement) {
+      console.warn(
+        `[FormHandler] Succes element niet gevonden voor formulier '${formName}'. Zoek met selector '${
+          successElementSelector || ''
+        }' of data-success-message='${attrValue || ''}'.`
+      );
+      return;
+    }
+
+    if (!context.successState) {
+      context.successState = {};
+    }
+
+    const containerElement =
+      formContainer instanceof HTMLElement
+        ? formContainer
+        : formContainerSelector
+        ? document.querySelector(formContainerSelector)
+        : context.formElement;
+
+    if (hideForm && containerElement) {
+      if (typeof context.successState.originalFormDisplay === 'undefined') {
+        context.successState.originalFormDisplay = containerElement.style.display || '';
+      }
+      containerElement.style.display = 'none';
+      containerElement.setAttribute('aria-hidden', 'true');
+      context.successState.hiddenContainer = containerElement;
+    }
+
+    showSuccessMessage(resolvedSuccessElement, successDisplay);
+
+    if (scrollIntoView) {
+      resolvedSuccessElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    let focusTarget = null;
+    if (focusElement instanceof HTMLElement) {
+      focusTarget = focusElement;
+    } else if (focusSelector) {
+      focusTarget = resolvedSuccessElement.querySelector(focusSelector);
+    } else {
+      focusTarget = resolvedSuccessElement;
+    }
+
+    if (focusTarget && typeof focusTarget.focus === 'function') {
+      if (!focusTarget.hasAttribute('tabindex')) {
+        focusTarget.setAttribute('tabindex', '-1');
+        context.successState.addedTabIndex = true;
+        context.successState.focusTarget = focusTarget;
+      }
+      try {
+        focusTarget.focus({ preventScroll: true });
+      } catch (focusError) {
+        console.warn('[FormHandler] Kon focus niet zetten op success element:', focusError);
+      }
+    }
+
+    context.successState.successElement = resolvedSuccessElement;
+  context.successState.hideForm = hideForm;
+    context.successState.displayStyle = successDisplay;
+    context.successState.attrValue = attrValue;
+
+    if (this._activeFormName === formName) {
+      this._successState = context.successState;
+    }
+  },
+
+  resetSuccessState(formName = this._activeFormName) {
+    const context = this._loadContext(formName, { createIfMissing: false });
+    if (!context || !context.successState) {
+      return;
+    }
+
+    const {
+      successElement,
+      hideForm,
+      originalFormDisplay,
+      focusTarget,
+      addedTabIndex,
+      hiddenContainer,
+    } = context.successState;
+
+    if (successElement) {
+      hideSuccessMessage(successElement);
+    }
+
+    if (hideForm) {
+      const containerElement = hiddenContainer || context.formElement;
+      if (containerElement) {
+        containerElement.style.display =
+          typeof originalFormDisplay === 'string' ? originalFormDisplay : '';
+        containerElement.setAttribute('aria-hidden', 'false');
+      }
+    }
+
+    if (addedTabIndex && focusTarget) {
+      focusTarget.removeAttribute('tabindex');
+    }
+
+    context.successState = null;
+    if (this._activeFormName === formName) {
+      this._successState = null;
+    }
+  },
   /**
    * 🚨 Behandel de submit van het formulier..
    *
@@ -810,6 +961,7 @@ export const formHandler = {
 
     console.log(`🧹 [FormHandler] Opruimen van formulier: ${context.schema?.name}`);
 
+    this.resetSuccessState(formName);
     this._cleanupTriggers();
 
     this._contexts.delete(formName);
@@ -821,6 +973,7 @@ export const formHandler = {
       this.formState = {};
       this._triggerCleanupFunctions = [];
       this._activeFormName = null;
+      this._successState = null;
     }
   },
 };

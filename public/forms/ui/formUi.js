@@ -174,6 +174,27 @@ export function hideError(errorEl) {
 }
 
 /**
+ * Toon een succesbericht container door display aan te passen en toegankelijkheid bij te werken.
+ * @param {HTMLElement} successEl
+ * @param {string} [displayStyle='flex']
+ */
+export function showSuccessMessage(successEl, displayStyle = 'flex') {
+  if (!successEl) return;
+  successEl.style.display = displayStyle;
+  successEl.setAttribute('aria-hidden', 'false');
+}
+
+/**
+ * Verberg een succesbericht container en herstel basis attributen.
+ * @param {HTMLElement} successEl
+ */
+export function hideSuccessMessage(successEl) {
+  if (!successEl) return;
+  successEl.style.display = 'none';
+  successEl.setAttribute('aria-hidden', 'true');
+}
+
+/**
  * Synchroniseer stylingklassen voor custom radio groepen (bijv. Webflow "radio-fancy").
  * Zet de actieve klasse op het omliggende label en verwijdert deze van niet-geselecteerde opties.
  * @param {HTMLFormElement} formEl
