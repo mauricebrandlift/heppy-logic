@@ -439,6 +439,8 @@ export const formHandler = {
       );
     } else {
       submitBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         this._loadContext(schema.name);
         // Voer client-side validatie uit direct bij de klik, voordat handleSubmit wordt aangeroepen.
         const { isFormValid: isFormCurrentlyValid, fieldErrors: currentFieldErrors } = validateForm(
