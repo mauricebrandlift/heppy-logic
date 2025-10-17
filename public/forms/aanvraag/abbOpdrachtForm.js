@@ -7,8 +7,32 @@ import { saveGlobalFieldData, loadGlobalFieldData, saveFlowData, loadFlowData } 
 import { initWeekSelectTrigger } from '../logic/formTriggers.js';
 import { validateForm } from '../validators/formValidator.js';
 import { showFieldErrors, syncRadioGroupStyles } from '../ui/formUi.js';
-// Import moveToNextSlide van Webflow indien nodig
-// In een live omgeving is deze functie waarschijnlijk globaal beschikbaar door Webflow
+
+const FORM_NAME = 'abb_opdracht-form';
+const NEXT_FORM_NAME = 'abb_dagdelen-schoonmaker-form';
+
+function goToFormStep(nextFormName) {
+  if (window.navigateToFormStep) {
+    const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
+    if (navigated) {
+      return true;
+    }
+    console.warn('[AbbOpdrachtForm] navigateToFormStep kon niet navigeren, probeer fallback.');
+  }
+
+  if (window.jumpToSlideByFormName) {
+    window.jumpToSlideByFormName(nextFormName);
+    return true;
+  }
+
+  if (window.moveToNextSlide) {
+    window.moveToNextSlide();
+    return true;
+  }
+
+  console.error('[AbbOpdrachtForm] Geen slider navigatie functie gevonden.');
+  return false;
+}
 
 /**
  * 🧮 Abonnement Opdracht Form - stap 2 van de abonnement aanvraag
@@ -345,7 +369,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
   await getPricingConfiguration();
   
   // Haal het formulierschema op
-  const schema = getFormSchema('abb_opdracht-form');
+  const schema = getFormSchema(FORM_NAME);
   
   // Voeg berekening trigger toe voor elk veld dat impact heeft op de berekening
   ['frequentie','abb_m2', 'abb_toiletten', 'abb_badkamers'].forEach(fieldName => {
@@ -377,7 +401,7 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
           });
         }
 
-  formHandler.updateSubmitState('abb_opdracht-form');
+  formHandler.updateSubmitState(FORM_NAME);
 
         const error = new Error('Niet alle verplichte velden zijn ingevuld.');
         error.code = 'REQUIRED_FIELDS_MISSING';
@@ -419,10 +443,10 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       import('./abbDagdelenSchoonmakerForm.js').then(module => {
         console.log('[abbOpdrachtForm] Stap 3 (abbDagdelenSchoonmakerForm) wordt geïnitialiseerd...');
         module.initAbbDagdelenSchoonmakerForm();
-        moveToNextSlide();
+        goToFormStep(NEXT_FORM_NAME);
       }).catch(err => {
         console.error('[abbOpdrachtForm] Kon stap 3 niet laden:', err);
-        moveToNextSlide();
+        goToFormStep(NEXT_FORM_NAME);
       });
     }
   };

@@ -3,7 +3,33 @@
 // Doel: naar een slide springen o.b.v. data-form-name of naar laatste slide.
 
 (function() {
-  if (window.jumpToSlideByFormName && window.jumpToLastSlide) return; // al geladen
+  if (window.jumpToSlideByFormName && window.jumpToLastSlide && window.navigateToFormStep) return; // al geladen
+
+  let navigationLock = false;
+  let navigationUnlockTimer = null;
+
+  function releaseNavigationLock() {
+    if (!navigationLock) return;
+    navigationLock = false;
+    if (navigationUnlockTimer) {
+      clearTimeout(navigationUnlockTimer);
+      navigationUnlockTimer = null;
+    }
+  }
+
+  function acquireNavigationLock(timeout = 1200) {
+    if (navigationLock) return false;
+    navigationLock = true;
+    if (navigationUnlockTimer) {
+      clearTimeout(navigationUnlockTimer);
+      navigationUnlockTimer = null;
+    }
+    navigationUnlockTimer = setTimeout(() => {
+      navigationUnlockTimer = null;
+      navigationLock = false;
+    }, timeout);
+    return true;
+  }
 
   function findSplideContext(target) {
     const splideSlide = target.closest('.splide__slide');
@@ -129,6 +155,47 @@
       console.error('[Slides] Fout bij jumpToSlideByFormName:', e);
       return false;
     }
+  };
+
+  window.navigateToFormStep = function(currentFormName, nextFormName, { retry = 3, retryDelay = 80 } = {}) {
+    if (!nextFormName) {
+      console.warn('[Slides] navigateToFormStep vereist nextFormName');
+      return false;
+    }
+
+    const target = document.querySelector(`[data-form-name="${nextFormName}"]`);
+    if (!target) {
+      console.warn('[Slides] navigateToFormStep kon target niet vinden voor', nextFormName);
+      return false;
+    }
+
+    if (!acquireNavigationLock()) {
+      console.warn('[Slides] Navigatie geblokkeerd door lopende overgang');
+      return false;
+    }
+
+    const splideCtx = findSplideContext(target);
+
+    const succeeded = window.jumpToSlideByFormName
+      ? window.jumpToSlideByFormName(nextFormName, { retry, retryDelay })
+      : (typeof window.moveToNextSlide === 'function' ? (window.moveToNextSlide(), true) : false);
+
+    if (!succeeded) {
+      releaseNavigationLock();
+      return false;
+    }
+
+    if (splideCtx && splideCtx.instance) {
+      const releaseOnMove = () => {
+        releaseNavigationLock();
+        splideCtx.instance.off('moved', releaseOnMove);
+      };
+      splideCtx.instance.on('moved', releaseOnMove);
+    } else {
+      setTimeout(() => releaseNavigationLock(), 600);
+    }
+
+    return true;
   };
 
   window.jumpToLastSlide = function({ selector = '.splide', retry = 3, retryDelay = 50 } = {}) {

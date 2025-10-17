@@ -20,9 +20,32 @@ import {
   TIJDSVAKKEN
 } from '../logic/dagdelenHelper.js';
 
-// Import functie voor volgende slide (functie in de Webflow omgeving)
-// Wordt op dezelfde manier gebruikt als in abbOpdrachtForm.js
-const moveToNextSlide = window.moveToNextSlide || (() => console.warn('⚠️ moveToNextSlide functie niet beschikbaar.'));
+const FORM_NAME = 'abb_dagdelen-schoonmaker-form';
+const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
+const NEXT_FORM_NAME = 'abb_overzicht-form';
+
+function goToFormStep(nextFormName) {
+  if (window.navigateToFormStep) {
+    const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
+    if (navigated) {
+      return true;
+    }
+    console.warn('[AbbDagdelenSchoonmakerForm] navigateToFormStep kon niet navigeren, probeer fallback.');
+  }
+
+  if (window.jumpToSlideByFormName) {
+    window.jumpToSlideByFormName(nextFormName);
+    return true;
+  }
+
+  if (window.moveToNextSlide) {
+    window.moveToNextSlide();
+    return true;
+  }
+
+  console.error('[AbbDagdelenSchoonmakerForm] Geen slider navigatie functie gevonden.');
+  return false;
+}
 
 // Status object voor dit formulier
 const formStatus = {
@@ -41,7 +64,7 @@ const formStatus = {
  */
 function hideErrorMessage() {
   // Zoek specifiek binnen het huidige formulier naar het error element
-  const formElement = document.querySelector('[data-form-name="abb_dagdelen-schoonmaker-form"]');
+  const formElement = document.querySelector(FORM_SELECTOR);
   if (!formElement) return;
   
   const errorElement = formElement.querySelector('[data-error-for="global"]');
@@ -58,7 +81,7 @@ function hideErrorMessage() {
  */
 function showErrorMessage(message, type = 'error') {
   // Zoek specifiek binnen het huidige formulier naar het error element
-  const formElement = document.querySelector('[data-form-name="abb_dagdelen-schoonmaker-form"]');
+  const formElement = document.querySelector(FORM_SELECTOR);
   if (!formElement) return;
   
   const errorElement = formElement.querySelector('[data-error-for="global"]');
@@ -471,10 +494,10 @@ function bindSchoonmakerRadioEvents(formElement) {
     radio.addEventListener('change', (e) => {
       try {
         if (formHandler && typeof formHandler.handleInput === 'function') {
-          formHandler.handleInput('schoonmakerKeuze', e, 'abb_dagdelen-schoonmaker-form');
+          formHandler.handleInput('schoonmakerKeuze', e, FORM_NAME);
         }
         if (formHandler && typeof formHandler.updateSubmitState === 'function') {
-          formHandler.updateSubmitState('abb_dagdelen-schoonmaker-form');
+          formHandler.updateSubmitState(FORM_NAME);
         }
       } catch (err) {
         console.warn('[SchoonmakerForm] Kon radio change niet verwerken:', err);
@@ -523,12 +546,12 @@ function clearSchoonmakerKeuze(formElement) {
   // Reset formHandler state zodat validateForm geen oude waarde gebruikt
   try {
     if (formHandler && typeof formHandler.runWithFormContext === 'function') {
-      formHandler.runWithFormContext('abb_dagdelen-schoonmaker-form', () => {
+      formHandler.runWithFormContext(FORM_NAME, () => {
         if (formHandler.formData) {
           formHandler.formData.schoonmakerKeuze = '';
         }
         if (typeof formHandler.updateSubmitState === 'function') {
-          formHandler.updateSubmitState('abb_dagdelen-schoonmaker-form');
+          formHandler.updateSubmitState(FORM_NAME);
         }
       });
     }
@@ -607,7 +630,7 @@ async function fetchEnToonSchoonmakers(formElement, gebruikDagdelenFilter = fals
   // Update form status: herbereken submit-state i.p.v. niet-bestaande validateField
     // (andere formulieren vertrouwen op de centrale validatie-flow in formHandler)
     if (formHandler && typeof formHandler.updateSubmitState === 'function') {
-      formHandler.updateSubmitState('abb_dagdelen-schoonmaker-form');
+      formHandler.updateSubmitState(FORM_NAME);
     }
 
   // Bind events op de dynamisch gerenderde radio's
@@ -712,7 +735,7 @@ export async function initAbbDagdelenSchoonmakerForm() {
   console.log('🚀 [AbbDagdelenSchoonmakerForm] Initialiseren...');
   
   // Haal formulierschema op
-  const schema = getFormSchema('abb_dagdelen-schoonmaker-form');
+  const schema = getFormSchema(FORM_NAME);
   
   // Vind nieuwe containers op basis van data-element attributen
   formStatus.schoonmakersWrapper = document.querySelector('[data-element="schoonmakers-list"]');
@@ -792,11 +815,11 @@ export async function initAbbDagdelenSchoonmakerForm() {
           } catch (e) {
             console.warn('[AbbDagdelenSchoonmakerForm] Overzicht init gaf een waarschuwing:', e);
           }
-          moveToNextSlide();
+          goToFormStep(NEXT_FORM_NAME);
         })
         .catch((err) => {
           console.error('[AbbDagdelenSchoonmakerForm] Kon overzicht stap niet laden:', err);
-          moveToNextSlide();
+          goToFormStep(NEXT_FORM_NAME);
         });
     }
   };
@@ -813,7 +836,7 @@ export async function initAbbDagdelenSchoonmakerForm() {
   // Zorg dat er bij start geen selectie actief is en de knop disabled is
   clearSchoonmakerKeuze(formElement);
   if (formHandler && typeof formHandler.updateSubmitState === 'function') {
-    formHandler.updateSubmitState('abb_dagdelen-schoonmaker-form');
+    formHandler.updateSubmitState(FORM_NAME);
   }
   
   // Initialiseer dagdeel selectie event listeners
@@ -838,7 +861,7 @@ export async function initAbbDagdelenSchoonmakerForm() {
   
   // Zorg dat de submit-state klopt na init (start disabled tot er een keuze is)
   if (formHandler && typeof formHandler.updateSubmitState === 'function') {
-    formHandler.updateSubmitState('abb_dagdelen-schoonmaker-form');
+    formHandler.updateSubmitState(FORM_NAME);
   }
 
   console.log('✅ [AbbDagdelenSchoonmakerForm] Initialisatie voltooid');

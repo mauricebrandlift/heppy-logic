@@ -294,6 +294,17 @@ export const formHandler = {
       return;
     }
 
+    if (!this.formElement.__formHandlerSubmitBound) {
+      this.formElement.addEventListener('submit', (nativeEvent) => {
+        nativeEvent.preventDefault();
+        nativeEvent.stopPropagation();
+        console.warn(
+          `⚠️ [FormHandler] Native submit voorkomen voor ${schema.name}; gebruik formHandler.handleSubmit.`
+        );
+      });
+      this.formElement.__formHandlerSubmitBound = true;
+    }
+
     const rawSavedData = loadFormData(schema.name) || {};
     const formSpecificSavedData = {};
     const removedSavedKeys = [];

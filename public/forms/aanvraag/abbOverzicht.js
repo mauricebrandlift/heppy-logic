@@ -4,6 +4,33 @@
 import { loadFlowData } from '../logic/formStorage.js';
 import { formHandler } from '../logic/formHandler.js';
 
+const FORM_NAME = 'abb_overzicht-form';
+const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
+const NEXT_FORM_NAME = 'abb_persoonsgegevens-form';
+
+function goToFormStep(nextFormName) {
+  if (window.navigateToFormStep) {
+    const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
+    if (navigated) {
+      return true;
+    }
+    console.warn('[AbbOverzicht] navigateToFormStep kon niet navigeren, probeer fallback.');
+  }
+
+  if (window.jumpToSlideByFormName) {
+    window.jumpToSlideByFormName(nextFormName);
+    return true;
+  }
+
+  if (window.moveToNextSlide) {
+    window.moveToNextSlide();
+    return true;
+  }
+
+  console.error('[AbbOverzicht] Geen slider navigatie functie gevonden.');
+  return false;
+}
+
 function setText(selector, text) {
   const els = document.querySelectorAll(selector);
   els.forEach((el) => { if (el) el.textContent = text ?? ''; });
@@ -93,8 +120,8 @@ export function initAbbOverzicht() {
 
   // Initialiseer deze stap als "formulier" zodat de Webflow-knop via formHandler werkt
   const schema = {
-    name: 'abb_overzicht-form',
-    selector: '[data-form-name="abb_overzicht-form"]',
+    name: FORM_NAME,
+    selector: FORM_SELECTOR,
     fields: {},
     submit: {
       action: async () => {
@@ -107,11 +134,11 @@ export function initAbbOverzicht() {
             if (m && typeof m.initAbbPersoonsgegevensForm === 'function') {
               m.initAbbPersoonsgegevensForm();
             }
-            moveToNextSlide();
+            goToFormStep(NEXT_FORM_NAME);
           })
           .catch((err) => {
             console.error('[AbbOverzicht] Kon persoonsgegevens stap niet laden:', err);
-            moveToNextSlide();
+            goToFormStep(NEXT_FORM_NAME);
           });
       }
     }

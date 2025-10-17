@@ -5,6 +5,33 @@ import { formHandler } from '../logic/formHandler.js';
 import { loadFlowData, saveFlowData } from '../logic/formStorage.js';
 import { apiClient } from '../../utils/api/client.js';
 
+const FORM_NAME = 'abb_betaling-form';
+const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
+const SUCCESS_FORM_NAME = 'abb_succes-form';
+
+function goToFormStep(nextFormName) {
+  if (window.navigateToFormStep) {
+    const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
+    if (navigated) {
+      return true;
+    }
+    console.warn('[AbbBetaling] navigateToFormStep kon niet navigeren, probeer fallback.');
+  }
+
+  if (window.jumpToSlideByFormName) {
+    window.jumpToSlideByFormName(nextFormName);
+    return true;
+  }
+
+  if (window.moveToNextSlide) {
+    window.moveToNextSlide();
+    return true;
+  }
+
+  console.error('[AbbBetaling] Geen slider navigatie functie gevonden.');
+  return false;
+}
+
 async function fetchPublicConfig() {
   return await apiClient('/routes/stripe/public-config', { method: 'GET' });
 }
@@ -72,12 +99,7 @@ export async function initAbbBetalingForm() {
     console.log('[AbbBetaling] Intent status na redirect:', intent.status);
     if (intent.status === 'succeeded') {
       // Ga direct naar success slide (data-form-name="abb_succes-form") als beschikbaar
-      if (typeof window.jumpToSlideByFormName === 'function') {
-        window.jumpToSlideByFormName('abb_succes-form');
-      } else if (typeof window.moveToNextSlide === 'function') {
-        // fallback: probeer gewoon één slide verder; aannames: success slide volgt betaling
-        window.moveToNextSlide();
-      }
+      goToFormStep(SUCCESS_FORM_NAME);
       cleanUrlQuery();
       return true;
     }
@@ -92,11 +114,7 @@ export async function initAbbBetalingForm() {
         console.log('[AbbBetaling] Polling intent status:', latest.status);
         if (latest.status === 'succeeded') {
           clearInterval(interval);
-          if (typeof window.jumpToSlideByFormName === 'function') {
-            window.jumpToSlideByFormName('abb_succes-form');
-          } else if (typeof window.moveToNextSlide === 'function') {
-            window.moveToNextSlide();
-          }
+          goToFormStep(SUCCESS_FORM_NAME);
           cleanUrlQuery();
         } else if (['requires_payment_method','canceled','requires_action'].includes(latest.status) || attempts >= maxAttempts) {
           clearInterval(interval);
@@ -117,8 +135,8 @@ export async function initAbbBetalingForm() {
     return false;
   }
   const schema = {
-    name: 'abb_betaling-form',
-    selector: '[data-form-name="abb_betaling-form"]',
+    name: FORM_NAME,
+    selector: FORM_SELECTOR,
     fields: {
       akkoord_voorwaarden: {
         label: 'Akkoord met voorwaarden',
@@ -265,11 +283,7 @@ export async function initAbbBetalingForm() {
         if (flow.paymentIntentId) {
           const latest = await retrieveIntentStatus(flow.paymentIntentId);
           if (latest && latest.status === 'succeeded') {
-            if (typeof window.jumpToSlideByFormName === 'function') {
-              window.jumpToSlideByFormName('abb_succes-form');
-            } else if (typeof window.moveToNextSlide === 'function') {
-              window.moveToNextSlide();
-            }
+            goToFormStep(SUCCESS_FORM_NAME);
           } else {
             // Anders laten we de gebruiker staan; polling kan handmatig gestart worden (niet kritisch voor kaart payments).
             console.log('[AbbBetaling] Geen directe success status na confirm (non redirect).');

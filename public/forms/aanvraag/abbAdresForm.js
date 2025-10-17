@@ -8,6 +8,30 @@ import { showError, hideError } from '../ui/formUi.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
 
 const FORM_NAME = 'abb_adres-form';
+const NEXT_FORM_NAME = 'abb_opdracht-form';
+
+function goToFormStep(nextFormName) {
+  if (window.navigateToFormStep) {
+    const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
+    if (navigated) {
+      return true;
+    }
+    console.warn('[abbAdresForm] navigateToFormStep kon niet navigeren, probeer fallback.');
+  }
+
+  if (window.jumpToSlideByFormName) {
+    window.jumpToSlideByFormName(nextFormName);
+    return true;
+  }
+
+  if (window.moveToNextSlide) {
+    window.moveToNextSlide();
+    return true;
+  }
+
+  console.error('[abbAdresForm] Geen slider navigatie functie gevonden.');
+  return false;
+}
 
 /**
  * Initialiseert het adres formulier voor de abonnementsaanvraag.
@@ -129,11 +153,11 @@ export function initAbbAdresForm() {
           module.initAbbOpdrachtForm();
           
           // Na initialisatie, navigeer naar de volgende slide
-          moveToNextSlide();
+          goToFormStep(NEXT_FORM_NAME);
         }).catch(err => {
           console.error('[abbAdresForm] Kon stap 2 (abbOpdrachtForm) niet laden:', err);
           // Alsnog doorgaan naar volgende slide, ook al is er een probleem met het laden
-          moveToNextSlide();
+          goToFormStep(NEXT_FORM_NAME);
         });
       } else {
         console.log('[abbAdresForm] Adres heeft geen dekking, navigeren naar geen-dekking pagina...');

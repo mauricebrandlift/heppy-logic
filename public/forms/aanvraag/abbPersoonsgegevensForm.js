@@ -4,9 +4,35 @@ import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
 
+const FORM_NAME = 'abb_persoonsgegevens-form';
+const NEXT_FORM_NAME = 'abb_betaling-form';
+
+function goToFormStep(nextFormName) {
+  if (window.navigateToFormStep) {
+    const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
+    if (navigated) {
+      return true;
+    }
+    console.warn('[AbbPersoonsgegevens] navigateToFormStep kon niet navigeren, probeer fallback.');
+  }
+
+  if (window.jumpToSlideByFormName) {
+    window.jumpToSlideByFormName(nextFormName);
+    return true;
+  }
+
+  if (window.moveToNextSlide) {
+    window.moveToNextSlide();
+    return true;
+  }
+
+  console.error('[AbbPersoonsgegevens] Geen slider navigatie functie gevonden.');
+  return false;
+}
+
 export function initAbbPersoonsgegevensForm() {
   console.log('👤 [AbbPersoonsgegevens] Initialiseren…');
-  const schema = getFormSchema('abb_persoonsgegevens-form');
+  const schema = getFormSchema(FORM_NAME);
   if (!schema) {
     console.error('[AbbPersoonsgegevens] Schema niet gevonden');
     return;
@@ -29,11 +55,11 @@ export function initAbbPersoonsgegevensForm() {
           if (m && typeof m.initAbbBetalingForm === 'function') {
             m.initAbbBetalingForm();
           }
-          moveToNextSlide();
+          goToFormStep(NEXT_FORM_NAME);
         })
         .catch((err) => {
           console.error('[AbbPersoonsgegevens] Kon betaalstap niet laden:', err);
-          moveToNextSlide();
+          goToFormStep(NEXT_FORM_NAME);
         });
     }
   };
