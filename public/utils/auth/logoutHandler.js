@@ -39,6 +39,10 @@ async function handleLogout(e) {
   console.log('👋 [LogoutHandler] === LOGOUT GESTART ===');
   console.log('🔄 [LogoutHandler] Aanroepen authClient.logout()...');
   
+  // Check if this button has data-prevent-reload attribute
+  const preventReload = e.currentTarget.hasAttribute('data-prevent-reload');
+  console.log('🔍 [LogoutHandler] Prevent reload:', preventReload);
+  
   try {
     const logoutStartTime = Date.now();
     
@@ -56,21 +60,15 @@ async function handleLogout(e) {
       document.dispatchEvent(logoutEvent);
       console.log('📢 [LogoutHandler] auth:logout event dispatched');
       
-      // Check of het abonnement aanvraag formulier bestaat op deze pagina
-      const persoonsgegevensForm = document.querySelector('[data-form-name="abb_persoonsgegevens-form"]');
-      
-      console.log('🔍 [LogoutHandler] Persoonsgegevens form exists:', !!persoonsgegevensForm);
-      console.log('🔍 [LogoutHandler] Current URL:', window.location.pathname);
-      
-      if (persoonsgegevensForm) {
-        // Formulier bestaat: we zijn op de abonnement aanvraag pagina
-        console.log('🔄 [LogoutHandler] Op abonnement pagina, refresh wrapper state zonder reload...');
+      if (preventReload) {
+        // Button heeft data-prevent-reload: dispatch event zonder reload
+        console.log('🔄 [LogoutHandler] Prevent reload = true, refresh wrapper state zonder reload...');
         document.dispatchEvent(new CustomEvent('auth:state-changed', { 
           detail: { role: 'guest' } 
         }));
       } else {
-        // Formulier bestaat niet: andere pagina
-        console.log('🔄 [LogoutHandler] Niet op abonnement pagina, reloading...');
+        // Normale logout: reload page
+        console.log('🔄 [LogoutHandler] Prevent reload = false, reloading...');
         window.location.reload();
       }
     } else {
