@@ -5,12 +5,10 @@
  * Dependencies:
  * - authClient.js for authentication API calls
  * - formUi.js for button/spinner/error handling
- * - formValidator.js for field validation
  */
 
 import { authClient } from './authClient.js';
 import { showLoader, hideLoader, showError, hideError } from '../../forms/ui/formUi.js';
-import { validateField } from '../../forms/validators/formValidator.js';
 
 /**
  * Initialize login modal functionality
@@ -162,11 +160,7 @@ async function handleLogin(e, modal, modalWrapper) {
   }
 
   // Validate email format using formValidator
-  const emailValidation = validateField(email, {
-    type: 'email',
-    required: true,
-    label: 'E-mailadres'
-  });
+  const emailValidation = validateEmail(email);
 
   if (!emailValidation.valid) {
     const emailError = modal.querySelector('[data-modal-error="emailadres"]');
@@ -285,15 +279,11 @@ function validateModalField(modal, field) {
   // Skip validation if field is empty and user hasn't interacted yet
   if (!value) return true;
   
-  let validation = { valid: true };
+  let validation = { valid: true, error: null };
   
   // Email field validation
   if (fieldName === 'emailadres') {
-    validation = validateField(value, {
-      type: 'email',
-      required: true,
-      label: 'E-mailadres'
-    });
+    validation = validateEmail(value);
   }
   
   // Show/hide error based on validation
@@ -306,6 +296,26 @@ function validateModalField(modal, field) {
   }
   
   return validation.valid;
+}
+
+/**
+ * Simple email validation
+ * @param {string} email - Email to validate
+ * @returns {object} - { valid: boolean, error: string|null }
+ */
+function validateEmail(email) {
+  if (!email || email.trim() === '') {
+    return { valid: false, error: 'Vul je e-mailadres in' };
+  }
+  
+  // Email regex: bevat @ en minimaal één punt na @
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  if (!emailRegex.test(email)) {
+    return { valid: false, error: 'Voer een geldig e-mailadres in' };
+  }
+  
+  return { valid: true, error: null };
 }
 
 /**
