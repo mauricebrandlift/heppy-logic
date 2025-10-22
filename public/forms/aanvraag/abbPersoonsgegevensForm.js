@@ -281,10 +281,10 @@ async function prefillAuthenticatedUser(user) {
     flow.achternaam = fieldMap.achternaam;
     flow.telefoonnummer = fieldMap.telefoonnummer;
     flow.emailadres = fieldMap.emailadres;
-    flow.authenticatedUserId = currentUser.id;
+    flow.authenticatedUserId = user.id;
     saveFlowData('abonnement-aanvraag', flow);
     
-    console.log('💾 [AbbPersoonsgegevens] Flow data opgeslagen met authenticatedUserId:', currentUser.id);
+    console.log('💾 [AbbPersoonsgegevens] Flow data opgeslagen met authenticatedUserId:', user.id);
 
     // Update submit state na prefill
     if (typeof formHandler.updateSubmitState === 'function') {

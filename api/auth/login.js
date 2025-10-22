@@ -137,7 +137,7 @@ export default async function handler(req, res) {
       rol: profile.rol,
       hasVoornaam: !!profile.voornaam,
       hasAchternaam: !!profile.achternaam,
-      hasTelefoonnummer: !!profile.telefoonnummer
+      hasTelefoon: !!profile.telefoon
     });    // Geef gebruikersdata terug met rol en sessie + profiel data voor prefill
     const totalDuration = Date.now() - requestStartTime;
     
@@ -150,10 +150,10 @@ export default async function handler(req, res) {
         id: data.user.id,
         email: data.user.email,
         role: profile.rol,
-        // Profiel data voor prefill
+        // Profiel data voor prefill (telefoon → telefoonnummer voor frontend consistency)
         voornaam: profile.voornaam || '',
         achternaam: profile.achternaam || '',
-        telefoonnummer: profile.telefoonnummer || '',
+        telefoonnummer: profile.telefoon || '',
         emailadres: profile.emailadres || data.user.email
       },
       session: {
