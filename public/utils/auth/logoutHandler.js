@@ -56,17 +56,19 @@ async function handleLogout(e) {
       document.dispatchEvent(logoutEvent);
       console.log('📢 [LogoutHandler] auth:logout event dispatched');
       
-      // Check of we op de abonnement aanvraag pagina zijn
+      // Check of we op de abonnement aanvraag pagina zijn EN op de persoonsgegevens stap
       const persoonsgegevensForm = document.querySelector('[data-form-name="abb_persoonsgegevens-form"]');
+      const persoonsgegevensSlide = persoonsgegevensForm?.closest('.splide__slide');
+      const isOnPersoonsgegevensStep = persoonsgegevensSlide?.classList.contains('is-active');
       
-      if (persoonsgegevensForm) {
-        console.log('🔄 [LogoutHandler] Op persoonsgegevens pagina, refresh wrapper state...');
+      if (persoonsgegevensForm && isOnPersoonsgegevensStep) {
+        console.log('🔄 [LogoutHandler] Op actieve persoonsgegevens stap, refresh wrapper state...');
         // Dispatch event zodat form kan reageren
         document.dispatchEvent(new CustomEvent('auth:state-changed', { 
           detail: { role: 'guest' } 
         }));
       } else {
-        console.log('🔄 [LogoutHandler] Niet op persoonsgegevens pagina, reloading...');
+        console.log('🔄 [LogoutHandler] Niet op persoonsgegevens stap, reloading...');
         // Reload page voor andere paginas
         window.location.reload();
       }

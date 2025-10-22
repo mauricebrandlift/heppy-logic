@@ -61,15 +61,17 @@ export async function initAbbPersoonsgegevensForm() {
   }
   
   toggleAuthWrappers(role);
-  applyReadonlyFields();
 
-  // Als klant: prefill met profiel data
+  // Als klant: prefill met profiel data VOOR readonly fields worden toegepast
   if (role === 'klant' && authState?.user) {
     console.log('🔄 [AbbPersoonsgegevens] Klant detected, starten prefill...');
     await prefillAuthenticatedUser(authState.user);
   } else {
     console.log('ℹ️ [AbbPersoonsgegevens] Guest mode, geen prefill nodig');
   }
+  
+  // Apply readonly fields NA prefill zodat values al zijn ingesteld
+  applyReadonlyFields();
 
   // Luister naar auth:success event (na login via modal)
   document.addEventListener('auth:success', handleAuthSuccess);
@@ -321,9 +323,8 @@ async function handleAuthSuccess(event) {
   
   // Toggle wrappers naar nieuwe auth state
   toggleAuthWrappers(role);
-  applyReadonlyFields();
   
-  // Als klant: prefill met profiel data
+  // Als klant: prefill met profiel data VOOR readonly
   if (role === 'klant' && user) {
     console.log('🔄 [AbbPersoonsgegevens] Klant ingelogd, starten prefill na login...');
     await prefillAuthenticatedUser(user);
@@ -332,6 +333,9 @@ async function handleAuthSuccess(event) {
   } else {
     console.log(`ℹ️ [AbbPersoonsgegevens] Role ${role}, geen prefill actie`);
   }
+  
+  // Apply readonly NA prefill
+  applyReadonlyFields();
   
   // Als admin/schoonmaker: toon melding dat ze niet kunnen bestellen
   if (role === 'admin' || role === 'schoonmaker') {
