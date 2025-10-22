@@ -58,8 +58,17 @@ async function handleLogout(e) {
       
       // Check of we op de abonnement aanvraag pagina zijn EN op de persoonsgegevens stap
       const persoonsgegevensForm = document.querySelector('[data-form-name="abb_persoonsgegevens-form"]');
+      console.log('🔍 [LogoutHandler] Persoonsgegevens form gevonden:', !!persoonsgegevensForm);
+      
       const persoonsgegevensSlide = persoonsgegevensForm?.closest('.splide__slide');
+      console.log('🔍 [LogoutHandler] Persoonsgegevens slide gevonden:', !!persoonsgegevensSlide);
+      
       const isOnPersoonsgegevensStep = persoonsgegevensSlide?.classList.contains('is-active');
+      console.log('🔍 [LogoutHandler] Is active slide:', isOnPersoonsgegevensStep);
+      
+      if (persoonsgegevensSlide) {
+        console.log('🔍 [LogoutHandler] Slide classes:', persoonsgegevensSlide.className);
+      }
       
       if (persoonsgegevensForm && isOnPersoonsgegevensStep) {
         console.log('🔄 [LogoutHandler] Op actieve persoonsgegevens stap, refresh wrapper state...');
@@ -69,6 +78,7 @@ async function handleLogout(e) {
         }));
       } else {
         console.log('🔄 [LogoutHandler] Niet op persoonsgegevens stap, reloading...');
+        console.log('🔍 [LogoutHandler] Reden: form exists =', !!persoonsgegevensForm, ', is active =', isOnPersoonsgegevensStep);
         // Reload page voor andere paginas
         window.location.reload();
       }
