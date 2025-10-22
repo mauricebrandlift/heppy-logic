@@ -35,10 +35,14 @@ export function initLoginModal() {
   });
   console.log(`✅ [LoginModal] ${openTriggers.length} open trigger(s) geregistreerd`);
 
-  // Close modal triggers
-  const closeTriggers = modal.querySelectorAll('[data-modal-close]');
+  // Close modal triggers - zoek in hele modalWrapper
+  const closeTriggers = modalWrapper.querySelectorAll('[data-modal-close]');
   closeTriggers.forEach(trigger => {
-    trigger.addEventListener('click', () => closeModal(modalWrapper, modal));
+    trigger.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeModal(modalWrapper, modal);
+    });
   });
   console.log(`✅ [LoginModal] ${closeTriggers.length} close trigger(s) geregistreerd`);
 
@@ -193,8 +197,13 @@ async function handleLogin(e, modal, modalWrapper) {
     
     const loginDuration = Date.now() - loginStartTime;
     console.log(`⏱️ [LoginModal] Login request duurde ${loginDuration}ms`);
+    console.log('🔍 [LoginModal] Result object:', result);
+    console.log('🔍 [LoginModal] Result type:', typeof result);
+    console.log('🔍 [LoginModal] Has user:', !!result?.user);
+    console.log('🔍 [LoginModal] Has session:', !!result?.session);
 
-    if (result.success) {
+    // Check if login was successful (authClient returns data object directly)
+    if (result && result.user) {
       console.log('✅ [LoginModal] Login succesvol!');
       console.log('👤 [LoginModal] User:', result.user?.email, '| Role:', result.user?.role);
       
@@ -216,10 +225,10 @@ async function handleLogin(e, modal, modalWrapper) {
       console.log('📢 [LoginModal] auth:success event dispatched');
       console.log('🎉 [LoginModal] Login flow compleet');
     } else {
-      // Show error
-      console.error('❌ [LoginModal] Login gefaald:', result.error);
+      // Show error - shouldn't reach here normally
+      console.error('❌ [LoginModal] Login gefaald: Ongeldige response');
       hideLoader(submitButton);
-      showError(generalError, result.error || 'Inloggen mislukt. Controleer je gegevens.');
+      showError(generalError, 'Inloggen mislukt. Probeer het opnieuw.');
     }
   } catch (error) {
     console.error('❌ [LoginModal] Login error:', error);
