@@ -71,36 +71,29 @@ async function handleLogout(e) {
     const logoutStartTime = Date.now();
     
     // Call authClient logout
-    const result = await authClient.logout();
+    // Pass 'redirect' as reason when preventReload is true to prevent authClient from redirecting
+    const logoutReason = preventReload ? 'redirect' : undefined;
+    await authClient.logout(logoutReason);
     
     const logoutDuration = Date.now() - logoutStartTime;
     addLog(`⏱️ [LogoutHandler] Logout request duurde ${logoutDuration}ms`);
+    addLog('✅ [LogoutHandler] Uitloggen succesvol');
     
-    if (result.success) {
-      addLog('✅ [LogoutHandler] Uitloggen succesvol');
-      
-      // Dispatch auth:logout event voor reactieve components
-      const logoutEvent = new CustomEvent('auth:logout');
-      document.dispatchEvent(logoutEvent);
-      addLog('📢 [LogoutHandler] auth:logout event dispatched');
-      
-      if (preventReload) {
-        // Button heeft data-prevent-reload: dispatch event zonder reload
-        addLog('🔄 [LogoutHandler] Prevent reload = true, refresh wrapper state zonder reload...');
-        document.dispatchEvent(new CustomEvent('auth:state-changed', { 
-          detail: { role: 'guest' } 
-        }));
-        addLog('✅ [LogoutHandler] auth:state-changed event dispatched, NO RELOAD');
-      } else {
-        // Normale logout: reload page
-        addLog('🔄 [LogoutHandler] Prevent reload = false, RELOADING PAGE...');
-        window.location.reload();
-      }
+    // Dispatch auth:logout event voor reactieve components
+    const logoutEvent = new CustomEvent('auth:logout');
+    document.dispatchEvent(logoutEvent);
+    addLog('📢 [LogoutHandler] auth:logout event dispatched');
+    
+    if (preventReload) {
+      // Button heeft data-prevent-reload: dispatch event zonder reload
+      addLog('🔄 [LogoutHandler] Prevent reload = true, refresh wrapper state zonder reload...');
+      document.dispatchEvent(new CustomEvent('auth:state-changed', { 
+        detail: { role: 'guest' } 
+      }));
+      addLog('✅ [LogoutHandler] auth:state-changed event dispatched, NO RELOAD');
     } else {
-      console.error('❌ [LogoutHandler] Uitloggen mislukt:', result.error);
-      console.warn('⚠️ [LogoutHandler] Reloading page anyway voor safety...');
-      // Reload anyway om safe te zijn
-      window.location.reload();
+      // Normale logout: reload page (authClient.logout already redirected if reason was not 'redirect')
+      addLog('🔄 [LogoutHandler] Prevent reload = false, page should have redirected to /inloggen');
     }
   } catch (error) {
     console.error('❌ [LogoutHandler] Error tijdens logout:', error);
@@ -108,8 +101,16 @@ async function handleLogout(e) {
       message: error.message,
       stack: error.stack
     });
-    console.warn('⚠️ [LogoutHandler] Reloading page anyway voor safety...');
-    // Reload anyway om safe te zijn
-    window.location.reload();
+    
+    if (!preventReload) {
+      console.warn('⚠️ [LogoutHandler] Error, reloading page voor safety...');
+      window.location.reload();
+    } else {
+      console.warn('⚠️ [LogoutHandler] Error, maar preventReload=true, geen reload');
+      // Dispatch event toch zodat UI kan reageren
+      document.dispatchEvent(new CustomEvent('auth:state-changed', { 
+        detail: { role: 'guest' } 
+      }));
+    }
   }
 }
