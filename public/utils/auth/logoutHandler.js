@@ -14,6 +14,16 @@ import { authClient } from './authClient.js';
 export function initLogoutHandlers() {
   console.log('🚪 [LogoutHandler] Initialiseren...');
   
+  // Check if there are debug logs from previous logout
+  const previousLogout = localStorage.getItem('logout_debug');
+  if (previousLogout) {
+    console.log('📜 [LogoutHandler] === PREVIOUS LOGOUT DEBUG LOGS ===');
+    const logs = JSON.parse(previousLogout);
+    logs.forEach(log => console.log(log));
+    console.log('📜 [LogoutHandler] === END PREVIOUS LOGOUT LOGS ===');
+    localStorage.removeItem('logout_debug'); // Clear after reading
+  }
+  
   const logoutButtons = document.querySelectorAll('[data-action="auth-logout"]');
   
   if (logoutButtons.length === 0) {
@@ -24,6 +34,10 @@ export function initLogoutHandlers() {
   logoutButtons.forEach((button, index) => {
     button.addEventListener('click', handleLogout);
     console.log(`✅ [LogoutHandler] Logout button #${index + 1} geregistreerd`);
+    
+    // Log button attributes for debugging
+    const hasPreventReload = button.hasAttribute('data-prevent-reload');
+    console.log(`   → Has data-prevent-reload: ${hasPreventReload}`);
   });
 
   console.log(`✅ [LogoutHandler] ${logoutButtons.length} logout button(s) geïnitialiseerd`);
@@ -36,12 +50,22 @@ export function initLogoutHandlers() {
 async function handleLogout(e) {
   e.preventDefault();
   
-  console.log('👋 [LogoutHandler] === LOGOUT GESTART ===');
-  console.log('🔄 [LogoutHandler] Aanroepen authClient.logout()...');
+  // Create persistent log for debugging
+  const debugLog = [];
+  const addLog = (msg) => {
+    console.log(msg);
+    debugLog.push(msg);
+    localStorage.setItem('logout_debug', JSON.stringify(debugLog));
+  };
+  
+  addLog('👋 [LogoutHandler] === LOGOUT GESTART ===');
+  addLog('🔄 [LogoutHandler] Aanroepen authClient.logout()...');
   
   // Check if this button has data-prevent-reload attribute
   const preventReload = e.currentTarget.hasAttribute('data-prevent-reload');
-  console.log('🔍 [LogoutHandler] Prevent reload:', preventReload);
+  addLog(`🔍 [LogoutHandler] Prevent reload: ${preventReload}`);
+  addLog(`🔍 [LogoutHandler] Button element: ${e.currentTarget.tagName}`);
+  addLog(`🔍 [LogoutHandler] Button attributes: ${Array.from(e.currentTarget.attributes).map(a => `${a.name}="${a.value}"`).join(', ')}`);
   
   try {
     const logoutStartTime = Date.now();
@@ -50,25 +74,26 @@ async function handleLogout(e) {
     const result = await authClient.logout();
     
     const logoutDuration = Date.now() - logoutStartTime;
-    console.log(`⏱️ [LogoutHandler] Logout request duurde ${logoutDuration}ms`);
+    addLog(`⏱️ [LogoutHandler] Logout request duurde ${logoutDuration}ms`);
     
     if (result.success) {
-      console.log('✅ [LogoutHandler] Uitloggen succesvol');
+      addLog('✅ [LogoutHandler] Uitloggen succesvol');
       
       // Dispatch auth:logout event voor reactieve components
       const logoutEvent = new CustomEvent('auth:logout');
       document.dispatchEvent(logoutEvent);
-      console.log('📢 [LogoutHandler] auth:logout event dispatched');
+      addLog('📢 [LogoutHandler] auth:logout event dispatched');
       
       if (preventReload) {
         // Button heeft data-prevent-reload: dispatch event zonder reload
-        console.log('🔄 [LogoutHandler] Prevent reload = true, refresh wrapper state zonder reload...');
+        addLog('🔄 [LogoutHandler] Prevent reload = true, refresh wrapper state zonder reload...');
         document.dispatchEvent(new CustomEvent('auth:state-changed', { 
           detail: { role: 'guest' } 
         }));
+        addLog('✅ [LogoutHandler] auth:state-changed event dispatched, NO RELOAD');
       } else {
         // Normale logout: reload page
-        console.log('🔄 [LogoutHandler] Prevent reload = false, reloading...');
+        addLog('🔄 [LogoutHandler] Prevent reload = false, RELOADING PAGE...');
         window.location.reload();
       }
     } else {
