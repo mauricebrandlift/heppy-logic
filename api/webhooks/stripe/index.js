@@ -62,13 +62,35 @@ export default async function handler(req, res){
     console.log(`📦 [Stripe Webhook] Event type: ${event.type} [${correlationId}]`);
     console.log(`📦 [Stripe Webhook] Event ID: ${event.id} [${correlationId}]`);
     
-    const result = await dispatchStripeEvent({ event, correlationId });
-    
-    console.log(`✅ [Stripe Webhook] Event processed successfully [${correlationId}]`, result);
-    return res.status(200).json({ received:true, ...result });
+    let result;
+    try {
+      result = await dispatchStripeEvent({ event, correlationId });
+      console.log(`✅ [Stripe Webhook] Event processed successfully [${correlationId}]`, result);
+      return res.status(200).json({ received:true, ...result });
+    } catch (dispatchError) {
+      // Dispatch error - deze zou in Vercel logs moeten verschijnen
+      console.error(`🔥 [Stripe Webhook] ========== DISPATCH FAILURE ========== [${correlationId}]`);
+      console.error(`🔥 [Stripe Webhook] Event type: ${event.type}`);
+      console.error(`🔥 [Stripe Webhook] Event ID: ${event.id}`);
+      console.error(`🔥 [Stripe Webhook] Error message: ${dispatchError.message}`);
+      console.error(`🔥 [Stripe Webhook] Stack trace:`, dispatchError.stack);
+      console.error(`🔥 [Stripe Webhook] Full event data:`, JSON.stringify(event, null, 2));
+      
+      // Return 500 zodat Stripe het opnieuw probeert
+      return res.status(500).json({ 
+        correlationId, 
+        message: 'Event processing failed',
+        error: dispatchError.message,
+        eventType: event.type,
+        eventId: event.id
+      });
+    }
   } catch (e){
-    console.error(`❌ [Stripe Webhook] CRITICAL ERROR [${correlationId}]`);
+    // Top-level error (signature, parsing, etc)
+    console.error(`🔥 [Stripe Webhook] ========== CRITICAL ERROR ========== [${correlationId}]`);
+    console.error(`🔥 [Stripe Webhook] Error message: ${e.message}`);
+    console.error(`🔥 [Stripe Webhook] Stack trace:`, e.stack);
     console.error(JSON.stringify({ level:'ERROR', correlationId, msg:'stripe_webhook_error', error:e.message, stack: e.stack }));
-    return res.status(500).json({ correlationId, message:'Internal webhook error' });
+    return res.status(500).json({ correlationId, message:'Internal webhook error', error: e.message });
   }
 }

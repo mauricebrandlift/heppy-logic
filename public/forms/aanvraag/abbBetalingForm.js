@@ -210,19 +210,55 @@ export async function initAbbBetalingForm() {
         abb_min_uren: flow.abb_min_uren,
       };
 
+      // Bereken prijzen in cents voor metadata (backend verwacht dit formaat)
+      const prijsPerSessieCents = Math.round(baseAmountPerSession * 100);
+      const bundleAmountCents = Math.round(bundleAmountEur * 100);
+
+      // Verzamel alle metadata voor webhook processing
+      // Voor ingelogde users: gebruik auth data, voor guests: gebruik form data
+      const metadata = {
+        // Required fields
+        email: flow.emailadres || '',
+        prijs_per_sessie_cents: prijsPerSessieCents.toString(),
+        bundle_amount_cents: bundleAmountCents.toString(),
+        frequentie: frequentie || '',
+        
+        // Optional maar belangrijk
+        voornaam: flow.voornaam || '',
+        achternaam: flow.achternaam || '',
+        telefoon: flow.telefoonnummer || '', // Let op: frontend gebruikt 'telefoonnummer', backend verwacht 'telefoon'
+        
+        // Adres gegevens
+        straat: flow.straatnaam || '',
+        huisnummer: flow.huisnummer || '',
+        toevoeging: flow.toevoeging || '',
+        postcode: flow.postcode || '',
+        plaats: flow.plaats || '',
+        
+        // Opdracht details
+        uren: flow.abb_uren || '',
+        sessions_per_4w: sessionsPer4W.toString(),
+        startdatum: flow.startdatum || '',
+        
+        // Schoonmaker keuze (kan 'geenVoorkeur' zijn of schoonmaker ID)
+        schoonmaker_id: (flow.schoonmakerKeuze && flow.schoonmakerKeuze !== 'geenVoorkeur') ? flow.schoonmakerKeuze : '',
+        
+        // Dagdelen voorkeuren (JSON string van dagdelen object)
+        // Format: {"maandag":["ochtend","middag"],"dinsdag":["avond"]}
+        dagdelen: flow.dagdelenVoorkeur ? JSON.stringify(flow.dagdelenVoorkeur) : '',
+        
+        // Extra metadata voor reference
+        flow: 'abonnement',
+        aanvraagId: flow.aanvraagId || '',
+      };
+
+      console.log('[AbbBetaling] Metadata voor PaymentIntent:', metadata);
+
       const intent = await createPaymentIntent({
         currency: publicCfg.currency,
         description: `Heppy abonnement (${sessionsPer4W}x / 4w)` ,
         customerEmail: flow.emailadres || undefined,
-        metadata: {
-          flow: 'abonnement',
-          aanvraagId: flow.aanvraagId || '',
-          klantEmail: flow.emailadres || '',
-          frequentie: frequentie || '',
-          sessionsPerCycle: sessionsPer4W,
-          prijsPerSessie: baseAmountPerSession.toFixed(2),
-          quoteBundle: bundleAmountEur.toFixed(2),
-        },
+        metadata,
         flowContext,
         clientQuote: {
           pricePerSession: baseAmountPerSession,
