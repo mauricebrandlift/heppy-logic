@@ -45,20 +45,35 @@ export async function initAbbPersoonsgegevensForm() {
 
   // ========== AUTH STATE DETECTION ==========
   // Check auth state bij load en toggle de juiste wrapper
+  console.log('🔍 [AbbPersoonsgegevens] Checking auth state...');
   const authState = authClient.getAuthState();
   const role = authState?.role || 'guest';
   console.log(`👤 [AbbPersoonsgegevens] Auth state detected: ${role}`);
+  
+  if (authState?.user) {
+    console.log('👤 [AbbPersoonsgegevens] User info:', {
+      id: authState.user.id,
+      email: authState.user.email || authState.user.emailadres,
+      role: authState.user.role
+    });
+  } else {
+    console.log('👤 [AbbPersoonsgegevens] Geen authenticated user gevonden');
+  }
   
   toggleAuthWrappers(role);
   applyReadonlyFields();
 
   // Als klant: prefill met profiel data
   if (role === 'klant' && authState?.user) {
+    console.log('🔄 [AbbPersoonsgegevens] Klant detected, starten prefill...');
     await prefillAuthenticatedUser(authState.user);
+  } else {
+    console.log('ℹ️ [AbbPersoonsgegevens] Guest mode, geen prefill nodig');
   }
 
   // Luister naar auth:success event (na login via modal)
   document.addEventListener('auth:success', handleAuthSuccess);
+  console.log('👂 [AbbPersoonsgegevens] Luistert naar auth:success events');
 
   // ========== FORM HANDLER SETUP ==========
   schema.submit = {
@@ -127,17 +142,28 @@ export async function initAbbPersoonsgegevensForm() {
  * @param {string} role - De huidige rol (guest, klant, admin, schoonmaker)
  */
 function toggleAuthWrappers(role) {
+  console.log(`🔄 [AbbPersoonsgegevens] Toggling wrappers voor role: ${role}`);
+  
   const wrappers = document.querySelectorAll('[data-auth-state]');
+  console.log(`📦 [AbbPersoonsgegevens] Gevonden ${wrappers.length} wrapper(s) met [data-auth-state]`);
+  
+  let visibleCount = 0;
+  let hiddenCount = 0;
   
   wrappers.forEach(wrapper => {
     const wrapperRole = wrapper.getAttribute('data-auth-state');
     if (wrapperRole === role) {
       wrapper.style.display = ''; // Toon
-      console.log(`👁️ [AbbPersoonsgegevens] Wrapper "${wrapperRole}" getoond`);
+      visibleCount++;
+      console.log(`👁️ [AbbPersoonsgegevens] ✅ Wrapper "${wrapperRole}" GETOOND`);
     } else {
       wrapper.style.display = 'none'; // Verberg
+      hiddenCount++;
+      console.log(`👁️ [AbbPersoonsgegevens] ❌ Wrapper "${wrapperRole}" verborgen`);
     }
   });
+  
+  console.log(`📊 [AbbPersoonsgegevens] Wrapper toggle compleet: ${visibleCount} zichtbaar, ${hiddenCount} verborgen`);
 }
 
 /**
@@ -145,13 +171,21 @@ function toggleAuthWrappers(role) {
  * Webflow workaround: kan niet direct readonly zetten, dus via JS
  */
 function applyReadonlyFields() {
+  console.log('🔒 [AbbPersoonsgegevens] Applying readonly fields...');
+  
   const readonlyFields = document.querySelectorAll('[data-readonly="true"]');
+  console.log(`📋 [AbbPersoonsgegevens] Gevonden ${readonlyFields.length} readonly veld(en)`);
   
   readonlyFields.forEach(field => {
     field.setAttribute('readonly', 'readonly');
     field.classList.add('is-readonly'); // Voor eventuele styling
-    console.log(`🔒 [AbbPersoonsgegevens] Veld "${field.name}" set to readonly`);
+    const fieldName = field.getAttribute('data-field-name') || field.name || 'unknown';
+    console.log(`🔒 [AbbPersoonsgegevens] ✅ Veld "${fieldName}" set to readonly`);
   });
+  
+  if (readonlyFields.length > 0) {
+    console.log('✅ [AbbPersoonsgegevens] Readonly fields toegepast');
+  }
 }
 
 /**
@@ -159,22 +193,38 @@ function applyReadonlyFields() {
  * @param {Object} user - User object van authClient
  */
 async function prefillAuthenticatedUser(user) {
-  console.log('👤 [AbbPersoonsgegevens] Prefilling voor authenticated klant:', user);
+  console.log('👤 [AbbPersoonsgegevens] === START PREFILL ===');
+  console.log('👤 [AbbPersoonsgegevens] User object ontvangen:', {
+    id: user?.id,
+    email: user?.email || user?.emailadres,
+    role: user?.role
+  });
   
   try {
     // Haal volledige profiel op via authClient (bevat meer details)
+    console.log('🔄 [AbbPersoonsgegevens] Fetching volledige profiel via authClient.getCurrentUser()...');
     const currentUser = await authClient.getCurrentUser();
     
     if (!currentUser) {
-      console.warn('[AbbPersoonsgegevens] Kon geen user profiel ophalen');
+      console.warn('⚠️ [AbbPersoonsgegevens] getCurrentUser() returned null/undefined');
       return;
     }
 
+    console.log('✅ [AbbPersoonsgegevens] Profiel opgehaald:', {
+      id: currentUser.id,
+      voornaam: currentUser.voornaam,
+      achternaam: currentUser.achternaam,
+      telefoonnummer: currentUser.telefoonnummer,
+      email: currentUser.emailadres || currentUser.email
+    });
+
     const formEl = document.querySelector(`[data-form-name="${FORM_NAME}"]`);
     if (!formEl) {
-      console.warn('[AbbPersoonsgegevens] Formulier element niet gevonden');
+      console.warn('⚠️ [AbbPersoonsgegevens] Formulier element niet gevonden voor:', FORM_NAME);
       return;
     }
+
+    console.log('✅ [AbbPersoonsgegevens] Formulier element gevonden');
 
     // Map user data naar form velden
     const fieldMap = {
@@ -184,17 +234,30 @@ async function prefillAuthenticatedUser(user) {
       emailadres: currentUser.emailadres || currentUser.email
     };
 
+    console.log('📋 [AbbPersoonsgegevens] Field map voor prefill:', fieldMap);
+
     // Prefill velden
+    let prefilledCount = 0;
+    let skippedCount = 0;
+    
     Object.entries(fieldMap).forEach(([fieldName, value]) => {
       if (value != null && value !== '') {
         const field = formEl.querySelector(`[data-field-name="${fieldName}"]`);
         if (field) {
           field.value = value;
           formHandler.formData[fieldName] = String(value);
-          console.log(`✅ [AbbPersoonsgegevens] Prefilled ${fieldName}: ${value}`);
+          prefilledCount++;
+          console.log(`✅ [AbbPersoonsgegevens] Prefilled ${fieldName}: "${value}"`);
+        } else {
+          console.warn(`⚠️ [AbbPersoonsgegevens] Field niet gevonden: ${fieldName}`);
         }
+      } else {
+        skippedCount++;
+        console.log(`ℹ️ [AbbPersoonsgegevens] Skipped ${fieldName} (geen waarde)`);
       }
     });
+
+    console.log(`📊 [AbbPersoonsgegevens] Prefill stats: ${prefilledCount} gevuld, ${skippedCount} overgeslagen`);
 
     // Sla ook op in flow storage met authenticated flag
     const flow = loadFlowData('abonnement-aanvraag') || {};
@@ -204,13 +267,22 @@ async function prefillAuthenticatedUser(user) {
     flow.emailadres = fieldMap.emailadres;
     flow.authenticatedUserId = currentUser.id;
     saveFlowData('abonnement-aanvraag', flow);
+    
+    console.log('💾 [AbbPersoonsgegevens] Flow data opgeslagen met authenticatedUserId:', currentUser.id);
 
     // Update submit state na prefill
     if (typeof formHandler.updateSubmitState === 'function') {
       formHandler.updateSubmitState(FORM_NAME);
+      console.log('✅ [AbbPersoonsgegevens] Submit state geüpdatet');
     }
+    
+    console.log('🎉 [AbbPersoonsgegevens] === PREFILL COMPLEET ===');
   } catch (error) {
-    console.error('[AbbPersoonsgegevens] Error tijdens prefill:', error);
+    console.error('❌ [AbbPersoonsgegevens] Error tijdens prefill:', error);
+    console.error('🔍 [AbbPersoonsgegevens] Error details:', {
+      message: error.message,
+      stack: error.stack
+    });
   }
 }
 
@@ -219,9 +291,17 @@ async function prefillAuthenticatedUser(user) {
  * @param {CustomEvent} event - Het auth:success event
  */
 async function handleAuthSuccess(event) {
-  console.log('🎉 [AbbPersoonsgegevens] Auth success event ontvangen:', event.detail);
+  console.log('🎉 [AbbPersoonsgegevens] === AUTH SUCCESS EVENT ONTVANGEN ===');
+  console.log('📢 [AbbPersoonsgegevens] Event detail:', event.detail);
   
   const { role, user } = event.detail;
+  
+  console.log(`🔄 [AbbPersoonsgegevens] Nieuwe auth state: ${role}`);
+  console.log('👤 [AbbPersoonsgegevens] User info:', {
+    id: user?.id,
+    email: user?.email || user?.emailadres,
+    role: user?.role
+  });
   
   // Toggle wrappers naar nieuwe auth state
   toggleAuthWrappers(role);
@@ -229,12 +309,20 @@ async function handleAuthSuccess(event) {
   
   // Als klant: prefill met profiel data
   if (role === 'klant' && user) {
+    console.log('🔄 [AbbPersoonsgegevens] Klant ingelogd, starten prefill na login...');
     await prefillAuthenticatedUser(user);
+  } else if (role === 'guest') {
+    console.log('ℹ️ [AbbPersoonsgegevens] Guest state na event, geen prefill');
+  } else {
+    console.log(`ℹ️ [AbbPersoonsgegevens] Role ${role}, geen prefill actie`);
   }
   
   // Als admin/schoonmaker: toon melding dat ze niet kunnen bestellen
   if (role === 'admin' || role === 'schoonmaker') {
-    console.warn(`⚠️ [AbbPersoonsgegevens] ${role} kan geen abonnement aanvragen`);
+    console.warn(`⚠️ [AbbPersoonsgegevens] ${role.toUpperCase()} kan geen abonnement aanvragen`);
+    console.warn('⚠️ [AbbPersoonsgegevens] Wrapper voor admin/schoonmaker moet blokkeer-melding tonen');
     // De wrapper voor admin/schoonmaker zou een blokmelding moeten tonen
   }
+  
+  console.log('✅ [AbbPersoonsgegevens] === AUTH SUCCESS HANDLING COMPLEET ===');
 }

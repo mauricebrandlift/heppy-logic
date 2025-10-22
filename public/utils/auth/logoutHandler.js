@@ -12,6 +12,8 @@ import { authClient } from './authClient.js';
  * Initialize logout handlers for all logout buttons
  */
 export function initLogoutHandlers() {
+  console.log('🚪 [LogoutHandler] Initialiseren...');
+  
   const logoutButtons = document.querySelectorAll('[data-action="auth-logout"]');
   
   if (logoutButtons.length === 0) {
@@ -19,8 +21,9 @@ export function initLogoutHandlers() {
     return;
   }
 
-  logoutButtons.forEach(button => {
+  logoutButtons.forEach((button, index) => {
     button.addEventListener('click', handleLogout);
+    console.log(`✅ [LogoutHandler] Logout button #${index + 1} geregistreerd`);
   });
 
   console.log(`✅ [LogoutHandler] ${logoutButtons.length} logout button(s) geïnitialiseerd`);
@@ -33,27 +36,42 @@ export function initLogoutHandlers() {
 async function handleLogout(e) {
   e.preventDefault();
   
-  console.log('👋 [LogoutHandler] Uitloggen gestart...');
+  console.log('👋 [LogoutHandler] === LOGOUT GESTART ===');
+  console.log('🔄 [LogoutHandler] Aanroepen authClient.logout()...');
   
   try {
+    const logoutStartTime = Date.now();
+    
     // Call authClient logout
     const result = await authClient.logout();
+    
+    const logoutDuration = Date.now() - logoutStartTime;
+    console.log(`⏱️ [LogoutHandler] Logout request duurde ${logoutDuration}ms`);
     
     if (result.success) {
       console.log('✅ [LogoutHandler] Uitloggen succesvol');
       
       // Dispatch auth:logout event voor reactieve components
-      document.dispatchEvent(new CustomEvent('auth:logout'));
+      const logoutEvent = new CustomEvent('auth:logout');
+      document.dispatchEvent(logoutEvent);
+      console.log('📢 [LogoutHandler] auth:logout event dispatched');
       
+      console.log('🔄 [LogoutHandler] Reloading page om state te resetten...');
       // Reload page om state te resetten
       window.location.reload();
     } else {
       console.error('❌ [LogoutHandler] Uitloggen mislukt:', result.error);
+      console.warn('⚠️ [LogoutHandler] Reloading page anyway voor safety...');
       // Reload anyway om safe te zijn
       window.location.reload();
     }
   } catch (error) {
-    console.error('[LogoutHandler] Error tijdens logout:', error);
+    console.error('❌ [LogoutHandler] Error tijdens logout:', error);
+    console.error('🔍 [LogoutHandler] Error details:', {
+      message: error.message,
+      stack: error.stack
+    });
+    console.warn('⚠️ [LogoutHandler] Reloading page anyway voor safety...');
     // Reload anyway om safe te zijn
     window.location.reload();
   }
