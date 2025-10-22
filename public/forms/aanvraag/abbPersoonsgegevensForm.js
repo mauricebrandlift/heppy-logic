@@ -74,6 +74,10 @@ export async function initAbbPersoonsgegevensForm() {
   // Luister naar auth:success event (na login via modal)
   document.addEventListener('auth:success', handleAuthSuccess);
   console.log('👂 [AbbPersoonsgegevens] Luistert naar auth:success events');
+  
+  // Luister naar auth:state-changed event (na logout)
+  document.addEventListener('auth:state-changed', handleAuthStateChanged);
+  console.log('👂 [AbbPersoonsgegevens] Luistert naar auth:state-changed events');
 
   // ========== FORM HANDLER SETUP ==========
   schema.submit = {
@@ -107,6 +111,25 @@ export async function initAbbPersoonsgegevensForm() {
           goToFormStep(NEXT_FORM_NAME);
         });
     }
+  };
+  
+  // Custom validatie: alleen valideer velden in de zichtbare wrapper
+  schema.shouldValidateField = (fieldName, fieldElement) => {
+    if (!fieldElement) return false;
+    
+    // Check of het veld in een auth-state wrapper zit
+    const wrapper = fieldElement.closest('[data-auth-state]');
+    if (!wrapper) {
+      // Geen wrapper, altijd valideren
+      return true;
+    }
+    
+    // Alleen valideren als de wrapper zichtbaar is
+    const isVisible = wrapper.style.display !== 'none';
+    if (!isVisible) {
+      console.log(`⏭️ [AbbPersoonsgegevens] Skip validatie voor ${fieldName} (wrapper hidden)`);
+    }
+    return isVisible;
   };
 
   formHandler.init(schema);
@@ -325,4 +348,46 @@ async function handleAuthSuccess(event) {
   }
   
   console.log('✅ [AbbPersoonsgegevens] === AUTH SUCCESS HANDLING COMPLEET ===');
+}
+
+/**
+ * Handle auth:state-changed event (na logout)
+ * @param {CustomEvent} event - Het auth:state-changed event
+ */
+function handleAuthStateChanged(event) {
+  console.log('🔄 [AbbPersoonsgegevens] === AUTH STATE CHANGED EVENT ===');
+  console.log('📢 [AbbPersoonsgegevens] Event detail:', event.detail);
+  
+  const { role } = event.detail;
+  
+  console.log(`🔄 [AbbPersoonsgegevens] State changed naar: ${role}`);
+  
+  // Toggle wrappers naar nieuwe state
+  toggleAuthWrappers(role);
+  
+  // Clear form velden bij logout naar guest
+  if (role === 'guest') {
+    console.log('🧹 [AbbPersoonsgegevens] Clearing form fields voor guest state...');
+    const formEl = document.querySelector(`[data-form-name="${FORM_NAME}"]`);
+    if (formEl) {
+      ['voornaam', 'achternaam', 'telefoonnummer', 'emailadres'].forEach(fieldName => {
+        const field = formEl.querySelector(`[data-field-name="${fieldName}"]`);
+        if (field) {
+          field.value = '';
+          field.removeAttribute('readonly');
+          field.classList.remove('is-readonly');
+        }
+      });
+      
+      // Clear formHandler data
+      formHandler.formData = {};
+      
+      // Update submit state
+      if (typeof formHandler.updateSubmitState === 'function') {
+        formHandler.updateSubmitState(FORM_NAME);
+      }
+    }
+  }
+  
+  console.log('✅ [AbbPersoonsgegevens] === STATE CHANGE COMPLEET ===');
 }

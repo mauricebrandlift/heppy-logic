@@ -106,6 +106,18 @@ export function validateForm(formData, formSchema, formState = {}) {
   let isFormValid = true;
 
   for (const [fieldName, cfg] of Object.entries(formSchema.fields)) {
+    // Check of er een custom shouldValidateField functie is
+    if (typeof formSchema.shouldValidateField === 'function') {
+      // Zoek het field element
+      const fieldElement = document.querySelector(`[data-field-name="${fieldName}"]`);
+      const shouldValidate = formSchema.shouldValidateField(fieldName, fieldElement);
+      
+      if (!shouldValidate) {
+        // Skip validatie voor dit veld
+        continue;
+      }
+    }
+    
     const raw = String(formData[fieldName] ?? '');
     // Skip optional empty
     if (cfg.validators.includes('optional') && raw.trim() === '') {

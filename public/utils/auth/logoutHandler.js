@@ -56,9 +56,20 @@ async function handleLogout(e) {
       document.dispatchEvent(logoutEvent);
       console.log('📢 [LogoutHandler] auth:logout event dispatched');
       
-      console.log('🔄 [LogoutHandler] Reloading page om state te resetten...');
-      // Reload page om state te resetten
-      window.location.reload();
+      // Check of we op de abonnement aanvraag pagina zijn
+      const persoonsgegevensForm = document.querySelector('[data-form-name="abb_persoonsgegevens-form"]');
+      
+      if (persoonsgegevensForm) {
+        console.log('🔄 [LogoutHandler] Op persoonsgegevens pagina, refresh wrapper state...');
+        // Dispatch event zodat form kan reageren
+        document.dispatchEvent(new CustomEvent('auth:state-changed', { 
+          detail: { role: 'guest' } 
+        }));
+      } else {
+        console.log('🔄 [LogoutHandler] Niet op persoonsgegevens pagina, reloading...');
+        // Reload page voor andere paginas
+        window.location.reload();
+      }
     } else {
       console.error('❌ [LogoutHandler] Uitloggen mislukt:', result.error);
       console.warn('⚠️ [LogoutHandler] Reloading page anyway voor safety...');

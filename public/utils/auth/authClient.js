@@ -177,7 +177,8 @@ export const authClient = {
       throw new AuthError('Niet ingelogd', 401, 'NOT_AUTHENTICATED');
     }
 
-    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH.ME}`, {
+    // Haal uitgebreide profiel data op via profile endpoint
+    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PROFILE}`, {
       headers: {
         Authorization: `Bearer ${authData.access_token}`
       }
@@ -192,7 +193,8 @@ export const authClient = {
     }
 
     const data = await response.json();
-    return data.user;
+    // Profile endpoint retourneert { profile: {...} }
+    return data.profile || data.user || data;
   },
 
   /**
