@@ -56,30 +56,22 @@ async function handleLogout(e) {
       document.dispatchEvent(logoutEvent);
       console.log('📢 [LogoutHandler] auth:logout event dispatched');
       
-      // Check of we op de abonnement aanvraag pagina zijn EN op de persoonsgegevens stap
-      const persoonsgegevensForm = document.querySelector('[data-form-name="abb_persoonsgegevens-form"]');
-      console.log('🔍 [LogoutHandler] Persoonsgegevens form gevonden:', !!persoonsgegevensForm);
+      // Check of we op de abonnement aanvraag pagina zijn
+      const isOnAbonnementPage = window.location.pathname.includes('schoonmaak-abonnement-aanvragen') || 
+                                  window.location.pathname.includes('abonnement-aanvragen');
       
-      const persoonsgegevensSlide = persoonsgegevensForm?.closest('.splide__slide');
-      console.log('🔍 [LogoutHandler] Persoonsgegevens slide gevonden:', !!persoonsgegevensSlide);
+      console.log('🔍 [LogoutHandler] Is on abonnement page:', isOnAbonnementPage);
+      console.log('🔍 [LogoutHandler] Current URL:', window.location.pathname);
       
-      const isOnPersoonsgegevensStep = persoonsgegevensSlide?.classList.contains('is-active');
-      console.log('🔍 [LogoutHandler] Is active slide:', isOnPersoonsgegevensStep);
-      
-      if (persoonsgegevensSlide) {
-        console.log('🔍 [LogoutHandler] Slide classes:', persoonsgegevensSlide.className);
-      }
-      
-      if (persoonsgegevensForm && isOnPersoonsgegevensStep) {
-        console.log('🔄 [LogoutHandler] Op actieve persoonsgegevens stap, refresh wrapper state...');
-        // Dispatch event zodat form kan reageren
+      if (isOnAbonnementPage) {
+        // Op abonnement pagina: dispatch event zonder reload
+        console.log('🔄 [LogoutHandler] Op abonnement pagina, refresh wrapper state zonder reload...');
         document.dispatchEvent(new CustomEvent('auth:state-changed', { 
           detail: { role: 'guest' } 
         }));
       } else {
-        console.log('🔄 [LogoutHandler] Niet op persoonsgegevens stap, reloading...');
-        console.log('🔍 [LogoutHandler] Reden: form exists =', !!persoonsgegevensForm, ', is active =', isOnPersoonsgegevensStep);
-        // Reload page voor andere paginas
+        // Andere pagina: reload
+        console.log('� [LogoutHandler] Niet op abonnement pagina, reloading...');
         window.location.reload();
       }
     } else {
