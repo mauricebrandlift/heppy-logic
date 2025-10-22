@@ -243,6 +243,15 @@ async function prefillAuthenticatedUser(user) {
     }
 
     console.log('✅ [AbbPersoonsgegevens] Formulier element gevonden');
+    
+    // Zoek de zichtbare klant wrapper
+    const klantWrapper = formEl.querySelector('[data-auth-state="klant"]');
+    if (!klantWrapper) {
+      console.warn('⚠️ [AbbPersoonsgegevens] Klant wrapper niet gevonden');
+      return;
+    }
+    
+    console.log('✅ [AbbPersoonsgegevens] Klant wrapper gevonden');
 
     // Map user data naar form velden
     const fieldMap = {
@@ -254,16 +263,28 @@ async function prefillAuthenticatedUser(user) {
 
     console.log('📋 [AbbPersoonsgegevens] Field map voor prefill:', fieldMap);
 
-    // Prefill velden
+    // Prefill velden - ZOEK IN DE KLANT WRAPPER
     let prefilledCount = 0;
     let skippedCount = 0;
     
     Object.entries(fieldMap).forEach(([fieldName, value]) => {
       if (value != null && value !== '') {
-        const field = formEl.querySelector(`[data-field-name="${fieldName}"]`);
+        // Zoek veld BINNEN de klant wrapper
+        const field = klantWrapper.querySelector(`[data-field-name="${fieldName}"]`);
         if (field) {
+          console.log(`🔍 [AbbPersoonsgegevens] Veld "${fieldName}" gevonden. Current value: "${field.value}", Setting to: "${value}"`);
           field.value = value;
           formHandler.formData[fieldName] = String(value);
+          console.log(`🔍 [AbbPersoonsgegevens] Na update - DOM value: "${field.value}", formData: "${formHandler.formData[fieldName]}"`);
+          
+          // Check in welke wrapper het veld zit
+          const wrapper = field.closest('[data-auth-state]');
+          if (wrapper) {
+            const wrapperState = wrapper.getAttribute('data-auth-state');
+            const wrapperDisplay = window.getComputedStyle(wrapper).display;
+            console.log(`🔍 [AbbPersoonsgegevens] Veld "${fieldName}" zit in wrapper "${wrapperState}", display: ${wrapperDisplay}`);
+          }
+          
           prefilledCount++;
           console.log(`✅ [AbbPersoonsgegevens] Prefilled ${fieldName}: "${value}"`);
         } else {
