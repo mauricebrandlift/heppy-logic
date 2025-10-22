@@ -15,21 +15,60 @@ import { dispatchStripeEvent } from './dispatcher.js';
 import { stripeConfig } from '../../config/index.js';
 
 export default async function handler(req, res){
-  if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST'){ res.setHeader('Allow','POST, OPTIONS'); return res.status(405).json({ message:'Method not allowed' }); }
+  if (req.method === 'OPTIONS') {
+    console.log('🔄 [Stripe Webhook] OPTIONS preflight');
+    return res.status(200).end();
+  }
+  if (req.method !== 'POST'){ 
+    console.warn(`⚠️ [Stripe Webhook] Method ${req.method} not allowed`);
+    res.setHeader('Allow','POST, OPTIONS'); 
+    return res.status(405).json({ message:'Method not allowed' }); 
+  }
   const correlationId = req.headers['x-correlation-id'] || `wh_${Date.now()}`;
+  
+  console.log(`🎣 [Stripe Webhook] ========== WEBHOOK ONTVANGEN ========== [${correlationId}]`);
+  
   try {
     const sig = req.headers['stripe-signature'];
-    if (!sig) return res.status(400).json({ correlationId, message:'Missing Stripe-Signature' });
-    if (!stripeConfig.webhookSecret) return res.status(500).json({ correlationId, message:'Webhook not configured' });
+    if (!sig) {
+      console.error(`❌ [Stripe Webhook] Missing Stripe-Signature header [${correlationId}]`);
+      return res.status(400).json({ correlationId, message:'Missing Stripe-Signature' });
+    }
+    
+    if (!stripeConfig.webhookSecret) {
+      console.error(`❌ [Stripe Webhook] Webhook secret not configured [${correlationId}]`);
+      return res.status(500).json({ correlationId, message:'Webhook not configured' });
+    }
+    
+    console.log(`🔐 [Stripe Webhook] Verifying signature... [${correlationId}]`);
     const raw = await readRawBody(req);
     const ok = verifySignature(raw, sig, stripeConfig.webhookSecret);
-    if (!ok) return res.status(400).json({ correlationId, message:'Invalid signature' });
-    let event; try { event = JSON.parse(raw.toString('utf8')); } catch { return res.status(400).json({ correlationId, message:'Invalid JSON' }); }
+    
+    if (!ok) {
+      console.error(`❌ [Stripe Webhook] Invalid signature [${correlationId}]`);
+      return res.status(400).json({ correlationId, message:'Invalid signature' });
+    }
+    
+    console.log(`✅ [Stripe Webhook] Signature verified [${correlationId}]`);
+    
+    let event; 
+    try { 
+      event = JSON.parse(raw.toString('utf8')); 
+    } catch { 
+      console.error(`❌ [Stripe Webhook] Invalid JSON payload [${correlationId}]`);
+      return res.status(400).json({ correlationId, message:'Invalid JSON' }); 
+    }
+    
+    console.log(`📦 [Stripe Webhook] Event type: ${event.type} [${correlationId}]`);
+    console.log(`📦 [Stripe Webhook] Event ID: ${event.id} [${correlationId}]`);
+    
     const result = await dispatchStripeEvent({ event, correlationId });
+    
+    console.log(`✅ [Stripe Webhook] Event processed successfully [${correlationId}]`, result);
     return res.status(200).json({ received:true, ...result });
   } catch (e){
-    console.error(JSON.stringify({ level:'ERROR', correlationId, msg:'stripe_webhook_error', error:e.message }));
+    console.error(`❌ [Stripe Webhook] CRITICAL ERROR [${correlationId}]`);
+    console.error(JSON.stringify({ level:'ERROR', correlationId, msg:'stripe_webhook_error', error:e.message, stack: e.stack }));
     return res.status(500).json({ correlationId, message:'Internal webhook error' });
   }
 }

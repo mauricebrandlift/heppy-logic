@@ -8,6 +8,7 @@
 - Focus on small, manageable improvements with each update
 - Make changes that can be easily tested and verified
 - Only change md files when I specifically ask you to do so, except when the task explicitly requests updating docs (for example: adding flow docs under `docs/`).
+- After making code changes, do NOT use git commands or terminal tools to commit/push. Instead, ask the user to commit, push, and test the changes themselves.
 
 ## Repo-specific notes
 
