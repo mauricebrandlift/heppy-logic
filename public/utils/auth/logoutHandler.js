@@ -56,22 +56,21 @@ async function handleLogout(e) {
       document.dispatchEvent(logoutEvent);
       console.log('📢 [LogoutHandler] auth:logout event dispatched');
       
-      // Check of we op de abonnement aanvraag pagina zijn
-      const isOnAbonnementPage = window.location.pathname.includes('schoonmaak-abonnement-aanvragen') || 
-                                  window.location.pathname.includes('abonnement-aanvragen');
+      // Check of het abonnement aanvraag formulier bestaat op deze pagina
+      const persoonsgegevensForm = document.querySelector('[data-form-name="abb_persoonsgegevens-form"]');
       
-      console.log('🔍 [LogoutHandler] Is on abonnement page:', isOnAbonnementPage);
+      console.log('🔍 [LogoutHandler] Persoonsgegevens form exists:', !!persoonsgegevensForm);
       console.log('🔍 [LogoutHandler] Current URL:', window.location.pathname);
       
-      if (isOnAbonnementPage) {
-        // Op abonnement pagina: dispatch event zonder reload
+      if (persoonsgegevensForm) {
+        // Formulier bestaat: we zijn op de abonnement aanvraag pagina
         console.log('🔄 [LogoutHandler] Op abonnement pagina, refresh wrapper state zonder reload...');
         document.dispatchEvent(new CustomEvent('auth:state-changed', { 
           detail: { role: 'guest' } 
         }));
       } else {
-        // Andere pagina: reload
-        console.log('� [LogoutHandler] Niet op abonnement pagina, reloading...');
+        // Formulier bestaat niet: andere pagina
+        console.log('🔄 [LogoutHandler] Niet op abonnement pagina, reloading...');
         window.location.reload();
       }
     } else {
