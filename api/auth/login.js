@@ -136,8 +136,9 @@ export default async function handler(req, res) {
       id: profile.id,
       rol: profile.rol,
       hasVoornaam: !!profile.voornaam,
-      hasAchternaam: !!profile.achternaam
-    });    // Geef gebruikersdata terug met rol en sessie
+      hasAchternaam: !!profile.achternaam,
+      hasTelefoonnummer: !!profile.telefoonnummer
+    });    // Geef gebruikersdata terug met rol en sessie + profiel data voor prefill
     const totalDuration = Date.now() - requestStartTime;
     
     console.log('✅ [Login API] Preparing response...');
@@ -149,7 +150,11 @@ export default async function handler(req, res) {
         id: data.user.id,
         email: data.user.email,
         role: profile.rol,
-        // Voeg eventueel andere benodigde gebruikersdata toe
+        // Profiel data voor prefill
+        voornaam: profile.voornaam || '',
+        achternaam: profile.achternaam || '',
+        telefoonnummer: profile.telefoonnummer || '',
+        emailadres: profile.emailadres || data.user.email
       },
       session: {
         access_token: data.access_token,

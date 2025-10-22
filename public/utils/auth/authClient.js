@@ -88,6 +88,11 @@ export const authClient = {
         return null;
       }
       
+      // Zorg dat role altijd beschikbaar is (voor backwards compatibility)
+      if (parsed.user && !parsed.role) {
+        parsed.role = parsed.user.role || 'guest';
+      }
+      
       return parsed;
     } catch (error) {
       console.error('Fout bij ophalen auth status:', error);

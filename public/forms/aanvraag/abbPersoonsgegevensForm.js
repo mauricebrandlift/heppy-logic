@@ -220,26 +220,19 @@ async function prefillAuthenticatedUser(user) {
   console.log('👤 [AbbPersoonsgegevens] User object ontvangen:', {
     id: user?.id,
     email: user?.email || user?.emailadres,
-    role: user?.role
+    role: user?.role,
+    voornaam: user?.voornaam,
+    achternaam: user?.achternaam,
+    telefoonnummer: user?.telefoonnummer
   });
   
   try {
-    // Haal volledige profiel op via authClient (bevat meer details)
-    console.log('🔄 [AbbPersoonsgegevens] Fetching volledige profiel via authClient.getCurrentUser()...');
-    const currentUser = await authClient.getCurrentUser();
-    
-    if (!currentUser) {
-      console.warn('⚠️ [AbbPersoonsgegevens] getCurrentUser() returned null/undefined');
+    // Gebruik data direct van user object (komt van login response)
+    // De login API stuurt nu voornaam, achternaam, telefoonnummer mee
+    if (!user) {
+      console.warn('⚠️ [AbbPersoonsgegevens] Geen user data beschikbaar');
       return;
     }
-
-    console.log('✅ [AbbPersoonsgegevens] Profiel opgehaald:', {
-      id: currentUser.id,
-      voornaam: currentUser.voornaam,
-      achternaam: currentUser.achternaam,
-      telefoonnummer: currentUser.telefoonnummer,
-      email: currentUser.emailadres || currentUser.email
-    });
 
     const formEl = document.querySelector(`[data-form-name="${FORM_NAME}"]`);
     if (!formEl) {
@@ -251,10 +244,10 @@ async function prefillAuthenticatedUser(user) {
 
     // Map user data naar form velden
     const fieldMap = {
-      voornaam: currentUser.voornaam,
-      achternaam: currentUser.achternaam,
-      telefoonnummer: currentUser.telefoonnummer,
-      emailadres: currentUser.emailadres || currentUser.email
+      voornaam: user.voornaam || '',
+      achternaam: user.achternaam || '',
+      telefoonnummer: user.telefoonnummer || '',
+      emailadres: user.emailadres || user.email || ''
     };
 
     console.log('📋 [AbbPersoonsgegevens] Field map voor prefill:', fieldMap);
