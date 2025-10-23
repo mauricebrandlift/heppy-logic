@@ -3,7 +3,7 @@
 export const metadataContract = {
   required: ['email','frequentie','prijs_per_sessie_cents','bundle_amount_cents'],
   optional: [
-    'voornaam','achternaam','telefoon',
+    'voornaam','achternaam','telefoon','wachtwoord',
     'straat','huisnummer','toevoeging','postcode','plaats',
     'uren','sessions_per_4w','startdatum','next_billing_date',
     'schoonmaker_id','dagdelen','aanvraagId','flow'

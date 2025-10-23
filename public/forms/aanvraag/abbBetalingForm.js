@@ -228,6 +228,10 @@ export async function initAbbBetalingForm() {
         achternaam: flow.achternaam || '',
         telefoon: flow.telefoonnummer || '', // Let op: frontend gebruikt 'telefoonnummer', backend verwacht 'telefoon'
         
+        // Wachtwoord (alleen voor guest users - voor auth user creatie)
+        // TODO: In toekomst vervangen door magic link flow voor betere beveiliging
+        wachtwoord: flow.wachtwoord || '',
+        
         // Adres gegevens
         straat: flow.straatnaam || '',
         huisnummer: flow.huisnummer || '',

@@ -159,12 +159,17 @@ export async function initAbbPersoonsgegevensForm() {
       flow.telefoonnummer = formData.telefoonnummer;
       flow.emailadres = formData.emailadres;
       
+      // Wachtwoord opslaan voor guest users (nodig voor auth user creatie na betaling)
+      // Voor authenticated users slaan we geen wachtwoord op
+      if (isGuest && formData.wachtwoord) {
+        flow.wachtwoord = formData.wachtwoord; // TODO: In toekomst vervangen door magic link
+      }
+      
       // Markeer of user authenticated is voor latere account creatie logica
       if (currentAuthState?.role === 'klant') {
         flow.authenticatedUserId = currentAuthState.user?.id;
       }
       
-      // wachtwoord niet in plain opslaan in flow; voor nu alleen in submit-payload later te gebruiken
       saveFlowData('abonnement-aanvraag', flow);
     },
     onSuccess: () => {

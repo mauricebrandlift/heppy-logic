@@ -1,10 +1,12 @@
 // api/auth/check-email.js
 /**
  * Check Email Availability Endpoint
- * Checkt of een email al bestaat in user_profiles
+ * Checkt of een email al bestaat in auth.users OF user_profiles
  */
 
-import { supabase } from '../config/index.js';
+import { supabaseConfig } from '../config/index.js';
+import { httpClient } from '../utils/apiClient.js';
+import { findAuthUserByEmail } from '../services/authService.js';
 
 export default async function handler(req, res) {
   // CORS headers
@@ -39,40 +41,61 @@ export default async function handler(req, res) {
 
     const normalizedEmail = email.toLowerCase().trim();
     console.log(`🔍 [CheckEmail] Normalized email: "${normalizedEmail}" [${correlationId}]`);
-    console.log(`🔍 [CheckEmail] Querying user_profiles table... [${correlationId}]`);
+    
+    // Check 1: Auth users (via Service Role Key)
+    console.log(`🔍 [CheckEmail] Checking auth.users... [${correlationId}]`);
+    try {
+      const authUser = await findAuthUserByEmail(normalizedEmail, correlationId);
+      if (authUser) {
+        console.log(`⚠️ EXISTS [CheckEmail] Email found in auth.users: ${authUser.id} [${correlationId}]`);
+        return res.status(200).json({
+          exists: true,
+          source: 'auth.users',
+          email: normalizedEmail,
+          correlationId
+        });
+      }
+    } catch (authError) {
+      console.error(`⚠️ [CheckEmail] Auth check failed, continuing to user_profiles [${correlationId}]`, authError.message);
+      // Continue to user_profiles check
+    }
+    
+    // Check 2: User profiles (fallback)
+    console.log(`🔍 [CheckEmail] Checking user_profiles table... [${correlationId}]`);
+    const url = `${supabaseConfig.url}/rest/v1/user_profiles?emailadres=eq.${encodeURIComponent(normalizedEmail)}&select=id,emailadres`;
+    const resp = await httpClient(url, { 
+      headers:{ 
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}` 
+      } 
+    }, correlationId);
 
-    // Check in user_profiles
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('id, emailadres')
-      .eq('emailadres', normalizedEmail)
-      .maybeSingle();
-
-    if (error) {
+    if (!resp.ok) {
+      const errorText = await resp.text();
       console.error(`❌ [CheckEmail] Database error [${correlationId}]`, {
-        error: error.message,
-        code: error.code,
-        details: error.details
+        status: resp.status,
+        error: errorText
       });
       return res.status(500).json({ 
         message: 'Database error',
-        error: error.message,
+        error: errorText,
         correlationId 
       });
     }
 
+    const data = await resp.json();
     console.log(`📊 [CheckEmail] Query result [${correlationId}]:`, {
-      found: !!data,
-      userId: data?.id || null,
-      emailInDb: data?.emailadres || null
+      found: data.length > 0,
+      count: data.length
     });
 
-    const exists = !!data;
+    const exists = data.length > 0;
     const resultMessage = exists ? '⚠️ EXISTS (email in use)' : '✅ AVAILABLE';
     console.log(`${resultMessage} [CheckEmail] Email "${normalizedEmail}": ${exists} [${correlationId}]`);
 
     return res.status(200).json({
       exists,
+      source: exists ? 'user_profiles' : null,
       email: normalizedEmail,
       correlationId
     });
