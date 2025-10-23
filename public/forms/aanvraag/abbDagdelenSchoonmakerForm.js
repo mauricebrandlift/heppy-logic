@@ -794,16 +794,18 @@ export async function initAbbDagdelenSchoonmakerForm() {
       const formElement = document.querySelector(schema.selector);
       const selectedDagdelen = getSelectedDagdelenFromForm(formElement);
 
-      // Verwijder eventuele opgeslagen dagdelen-voorkeuren zodat er niets wordt geprefilled
-      if ('dagdelenVoorkeur' in flowData) delete flowData.dagdelenVoorkeur;
-      if ('selectedDagdelen' in flowData) delete flowData.selectedDagdelen;
-
-      // (optioneel) gebruik selectedDagdelen runtime voor logging/debugging
-      if (selectedDagdelen.length > 0) {
-        console.debug('[AbbDagdelenSchoonmakerForm] Dagdelen geselecteerd (niet persistent opgeslagen):', selectedDagdelen);
+      // Converteer dagdelen naar DB-formaat voor opslag
+      if (selectedDagdelen && selectedDagdelen.length > 0) {
+        const dagdelenDB = convertUIDagdelenNaarDB(selectedDagdelen);
+        flowData.dagdelenVoorkeur = dagdelenDB;
+        console.log('[AbbDagdelenSchoonmakerForm] Dagdelen opgeslagen in flow data:', dagdelenDB);
+      } else {
+        // Geen dagdelen geselecteerd: verwijder uit flow data
+        delete flowData.dagdelenVoorkeur;
+        console.log('[AbbDagdelenSchoonmakerForm] Geen dagdelen geselecteerd');
       }
 
-      // Sla overige flow data (zoals schoonmakerkeuze) op, zonder dagdelen in storage te houden
+      // Sla flow data op met dagdelen en schoonmakerkeuze
       saveFlowData('abonnement-aanvraag', flowData);
       
       // Voor backward compatibility

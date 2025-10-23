@@ -8,6 +8,8 @@ import { abonnementService } from '../../services/abonnementService.js';
 import { betalingService } from '../../services/betalingService.js';
 import { auditService } from '../../services/auditService.js';
 import { intakeService } from '../../services/intakeService.js';
+import * as voorkeursDagdelenService from '../../services/voorkeursDagdelenService.js';
+import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
 
 export async function processSuccessfulPayment({ paymentIntent, metadata, correlationId, event }){
   console.log(`💰 [ProcessSuccessfulPayment] ========== START ========== [${correlationId}]`);
@@ -138,6 +140,49 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         abonnementId: abonnement.id
       });
       throw new Error(`Payment record creation failed: ${error.message}`);
+    }
+
+    // Voorkeurs dagdelen opslaan (indien aanwezig in metadata)
+    if (metadata.dagdelen && typeof metadata.dagdelen === 'object') {
+      console.log(`📅 [ProcessSuccessfulPayment] Saving voorkeurs_dagdelen...`);
+      try {
+        await voorkeursDagdelenService.create(user.id, metadata.dagdelen, correlationId);
+        console.log(`✅ [ProcessSuccessfulPayment] Voorkeurs_dagdelen saved`);
+        await auditService.log('voorkeurs_dagdelen', user.id, 'created', user.id, { dagdelen: metadata.dagdelen }, correlationId);
+      } catch (error) {
+        // Niet-fataal: log maar gooi geen error
+        console.error(`⚠️ [ProcessSuccessfulPayment] WARNING: Dagdelen save failed [${correlationId}]`, {
+          error: error.message,
+          stack: error.stack,
+          userId: user.id,
+          dagdelen: metadata.dagdelen
+        });
+        // Continue zonder te falen - dagdelen is nice-to-have
+      }
+    } else {
+      console.log(`ℹ️ [ProcessSuccessfulPayment] No dagdelen in metadata, skipping`);
+    }
+
+    // Schoonmaak match opslaan (schoonmaker koppeling)
+    console.log(`🤝 [ProcessSuccessfulPayment] Creating schoonmaak match...`);
+    try {
+      const schoonmakerId = metadata.schoonmaker_id === 'geenVoorkeur' ? null : metadata.schoonmaker_id;
+      await schoonmaakMatchService.create({
+        aanvraagId: aanvraag.id,
+        schoonmakerId: schoonmakerId
+      }, correlationId);
+      console.log(`✅ [ProcessSuccessfulPayment] Schoonmaak match created`);
+      await auditService.log('schoonmaak_match', aanvraag.id, 'created', user.id, { 
+        schoonmaker_id: schoonmakerId || 'geen voorkeur' 
+      }, correlationId);
+    } catch (error) {
+      console.error(`❌ [ProcessSuccessfulPayment] FAILED: Match creation error [${correlationId}]`, {
+        error: error.message,
+        stack: error.stack,
+        aanvraagId: aanvraag.id,
+        schoonmakerId: metadata.schoonmaker_id
+      });
+      throw new Error(`Match creation failed: ${error.message}`);
     }
 
     console.log(`🎉 [ProcessSuccessfulPayment] ========== SUCCESS ========== [${correlationId}]`);
