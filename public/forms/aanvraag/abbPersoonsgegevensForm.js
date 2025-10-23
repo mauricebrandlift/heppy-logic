@@ -93,18 +93,32 @@ export async function initAbbPersoonsgegevensForm() {
       // Als guest: check of email al bestaat
       if (isGuest && formData.emailadres) {
         console.log('🔍 [AbbPersoonsgegevens] Guest aanvraag, checking email beschikbaarheid...');
+        console.log('📧 [AbbPersoonsgegevens] Email to check:', formData.emailadres);
         
         try {
-          const checkResponse = await fetch(`/api/auth/check-email?email=${encodeURIComponent(formData.emailadres)}`, {
+          const checkUrl = `/api/auth/check-email?email=${encodeURIComponent(formData.emailadres)}`;
+          console.log('🌐 [AbbPersoonsgegevens] Fetching:', checkUrl);
+          
+          const checkResponse = await fetch(checkUrl, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json'
             }
           });
           
-          const checkData = await checkResponse.json();
+          console.log('📥 [AbbPersoonsgegevens] Response status:', checkResponse.status, checkResponse.ok);
           
-          if (!checkResponse.ok || checkData.exists) {
+          const checkData = await checkResponse.json();
+          console.log('📦 [AbbPersoonsgegevens] Response data:', checkData);
+          
+          if (!checkResponse.ok) {
+            console.error('❌ [AbbPersoonsgegevens] API error:', checkResponse.status, checkData);
+            // Bij API error: laat door (fail open voor betere UX)
+            console.warn('⚠️ [AbbPersoonsgegevens] Continuing despite API error');
+            return; // Exit early, laat submit doorgaan
+          }
+          
+          if (checkData.exists === true) {
             console.warn('⚠️ [AbbPersoonsgegevens] Email bestaat al:', formData.emailadres);
             
             // Toon error in het globale error element
@@ -114,21 +128,30 @@ export async function initAbbPersoonsgegevensForm() {
               errorEl.textContent = 'Dit e-mailadres is al in gebruik. Log in of gebruik een ander e-mailadres.';
               errorEl.classList.remove('hide');
               errorEl.style.display = 'block';
+              console.log('🚨 [AbbPersoonsgegevens] Error message displayed');
+            } else {
+              console.error('❌ [AbbPersoonsgegevens] Error element not found!');
             }
             
             // Gooi error om submit te stoppen
             throw new Error('Email bestaat al');
           }
           
-          console.log('✅ [AbbPersoonsgegevens] Email is beschikbaar');
+          console.log('✅ [AbbPersoonsgegevens] Email is beschikbaar, continuing...');
         } catch (error) {
+          console.error('🔥 [AbbPersoonsgegevens] Catch block:', error.message);
+          
           if (error.message === 'Email bestaat al') {
+            console.log('🛑 [AbbPersoonsgegevens] Blocking submit - email exists');
             throw error; // Re-throw om submit te stoppen
           }
+          
           // Netwerk error: log maar block niet
-          console.error('❌ [AbbPersoonsgegevens] Email check failed:', error);
+          console.error('❌ [AbbPersoonsgegevens] Email check failed (network):', error);
           console.warn('⚠️ [AbbPersoonsgegevens] Continuing despite email check failure (network issue)');
         }
+      } else {
+        console.log('ℹ️ [AbbPersoonsgegevens] Skipping email check (not guest or no email):', { isGuest, email: formData.emailadres });
       }
       
       flow.voornaam = formData.voornaam;

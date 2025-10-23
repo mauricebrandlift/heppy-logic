@@ -146,7 +146,10 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
     if (metadata.dagdelen && typeof metadata.dagdelen === 'object') {
       console.log(`📅 [ProcessSuccessfulPayment] Saving voorkeurs_dagdelen...`);
       try {
-        await voorkeursDagdelenService.create(user.id, metadata.dagdelen, correlationId);
+        await voorkeursDagdelenService.create({
+          gebruikerId: user.id,
+          dagdelen: metadata.dagdelen
+        }, correlationId);
         console.log(`✅ [ProcessSuccessfulPayment] Voorkeurs_dagdelen saved`);
         await auditService.log('voorkeurs_dagdelen', user.id, 'created', user.id, { dagdelen: metadata.dagdelen }, correlationId);
       } catch (error) {
