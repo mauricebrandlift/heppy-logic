@@ -425,6 +425,30 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       flowData.abb_badkamers = formData.abb_badkamers;
       flowData.weeknr = formData.weeknr; // Sla weeknr op in flow data
       
+      // Bereken startdatum (maandag van gekozen week)
+      if (formData.weeknr) {
+        const weekNr = parseInt(formData.weeknr, 10);
+        if (!isNaN(weekNr)) {
+          // Bereken de maandag van deze week
+          const currentYear = new Date().getFullYear();
+          const jan1 = new Date(currentYear, 0, 1);
+          const daysToFirstMonday = (8 - jan1.getDay()) % 7; // dagen tot eerste maandag
+          const firstMonday = new Date(currentYear, 0, 1 + daysToFirstMonday);
+          
+          // Tel weken vanaf eerste maandag
+          const startDate = new Date(firstMonday);
+          startDate.setDate(firstMonday.getDate() + (weekNr - 1) * 7);
+          
+          // Format als YYYY-MM-DD voor database
+          const year = startDate.getFullYear();
+          const month = String(startDate.getMonth() + 1).padStart(2, '0');
+          const day = String(startDate.getDate()).padStart(2, '0');
+          flowData.startdatum = `${year}-${month}-${day}`;
+          
+          console.log(`📅 [AbbOpdrachtForm] Startdatum berekend: week ${weekNr} = ${flowData.startdatum}`);
+        }
+      }
+      
       // Zorg ervoor dat de berekende waarden ook in de flow data worden opgeslagen
       flowData.abb_uren = calculation.adjustedHours.toString();
       flowData.abb_prijs = calculation.price.toFixed(2);

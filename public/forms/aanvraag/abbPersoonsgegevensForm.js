@@ -85,13 +85,58 @@ export async function initAbbPersoonsgegevensForm() {
   schema.submit = {
     action: async (formData) => {
       const flow = loadFlowData('abonnement-aanvraag') || {};
+      
+      // Check auth state
+      const currentAuthState = authClient.getAuthState();
+      const isGuest = !currentAuthState || currentAuthState.role === 'guest';
+      
+      // Als guest: check of email al bestaat
+      if (isGuest && formData.emailadres) {
+        console.log('🔍 [AbbPersoonsgegevens] Guest aanvraag, checking email beschikbaarheid...');
+        
+        try {
+          const checkResponse = await fetch(`/api/auth/check-email?email=${encodeURIComponent(formData.emailadres)}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          const checkData = await checkResponse.json();
+          
+          if (!checkResponse.ok || checkData.exists) {
+            console.warn('⚠️ [AbbPersoonsgegevens] Email bestaat al:', formData.emailadres);
+            
+            // Toon error in het globale error element
+            const formEl = document.querySelector(`[data-form-name="${FORM_NAME}"]`);
+            const errorEl = formEl?.querySelector('[data-error-for="global"]');
+            if (errorEl) {
+              errorEl.textContent = 'Dit e-mailadres is al in gebruik. Log in of gebruik een ander e-mailadres.';
+              errorEl.classList.remove('hide');
+              errorEl.style.display = 'block';
+            }
+            
+            // Gooi error om submit te stoppen
+            throw new Error('Email bestaat al');
+          }
+          
+          console.log('✅ [AbbPersoonsgegevens] Email is beschikbaar');
+        } catch (error) {
+          if (error.message === 'Email bestaat al') {
+            throw error; // Re-throw om submit te stoppen
+          }
+          // Netwerk error: log maar block niet
+          console.error('❌ [AbbPersoonsgegevens] Email check failed:', error);
+          console.warn('⚠️ [AbbPersoonsgegevens] Continuing despite email check failure (network issue)');
+        }
+      }
+      
       flow.voornaam = formData.voornaam;
       flow.achternaam = formData.achternaam;
       flow.telefoonnummer = formData.telefoonnummer;
       flow.emailadres = formData.emailadres;
       
       // Markeer of user authenticated is voor latere account creatie logica
-      const currentAuthState = authClient.getAuthState();
       if (currentAuthState?.role === 'klant') {
         flow.authenticatedUserId = currentAuthState.user?.id;
       }
