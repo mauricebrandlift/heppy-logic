@@ -2,6 +2,7 @@
 // Vroege redirect-afhandeling vóór individuele form init zodat we niet onnodig op stap 1 blijven.
 import { loadFlowData, saveFlowData } from '../forms/logic/formStorage.js';
 import { apiClient } from '../utils/api/client.js';
+import { safeTrack, logStepCompleted } from '../utils/tracking/simpleFunnelTracker.js';
 
 (async function handlePaymentReturnEarly(){
   try {
@@ -26,6 +27,12 @@ import { apiClient } from '../utils/api/client.js';
 
 
     if (status === 'succeeded') {
+      // 🎯 TRACK COMPLETION - Step 6 with is_completion = true
+      await safeTrack(() => logStepCompleted('abonnement', 'success', 6, {
+        is_completion: true,
+        payment_intent_id: intentId
+      }));
+      
       // Redirect naar dedicated succes pagina
       const base = window.location.origin;
       const flow = loadFlowData('abonnement-aanvraag') || {};

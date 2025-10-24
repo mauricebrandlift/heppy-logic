@@ -9,7 +9,7 @@ import { betalingService } from '../../services/betalingService.js';
 import { auditService } from '../../services/auditService.js';
 import { intakeService } from '../../services/intakeService.js';
 import { voorkeursDagdelenService } from '../../services/voorkeursDagdelenService.js';
-import { schoonmaakMatchService } from '../../services/schoonmaakMatchService.js';
+import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
 
 export async function processSuccessfulPayment({ paymentIntent, metadata, correlationId, event }){
   console.log(`💰 [ProcessSuccessfulPayment] ========== START ========== [${correlationId}]`);
