@@ -3,26 +3,10 @@
  * Frontend utility voor het tracken van user journey
  * 
  * Gebruik:
- * import { FunnelTracker } from './utils/tracking/funnelTrac  async linkUser(userId) {  async linkPayment(paymentIntentId) {
-    console.log(`💳 [FunnelTracker] Linking payment: ${paymentIntentId}`);
-    
-    try {
-      await apiClient.patch('/api/routes/tracking/link-payment', {
-        sessionId: this.sessionId,
-        paymentIntentId
-      });
-      
-      console.log(`✅ [FunnelTracker] Payment linked: ${paymentIntentId}`);ole.log(`👤 [FunnelTracker] Linking user: ${userId}`);
-    
-    try {
-      await apiClient.patch('/api/routes/tracking/link-user', {
-        sessionId: this.sessionId,
-        userId
-      });
-      
-      console.log(`✅ [FunnelTracker] User linked: ${userId}`); * 
+ * import { getTracker } from './utils/tracking/funnelTracker.js';
+ * 
  * // Bij formulier start
- * const tracker = new FunnelTracker('abonnement');
+ * const tracker = getTracker('abonnement');
  * await tracker.start();
  * 
  * // Bij elke stap transitie
@@ -184,12 +168,12 @@ export class FunnelTracker {
     console.log(`👤 [FunnelTracker] Linking user: ${userId}`);
     
     try {
-      await apiClient.patch('/api/tracking/link-user', {
+      await apiClient.patch('/api/routes/tracking/link-user', {
         sessionId: this.sessionId,
         userId
       });
       
-      console.log(`✅ [FunnelTracker] User linked`);
+      console.log(`✅ [FunnelTracker] User linked: ${userId}`);
     } catch (error) {
       console.error('❌ [FunnelTracker] Failed to link user:', error);
     }
@@ -199,15 +183,15 @@ export class FunnelTracker {
    * Link payment intent
    */
   async linkPayment(paymentIntentId) {
-    console.log(`💳 [FunnelTracker] Linking payment intent: ${paymentIntentId}`);
+    console.log(`💳 [FunnelTracker] Linking payment: ${paymentIntentId}`);
     
     try {
-      await apiClient.patch('/api/tracking/link-payment', {
+      await apiClient.patch('/api/routes/tracking/link-payment', {
         sessionId: this.sessionId,
         paymentIntentId
       });
       
-      console.log(`✅ [FunnelTracker] Payment intent linked`);
+      console.log(`✅ [FunnelTracker] Payment linked: ${paymentIntentId}`);
     } catch (error) {
       console.error('❌ [FunnelTracker] Failed to link payment:', error);
     }
@@ -220,7 +204,7 @@ export class FunnelTracker {
     console.log(`✅ [FunnelTracker] Completing session`);
     
     try {
-      await apiClient.patch('/api/tracking/complete', {
+      await apiClient.patch('/api/routes/tracking/complete', {
         sessionId: this.sessionId,
         aanvraagId
       });
