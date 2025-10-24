@@ -73,6 +73,10 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
     try {
       address = await addressService.create(metadata, correlationId);
       console.log(`✅ [ProcessSuccessfulPayment] Address created: ${address.id}`);
+      
+      // Update user_profiles.adres_id nu we address hebben
+      await userService.updateAdresId(user.id, address.id, correlationId);
+      console.log(`✅ [ProcessSuccessfulPayment] user_profiles.adres_id updated`);
     } catch (error) {
       console.error(`❌ [ProcessSuccessfulPayment] FAILED: Address creation error [${correlationId}]`, {
         error: error.message,
@@ -127,7 +131,8 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         amount: paymentIntent.amount,
         currency: paymentIntent.currency,
         status: 'betaald',
-        stripe_status: paymentIntent.status
+        stripe_status: paymentIntent.status,
+        betaalmethode: paymentIntent.payment_method || null
       }, correlationId);
       console.log(`✅ [ProcessSuccessfulPayment] Payment ${betaling.updated ? 'updated' : 'created'}: ${betaling.id}`);
       await auditService.log('betaling', betaling.id, betaling.updated?'updated':'created', user.id, { amount_cents: paymentIntent.amount }, correlationId);

@@ -12,9 +12,9 @@ async function selectByStripeId(stripeId, correlationId){
   if(!resp.ok) throw new Error(`betalingen select failed: ${await resp.text()}`);
   return resp.json();
 }
-async function insertBetaling({ stripeId, userId, abonnementId, amount, currency, status, stripe_status }, correlationId){
+async function insertBetaling({ stripeId, userId, abonnementId, amount, currency, status, stripe_status, betaalmethode }, correlationId){
   const url = `${supabaseConfig.url}/rest/v1/betalingen`;
-  const body = { id: uuid(), gebruiker_id: userId, abonnement_id: abonnementId||null, amount_cents: amount, currency, stripe_payment_id: stripeId, status, stripe_status };
+  const body = { id: uuid(), gebruiker_id: userId, abonnement_id: abonnementId||null, amount_cents: amount, currency, stripe_payment_id: stripeId, status, stripe_status, betaalmethode: betaalmethode||null };
   const resp = await httpClient(url, { method:'POST', headers:{ 'Content-Type':'application/json','apikey':supabaseConfig.anonKey,'Authorization':`Bearer ${supabaseConfig.anonKey}`,'Prefer':'return=minimal' }, body: JSON.stringify(body) }, correlationId);
   if(!resp.ok) throw new Error(`betalingen insert failed: ${await resp.text()}`);
   return { id: body.id };
@@ -30,13 +30,13 @@ export const betalingService = {
     const rows = await selectByStripeId(stripeId, correlationId);
     return rows.length ? rows[0] : null;
   },
-  async linkOrCreate({ stripeId, userId, abonnementId, amount, currency, status, stripe_status }, correlationId){
+  async linkOrCreate({ stripeId, userId, abonnementId, amount, currency, status, stripe_status, betaalmethode }, correlationId){
     const existing = await selectByStripeId(stripeId, correlationId);
     if(existing.length){
-      await patchBetaling(stripeId, { abonnement_id: abonnementId||existing[0].abonnement_id||null, gebruiker_id: userId, amount_cents: amount, currency, status, stripe_status }, correlationId);
+      await patchBetaling(stripeId, { abonnement_id: abonnementId||existing[0].abonnement_id||null, gebruiker_id: userId, amount_cents: amount, currency, status, stripe_status, betaalmethode: betaalmethode||null }, correlationId);
       return { id: existing[0].id, updated:true };
     }
-    const created = await insertBetaling({ stripeId, userId, abonnementId, amount, currency, status, stripe_status }, correlationId);
+    const created = await insertBetaling({ stripeId, userId, abonnementId, amount, currency, status, stripe_status, betaalmethode }, correlationId);
     return { id: created.id, created:true };
   }
 };

@@ -38,8 +38,9 @@ export async function create({ aanvraagId, schoonmakerId }, correlationId = '') 
     id,
     schoonmaak_aanvraag_id: aanvraagId,
     schoonmaker_id: schoonmakerId || null,
-    match_status: 'pending',
-    match_datum: new Date().toISOString()
+    status: 'open', // Status start als 'open'
+    aangemaakt_op: new Date().toISOString(),
+    match_datum: null // Wordt gevuld bij acceptatie door schoonmaker
   };
 
   const resp = await httpClient(url, {
@@ -78,7 +79,7 @@ export async function create({ aanvraagId, schoonmakerId }, correlationId = '') 
 export async function findByAanvraagId(aanvraagId, correlationId = '') {
   console.log(`🔍 [SchoonmaakMatchService] Finding matches for aanvraag ${aanvraagId} [${correlationId}]`);
 
-  const url = `${supabaseConfig.url}/rest/v1/schoonmaak_match?schoonmaak_aanvraag_id=eq.${aanvraagId}&order=match_datum.desc`;
+  const url = `${supabaseConfig.url}/rest/v1/schoonmaak_match?schoonmaak_aanvraag_id=eq.${aanvraagId}&order=aangemaakt_op.desc`;
   
   const resp = await httpClient(url, {
     method: 'GET',
@@ -111,7 +112,10 @@ export async function updateStatus(matchId, status, correlationId = '') {
   console.log(`📝 [SchoonmaakMatchService] Updating match ${matchId} status to ${status} [${correlationId}]`);
 
   const url = `${supabaseConfig.url}/rest/v1/schoonmaak_match?id=eq.${matchId}`;
-  const body = { match_status: status };
+  const body = { 
+    status: status,
+    bijgewerkt_op: new Date().toISOString()
+  };
 
   const resp = await httpClient(url, {
     method: 'PATCH',

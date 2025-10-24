@@ -34,6 +34,21 @@ async function insertUserProfile({ id, email, voornaam, achternaam, telefoon, ro
   return { id };
 }
 
+async function patchUserProfile(userId, updates, correlationId){
+  const url = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${userId}`;
+  const resp = await httpClient(url, { 
+    method:'PATCH', 
+    headers:{ 
+      'Content-Type':'application/json',
+      'apikey':supabaseConfig.anonKey,
+      'Authorization':`Bearer ${supabaseConfig.anonKey}`,
+      'Prefer':'return=minimal' 
+    }, 
+    body: JSON.stringify(updates) 
+  }, correlationId);
+  if(!resp.ok) throw new Error(`user_profiles patch failed: ${await resp.text()}`);
+}
+
 export const userService = {
   async findOrCreateByEmail(meta, correlationId){
     console.log(`👤 [UserService] findOrCreateByEmail: ${meta.email} [${correlationId}]`);
@@ -82,5 +97,11 @@ export const userService = {
     
     console.log(`✅ [UserService] User created: ${authUser.id} [${correlationId}]`);
     return { id: authUser.id, created:true };
+  },
+
+  async updateAdresId(userId, adresId, correlationId){
+    console.log(`📍 [UserService] Updating adres_id for user ${userId}: ${adresId} [${correlationId}]`);
+    await patchUserProfile(userId, { adres_id: adresId }, correlationId);
+    console.log(`✅ [UserService] adres_id updated [${correlationId}]`);
   }
 };
