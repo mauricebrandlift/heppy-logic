@@ -9,6 +9,8 @@
  *   await logStepCompleted('abonnement', 'adres', 1, { postcode, plaats });
  */
 
+import { apiClient } from '../api/client.js';
+
 /**
  * Log a funnel step completion
  * 
@@ -20,11 +22,8 @@
  */
 export async function logStepCompleted(flowType, stepName, stepOrder, metadata = {}) {
   try {
-    const response = await fetch('/api/routes/tracking/log-event', {
+    await apiClient('/routes/tracking/log-event', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({
         flow_type: flowType,
         step_name: stepName,
@@ -32,10 +31,6 @@ export async function logStepCompleted(flowType, stepName, stepOrder, metadata =
         metadata
       })
     });
-
-    if (!response.ok) {
-      console.warn(`Tracking API returned ${response.status}`);
-    }
   } catch (err) {
     // Non-fatal: tracking failures should not break the user flow
     console.warn('Funnel tracking failed:', err.message);

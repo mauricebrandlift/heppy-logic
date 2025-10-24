@@ -261,7 +261,6 @@ export async function initAbbBetalingForm() {
         // Extra metadata voor reference
         flow: 'abonnement',
         aanvraagId: flow.aanvraagId || '',
-        tracking_session_id: tracker.sessionId,
       };
 
       console.log('[AbbBetaling] Metadata voor PaymentIntent:', metadata);
