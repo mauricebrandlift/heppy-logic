@@ -10,6 +10,7 @@ import { auditService } from '../../services/auditService.js';
 import { intakeService } from '../../services/intakeService.js';
 import * as voorkeursDagdelenService from '../../services/voorkeursDagdelenService.js';
 import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
+import { trackingService } from '../../services/trackingService.js';
 
 export async function processSuccessfulPayment({ paymentIntent, metadata, correlationId, event }){
   console.log(`💰 [ProcessSuccessfulPayment] ========== START ========== [${correlationId}]`);
@@ -192,11 +193,13 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       const schoonmakerId = metadata.schoonmaker_id === 'geenVoorkeur' ? null : metadata.schoonmaker_id;
       await schoonmaakMatchService.create({
         aanvraagId: aanvraag.id,
-        schoonmakerId: schoonmakerId
+        schoonmakerId: schoonmakerId,
+        abonnementId: abonnement.id
       }, correlationId);
       console.log(`✅ [ProcessSuccessfulPayment] Schoonmaak match created`);
       await auditService.log('schoonmaak_match', aanvraag.id, 'created', user.id, { 
-        schoonmaker_id: schoonmakerId || 'geen voorkeur' 
+        schoonmaker_id: schoonmakerId || 'geen voorkeur',
+        abonnement_id: abonnement.id
       }, correlationId);
     } catch (error) {
       console.error(`❌ [ProcessSuccessfulPayment] FAILED: Match creation error [${correlationId}]`, {
@@ -206,6 +209,21 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         schoonmakerId: metadata.schoonmaker_id
       });
       throw new Error(`Match creation failed: ${error.message}`);
+    }
+
+    // Voltooi tracking sessie (als sessionId in metadata aanwezig is)
+    if (metadata.tracking_session_id) {
+      console.log(`📊 [ProcessSuccessfulPayment] Completing tracking session...`);
+      try {
+        await trackingService.completeSession({
+          sessionId: metadata.tracking_session_id,
+          aanvraagId: aanvraag.id
+        }, correlationId);
+        console.log(`✅ [ProcessSuccessfulPayment] Tracking session completed`);
+      } catch (error) {
+        console.warn(`⚠️ [ProcessSuccessfulPayment] Failed to complete tracking session: ${error.message}`);
+        // Non-fatal
+      }
     }
 
     console.log(`🎉 [ProcessSuccessfulPayment] ========== SUCCESS ========== [${correlationId}]`);
