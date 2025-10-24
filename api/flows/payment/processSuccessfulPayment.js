@@ -19,6 +19,36 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
   console.log(`💰 [ProcessSuccessfulPayment] Metadata:`, JSON.stringify(metadata, null, 2));
   
   try {
+    // Start tracking sessie als deze nog niet bestaat (backward compatibility)
+    let trackingSessionId = metadata.tracking_session_id;
+    if (!trackingSessionId && metadata.flow) {
+      console.log(`📊 [ProcessSuccessfulPayment] No tracking_session_id in metadata, creating retroactive tracking session...`);
+      try {
+        // Genereer UUID voor retroactieve tracking
+        const sessionId = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `retroactive-${Date.now()}`;
+        await trackingService.startSession({
+          sessionId,
+          flowType: metadata.flow,
+          metadata: {
+            retroactive: true,
+            payment_intent_id: paymentIntent.id
+          }
+        }, correlationId);
+        
+        // Link payment intent meteen
+        await trackingService.linkPaymentIntent({
+          sessionId,
+          paymentIntentId: paymentIntent.id
+        }, correlationId);
+        
+        trackingSessionId = sessionId;
+        console.log(`✅ [ProcessSuccessfulPayment] Retroactive tracking session created: ${sessionId}`);
+      } catch (error) {
+        console.warn(`⚠️ [ProcessSuccessfulPayment] Failed to create retroactive tracking: ${error.message}`);
+        // Non-fatal, continue
+      }
+    }
+    
     // Intake naar betaald
     console.log(`📝 [ProcessSuccessfulPayment] Updating intake status...`);
     try {
@@ -211,12 +241,19 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       throw new Error(`Match creation failed: ${error.message}`);
     }
 
-    // Voltooi tracking sessie (als sessionId in metadata aanwezig is)
-    if (metadata.tracking_session_id) {
-      console.log(`📊 [ProcessSuccessfulPayment] Completing tracking session...`);
+    // Voltooi tracking sessie (gebruik trackingSessionId van start van functie)
+    if (trackingSessionId) {
+      console.log(`📊 [ProcessSuccessfulPayment] Completing tracking session: ${trackingSessionId}`);
       try {
+        // Link user aan tracking (als we retroactief zijn)
+        await trackingService.linkUser({
+          sessionId: trackingSessionId,
+          userId: user.id
+        }, correlationId);
+        
+        // Complete de sessie
         await trackingService.completeSession({
-          sessionId: metadata.tracking_session_id,
+          sessionId: trackingSessionId,
           aanvraagId: aanvraag.id
         }, correlationId);
         console.log(`✅ [ProcessSuccessfulPayment] Tracking session completed`);
@@ -224,6 +261,8 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         console.warn(`⚠️ [ProcessSuccessfulPayment] Failed to complete tracking session: ${error.message}`);
         // Non-fatal
       }
+    } else {
+      console.log(`ℹ️ [ProcessSuccessfulPayment] No tracking session to complete`);
     }
 
     console.log(`🎉 [ProcessSuccessfulPayment] ========== SUCCESS ========== [${correlationId}]`);
