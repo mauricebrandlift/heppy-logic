@@ -4,7 +4,7 @@
 import { formHandler } from '../logic/formHandler.js';
 import { loadFlowData, saveFlowData } from '../logic/formStorage.js';
 import { apiClient } from '../../utils/api/client.js';
-import { getTracker } from '../../utils/tracking/funnelTracker.js';
+import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 const FORM_NAME = 'abb_betaling-form';
 const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
@@ -61,9 +61,7 @@ function formatCurrency(amount) {
 export async function initAbbBetalingForm() {
   console.log('💳 [AbbBetaling] Initialiseren…');
   
-  // Track step entry
-  const tracker = getTracker('abonnement');
-  await tracker.trackStep('betaling', 5).catch(err => console.warn('[AbbBetaling] Tracking failed:', err));
+  // Note: Tracking happens on EXIT (after payment intent creation), not on entry
   
   // Detecteer of we terugkomen van een redirect-based betaalmethode (iDEAL e.d.)
   // We tonen de success slide pas NA terugkomst en bevestigde status.
@@ -282,12 +280,9 @@ export async function initAbbBetalingForm() {
       }, idem);
       console.log('[AbbBetaling] Intent response:', intent);
       
-      // Link payment intent to tracking session
-      await tracker.linkPayment(intent.id).catch(err => console.warn('[AbbBetaling] Payment linking failed:', err));
-      
-      // Track step exit with payment data
-      await tracker.trackStep('betaling', 5, {
-        paymentIntentId: intent.id,
+      // 🎯 TRACK STEP COMPLETION
+      await logStepCompleted('abonnement', 'betaling', 5, {
+        payment_intent_id: intent.id,
         bundleAmount: intent?.amount ? intent.amount / 100 : bundleAmountEur,
         sessionsPer4W: sessionsPer4W
       }).catch(err => console.warn('[AbbBetaling] Tracking failed:', err));

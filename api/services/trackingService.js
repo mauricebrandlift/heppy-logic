@@ -55,6 +55,14 @@ async function startSession({ sessionId, flowType, metadata }, correlationId) {
   
   if (!resp.ok) {
     const text = await resp.text();
+    const error = JSON.parse(text);
+    
+    // If session already exists (duplicate key), that's OK - just return existing
+    if (error.code === '23505') {
+      console.log(`ℹ️ [TrackingService] Session ${sessionId} already exists, reusing [${correlationId}]`);
+      return { sessionId, exists: true };
+    }
+    
     throw new Error(`Failed to start tracking session: ${text}`);
   }
   

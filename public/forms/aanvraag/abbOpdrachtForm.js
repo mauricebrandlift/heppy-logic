@@ -7,7 +7,7 @@ import { saveGlobalFieldData, loadGlobalFieldData, saveFlowData, loadFlowData } 
 import { initWeekSelectTrigger } from '../logic/formTriggers.js';
 import { validateForm } from '../validators/formValidator.js';
 import { showFieldErrors, syncRadioGroupStyles } from '../ui/formUi.js';
-import { getTracker } from '../../utils/tracking/funnelTracker.js';
+import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 const FORM_NAME = 'abb_opdracht-form';
 const NEXT_FORM_NAME = 'abb_dagdelen-schoonmaker-form';
@@ -370,11 +370,7 @@ function setupHourButtons(formElement) {
  */
 export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtForm] Initialiseren...');
   
-  // 🎯 TRACK FUNNEL STEP 2
-  const tracker = getTracker('abonnement');
-  tracker.trackStep('opdracht', 2).catch(err => {
-    console.warn('[AbbOpdrachtForm] Tracking step failed:', err);
-  });
+  // Note: Tracking happens on EXIT in handleSubmit, not on entry
   
   // Haal prijsconfiguratie op bij het initialiseren
   await getPricingConfiguration();
@@ -464,15 +460,14 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
       saveFlowData('abonnement-aanvraag', flowData);
       
       // 🎯 TRACK STEP COMPLETION
-      const tracker = getTracker('abonnement');
-      tracker.trackStep('opdracht', 2, {
+      logStepCompleted('abonnement', 'opdracht', 2, {
         m2: formData.abb_m2,
         toiletten: formData.abb_toiletten,
         badkamers: formData.abb_badkamers,
         frequentie: formData.frequentie,
         uren: calculation.adjustedHours,
         prijs: calculation.price
-      }).catch(err => console.warn('[AbbOpdrachtForm] Tracking completion failed:', err));
+      }).catch(err => console.warn('[AbbOpdrachtForm] Tracking failed:', err));
       
       // Voor backward compatibility, sla ook op in de global field data
       saveGlobalFieldData('abb_m2', formData.abb_m2);

@@ -4,7 +4,7 @@ import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
 import { authClient } from '../../utils/auth/authClient.js';
-import { getTracker } from '../../utils/tracking/funnelTracker.js';
+import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 const FORM_NAME = 'abb_persoonsgegevens-form';
 const NEXT_FORM_NAME = 'abb_betaling-form';
@@ -39,9 +39,7 @@ function goToFormStep(nextFormName) {
 export async function initAbbPersoonsgegevensForm() {
   console.log('👤 [AbbPersoonsgegevens] Initialiseren…');
   
-  // Track step entry
-  const tracker = getTracker('abonnement');
-  await tracker.trackStep('persoonsgegevens', 4).catch(err => console.warn('[AbbPersoonsgegevens] Tracking failed:', err));
+  // Note: Tracking happens on EXIT in handleSubmit, not on entry
   
   const schema = getFormSchema(FORM_NAME);
   if (!schema) {
@@ -178,20 +176,15 @@ export async function initAbbPersoonsgegevensForm() {
       
       saveFlowData('abonnement-aanvraag', flow);
       
-      // Track step exit with personal data
-      const tracker = getTracker('abonnement');
-      await tracker.trackStep('persoonsgegevens', 4, {
+      // 🎯 TRACK STEP COMPLETION
+      await logStepCompleted('abonnement', 'persoonsgegevens', 4, {
         voornaam: formData.voornaam,
         achternaam: formData.achternaam,
         emailadres: formData.emailadres,
         telefoonnummer: formData.telefoonnummer,
-        isAuthenticated: currentAuthState?.role === 'klant'
+        isAuthenticated: currentAuthState?.role === 'klant',
+        userId: currentAuthState?.user?.id || null
       }).catch(err => console.warn('[AbbPersoonsgegevens] Tracking failed:', err));
-      
-      // Link user to tracking session if authenticated
-      if (currentAuthState?.role === 'klant' && currentAuthState.user?.id) {
-        await tracker.linkUser(currentAuthState.user.id).catch(err => console.warn('[AbbPersoonsgegevens] User linking failed:', err));
-      }
     },
     onSuccess: () => {
       console.log('✅ [AbbPersoonsgegevens] Opgeslagen, init betaalstap en ga door…');
@@ -402,10 +395,6 @@ async function prefillAuthenticatedUser(user) {
     saveFlowData('abonnement-aanvraag', flow);
     
     console.log('💾 [AbbPersoonsgegevens] Flow data opgeslagen met authenticatedUserId:', user.id);
-    
-    // Link user to tracking session after prefill
-    const tracker = getTracker('abonnement');
-    await tracker.linkUser(user.id).catch(err => console.warn('[AbbPersoonsgegevens] User linking in prefill failed:', err));
 
     // Update submit state na prefill
     if (typeof formHandler.updateSubmitState === 'function') {

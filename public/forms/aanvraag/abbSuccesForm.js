@@ -1,7 +1,7 @@
 // public/forms/aanvraag/abbSuccesForm.js
 // Initialiseert de success slide na geslaagde betaling
 import { loadFlowData, clearFlowData } from '../logic/formStorage.js';
-import { getTracker } from '../../utils/tracking/funnelTracker.js';
+import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 export async function initAbbSuccesForm() {
   const selector = '[data-form-name="abb_succes-form"]';
@@ -9,11 +9,13 @@ export async function initAbbSuccesForm() {
   if (!root) return; // Slide niet aanwezig op deze pagina
   console.log('🎉 [AbbSucces] Initialiseren success slide');
   
-  // Track success step entry
-  const tracker = getTracker('abonnement');
-  await tracker.trackStep('success', 6).catch(err => console.warn('[AbbSucces] Tracking failed:', err));
-
   const flow = loadFlowData('abonnement-aanvraag') || {};
+  
+  // 🎯 TRACK COMPLETION - This is the ONLY step with is_completion = true
+  await logStepCompleted('abonnement', 'success', 6, {
+    is_completion: true,
+    payment_intent_id: flow.paymentIntentId || null
+  }).catch(err => console.warn('[AbbSucces] Tracking failed:', err));
   // Velden vullen (indien elementen aanwezig)
   function setText(sel, val) {
     const el = root.querySelector(sel);
