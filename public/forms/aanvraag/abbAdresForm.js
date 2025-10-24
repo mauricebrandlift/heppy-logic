@@ -6,6 +6,7 @@ import { getFormSchema } from '../schemas/formSchemas.js';
 import { fetchAddressDetails, fetchCoverageStatus, ApiError as FrontendApiError } from '../../utils/api/index.js';
 import { showError, hideError } from '../ui/formUi.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
+import { getTracker } from '../../utils/tracking/funnelTracker.js';
 
 const FORM_NAME = 'abb_adres-form';
 const NEXT_FORM_NAME = 'abb_opdracht-form';
@@ -43,6 +44,19 @@ function goToFormStep(nextFormName) {
  */
 export function initAbbAdresForm() {
   console.log('[abbAdresForm] Initialiseren van formulier:', FORM_NAME);
+  
+  // 🎯 START FUNNEL TRACKING
+  const tracker = getTracker('abonnement');
+  
+  // Start tracking sessie (alleen eerste keer)
+  tracker.start().catch(err => {
+    console.warn('[abbAdresForm] Tracking start failed:', err);
+  });
+  
+  // Track dat we deze stap zijn binnengegaan
+  tracker.trackStep('adres', 1).catch(err => {
+    console.warn('[abbAdresForm] Tracking step failed:', err);
+  });
   
   // Haal het schema op
   const schema = getFormSchema(FORM_NAME);
@@ -101,6 +115,15 @@ export function initAbbAdresForm() {
             flowData.plaats = addressDetails.plaats;
             flowData.heeftDekking = true;
             saveFlowData('abonnement-aanvraag', flowData);
+            
+            // 🎯 TRACK STEP COMPLETION
+            tracker.trackStep('adres', 1, {
+              postcode,
+              huisnummer,
+              straat: addressDetails.straat,
+              plaats: addressDetails.plaats,
+              gedekt: true
+            }).catch(err => console.warn('[abbAdresForm] Tracking completion failed:', err));
           } else {
             console.log(`[abbAdresForm] Plaats '${addressDetails.plaats}' is NIET gedekt. Zal navigeren naar geen-dekking pagina.`);
             // Sla op dat het adres in een gebied zonder dekking is

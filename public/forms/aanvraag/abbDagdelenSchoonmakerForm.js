@@ -19,6 +19,7 @@ import {
   DAGDELEN,
   TIJDSVAKKEN
 } from '../logic/dagdelenHelper.js';
+import { getTracker } from '../../utils/tracking/funnelTracker.js';
 
 const FORM_NAME = 'abb_dagdelen-schoonmaker-form';
 const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
@@ -738,6 +739,10 @@ function initDagdeelSelectors(formElement) {
 export async function initAbbDagdelenSchoonmakerForm() {
   console.log('🚀 [AbbDagdelenSchoonmakerForm] Initialiseren...');
   
+  // Track step entry
+  const tracker = getTracker('abonnement');
+  await tracker.trackStep('dagdelen', 3).catch(err => console.warn('[AbbDagdelenSchoonmakerForm] Tracking failed:', err));
+  
   // Haal formulierschema op
   const schema = getFormSchema(FORM_NAME);
   
@@ -807,6 +812,14 @@ export async function initAbbDagdelenSchoonmakerForm() {
 
       // Sla flow data op met dagdelen en schoonmakerkeuze
       saveFlowData('abonnement-aanvraag', flowData);
+      
+      // Track step exit with data
+      const tracker = getTracker('abonnement');
+      await tracker.trackStep('dagdelen', 3, {
+        schoonmakerKeuze: formData.schoonmakerKeuze,
+        dagdelenVoorkeur: flowData.dagdelenVoorkeur || null,
+        schoonmakerVoornaam: flowData.schoonmakerVoornaam || null
+      }).catch(err => console.warn('[AbbDagdelenSchoonmakerForm] Tracking failed:', err));
       
       // Voor backward compatibility
       saveGlobalFieldData('schoonmakerKeuze', formData.schoonmakerKeuze);

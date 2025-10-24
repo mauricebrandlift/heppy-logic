@@ -4,6 +4,7 @@
 import { formHandler } from '../logic/formHandler.js';
 import { loadFlowData, saveFlowData } from '../logic/formStorage.js';
 import { apiClient } from '../../utils/api/client.js';
+import { getTracker } from '../../utils/tracking/funnelTracker.js';
 
 const FORM_NAME = 'abb_betaling-form';
 const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
@@ -59,6 +60,11 @@ function formatCurrency(amount) {
 
 export async function initAbbBetalingForm() {
   console.log('💳 [AbbBetaling] Initialiseren…');
+  
+  // Track step entry
+  const tracker = getTracker('abonnement');
+  await tracker.trackStep('betaling', 5).catch(err => console.warn('[AbbBetaling] Tracking failed:', err));
+  
   // Detecteer of we terugkomen van een redirect-based betaalmethode (iDEAL e.d.)
   // We tonen de success slide pas NA terugkomst en bevestigde status.
   const urlParams = new URLSearchParams(window.location.search);
@@ -254,6 +260,7 @@ export async function initAbbBetalingForm() {
         // Extra metadata voor reference
         flow: 'abonnement',
         aanvraagId: flow.aanvraagId || '',
+        tracking_session_id: tracker.sessionId,
       };
 
       console.log('[AbbBetaling] Metadata voor PaymentIntent:', metadata);
@@ -271,6 +278,16 @@ export async function initAbbBetalingForm() {
         },
       }, idem);
       console.log('[AbbBetaling] Intent response:', intent);
+      
+      // Link payment intent to tracking session
+      await tracker.linkPayment(intent.id).catch(err => console.warn('[AbbBetaling] Payment linking failed:', err));
+      
+      // Track step exit with payment data
+      await tracker.trackStep('betaling', 5, {
+        paymentIntentId: intent.id,
+        bundleAmount: intent?.amount ? intent.amount / 100 : bundleAmountEur,
+        sessionsPer4W: sessionsPer4W
+      }).catch(err => console.warn('[AbbBetaling] Tracking failed:', err));
 
       elementsInstance = stripeInstance.elements({ clientSecret: intent.clientSecret, appearance: { theme: 'stripe' } });
       paymentElement = elementsInstance.create('payment');
