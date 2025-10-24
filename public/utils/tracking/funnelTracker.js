@@ -110,10 +110,13 @@ export class FunnelTracker {
     };
     
     try {
-      await apiClient.post('/api/routes/tracking/start', {
-        sessionId: this.sessionId,
-        flowType: this.flowType,
-        metadata
+      await apiClient('/routes/tracking/start', {
+        method: 'POST',
+        body: JSON.stringify({
+          sessionId: this.sessionId,
+          flowType: this.flowType,
+          metadata
+        })
       });
       
       console.log(`✅ [FunnelTracker] Session started: ${this.sessionId}`);
@@ -144,14 +147,17 @@ export class FunnelTracker {
     this.stepStartTime = Date.now();
     
     try {
-      await apiClient.patch('/api/routes/tracking/step', {
-        sessionId: this.sessionId,
-        stepName,
-        stepOrder,
-        formData,
-        completed: false, // Wordt true bij volgende stap
-        previousStep,
-        timeSpent
+      await apiClient('/routes/tracking/step', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          sessionId: this.sessionId,
+          stepName,
+          stepOrder,
+          formData,
+          completed: false, // Wordt true bij volgende stap
+          previousStep,
+          timeSpent
+        })
       });
       
       console.log(`✅ [FunnelTracker] Step tracked: ${stepName}`);
@@ -168,9 +174,12 @@ export class FunnelTracker {
     console.log(`👤 [FunnelTracker] Linking user: ${userId}`);
     
     try {
-      await apiClient.patch('/api/routes/tracking/link-user', {
-        sessionId: this.sessionId,
-        userId
+      await apiClient('/routes/tracking/link-user', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          sessionId: this.sessionId,
+          userId
+        })
       });
       
       console.log(`✅ [FunnelTracker] User linked: ${userId}`);
@@ -186,9 +195,12 @@ export class FunnelTracker {
     console.log(`💳 [FunnelTracker] Linking payment: ${paymentIntentId}`);
     
     try {
-      await apiClient.patch('/api/routes/tracking/link-payment', {
-        sessionId: this.sessionId,
-        paymentIntentId
+      await apiClient('/routes/tracking/link-payment', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          sessionId: this.sessionId,
+          paymentIntentId
+        })
       });
       
       console.log(`✅ [FunnelTracker] Payment linked: ${paymentIntentId}`);
@@ -204,9 +216,12 @@ export class FunnelTracker {
     console.log(`✅ [FunnelTracker] Completing session`);
     
     try {
-      await apiClient.patch('/api/routes/tracking/complete', {
-        sessionId: this.sessionId,
-        aanvraagId
+      await apiClient('/routes/tracking/complete', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          sessionId: this.sessionId,
+          aanvraagId
+        })
       });
       
       console.log(`✅ [FunnelTracker] Session completed`);
