@@ -4,7 +4,7 @@
 import { formHandler } from '../logic/formHandler.js';
 import { loadFlowData, saveFlowData } from '../logic/formStorage.js';
 import { apiClient } from '../../utils/api/client.js';
-import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
+import { safeTrack, logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 const FORM_NAME = 'abb_betaling-form';
 const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
@@ -276,12 +276,12 @@ export async function initAbbBetalingForm() {
       }, idem);
       console.log('[AbbBetaling] Intent response:', intent);
       
-      // 🎯 TRACK STEP COMPLETION
-      await logStepCompleted('abonnement', 'betaling', 5, {
+      // 🎯 TRACK STEP COMPLETION (non-blocking, critical flow continues regardless)
+      safeTrack(() => logStepCompleted('abonnement', 'betaling', 5, {
         payment_intent_id: intent.id,
         bundleAmount: intent?.amount ? intent.amount / 100 : bundleAmountEur,
         sessionsPer4W: sessionsPer4W
-      }).catch(err => console.warn('[AbbBetaling] Tracking failed:', err));
+      }));
 
       elementsInstance = stripeInstance.elements({ clientSecret: intent.clientSecret, appearance: { theme: 'stripe' } });
       paymentElement = elementsInstance.create('payment');
