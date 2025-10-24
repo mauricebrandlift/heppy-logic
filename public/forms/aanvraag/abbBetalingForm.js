@@ -220,6 +220,9 @@ export async function initAbbBetalingForm() {
       const prijsPerSessieCents = Math.round(baseAmountPerSession * 100);
       const bundleAmountCents = Math.round(bundleAmountEur * 100);
 
+      // Get tracking session ID BEFORE creating metadata
+      const tracker = getTracker('abonnement');
+
       // Verzamel alle metadata voor webhook processing
       // Voor ingelogde users: gebruik auth data, voor guests: gebruik form data
       const metadata = {

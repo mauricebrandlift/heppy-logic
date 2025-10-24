@@ -3,8 +3,24 @@
  * Frontend utility voor het tracken van user journey
  * 
  * Gebruik:
- * import { FunnelTracker } from './utils/tracking/funnelTracker.js';
- * 
+ * import { FunnelTracker } from './utils/tracking/funnelTrac  async linkUser(userId) {  async linkPayment(paymentIntentId) {
+    console.log(`💳 [FunnelTracker] Linking payment: ${paymentIntentId}`);
+    
+    try {
+      await apiClient.patch('/api/routes/tracking/link-payment', {
+        sessionId: this.sessionId,
+        paymentIntentId
+      });
+      
+      console.log(`✅ [FunnelTracker] Payment linked: ${paymentIntentId}`);ole.log(`👤 [FunnelTracker] Linking user: ${userId}`);
+    
+    try {
+      await apiClient.patch('/api/routes/tracking/link-user', {
+        sessionId: this.sessionId,
+        userId
+      });
+      
+      console.log(`✅ [FunnelTracker] User linked: ${userId}`); * 
  * // Bij formulier start
  * const tracker = new FunnelTracker('abonnement');
  * await tracker.start();
@@ -110,7 +126,7 @@ export class FunnelTracker {
     };
     
     try {
-      await apiClient.post('/api/tracking/start', {
+      await apiClient.post('/api/routes/tracking/start', {
         sessionId: this.sessionId,
         flowType: this.flowType,
         metadata
@@ -144,7 +160,7 @@ export class FunnelTracker {
     this.stepStartTime = Date.now();
     
     try {
-      await apiClient.patch('/api/tracking/step', {
+      await apiClient.patch('/api/routes/tracking/step', {
         sessionId: this.sessionId,
         stepName,
         stepOrder,
