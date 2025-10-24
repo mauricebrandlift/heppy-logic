@@ -62,7 +62,7 @@ export default async function handler(req, res) {
     
     // Check 2: User profiles (fallback)
     console.log(`🔍 [CheckEmail] Checking user_profiles table... [${correlationId}]`);
-    const url = `${supabaseConfig.url}/rest/v1/user_profiles?emailadres=eq.${encodeURIComponent(normalizedEmail)}&select=id,emailadres`;
+    const url = `${supabaseConfig.url}/rest/v1/user_profiles?email=eq.${encodeURIComponent(normalizedEmail)}&select=id,email`;
     const resp = await httpClient(url, { 
       headers:{ 
         'apikey': supabaseConfig.anonKey,

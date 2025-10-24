@@ -1,5 +1,6 @@
 // voorkeursDagdelenService: create voorkeurs_dagdelen records
 // Slaat dagdeel voorkeuren op voor klanten bij schoonmaak aanvragen
+// NIEUWE STRUCTUUR: 1 record per dag+dagdeel combinatie met voorkeur boolean
 import { supabaseConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
 
@@ -9,9 +10,12 @@ function uuid(){
 
 /**
  * Slaat dagdeel voorkeuren op voor een gebruiker
+ * NIEUWE STRUCTUUR: { "maandag": ["ochtend", "middag"], "dinsdag": ["avond"] }
+ * Wordt omgezet naar individuele records per dag+dagdeel met voorkeur=true
+ * 
  * @param {Object} params
  * @param {string} params.gebruikerId - UUID van de gebruiker
- * @param {Object} params.dagdelen - Dagdelen object in database formaat: { "maandag": ["ochtend", "middag"], "dinsdag": ["avond"] }
+ * @param {Object} params.dagdelen - Dagdelen object: { "maandag": ["ochtend", "middag"], "dinsdag": ["avond"] }
  * @param {string} correlationId - Correlation ID voor logging
  * @returns {Promise<{ids: string[]}>} - Array van aangemaakte voorkeur IDs
  */
@@ -27,45 +31,53 @@ async function createVoorkeuren({ gebruikerId, dagdelen }, correlationId) {
   }
 
   const url = `${supabaseConfig.url}/rest/v1/voorkeurs_dagdelen`;
-  const ids = [];
+  const records = [];
 
-  // Voor elke dag met dagdelen, maak een apart record
+  // Voor elke dag met dagdelen, maak een record PER dagdeel
   for (const [dag, dagdeelLijst] of Object.entries(dagdelen)) {
     if (!Array.isArray(dagdeelLijst) || dagdeelLijst.length === 0) {
       continue; // Skip dagen zonder dagdelen
     }
 
-    // Maak een record per dag met array van dagdelen
-    const id = uuid();
-    const body = {
-      id,
-      gebruiker_id: gebruikerId,
-      dag: dag, // 'maandag', 'dinsdag', etc.
-      dagdelen: dagdeelLijst // ['ochtend', 'middag', 'avond']
-    };
-
-    const resp = await httpClient(
-      url,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': supabaseConfig.anonKey,
-          'Authorization': `Bearer ${supabaseConfig.anonKey}`,
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify(body)
-      },
-      correlationId
-    );
-
-    if (!resp.ok) {
-      throw new Error(`voorkeurs_dagdelen insert failed for ${dag}: ${await resp.text()}`);
+    // Voor elk dagdeel in de lijst, maak een apart record
+    for (const dagdeel of dagdeelLijst) {
+      const id = uuid();
+      records.push({
+        id,
+        gebruiker_id: gebruikerId,
+        dag: dag, // 'maandag', 'dinsdag', etc.
+        dagdeel: dagdeel, // 'ochtend', 'middag', of 'avond'
+        voorkeur: true // Klant WIL dit dagdeel
+      });
     }
-
-    ids.push(id);
   }
 
+  if (records.length === 0) {
+    console.log(`[voorkeursDagdelenService] No records to create for user ${gebruikerId}`);
+    return { ids: [] };
+  }
+
+  // Bulk insert alle records
+  const resp = await httpClient(
+    url,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(records)
+    },
+    correlationId
+  );
+
+  if (!resp.ok) {
+    throw new Error(`voorkeurs_dagdelen bulk insert failed: ${await resp.text()}`);
+  }
+
+  const ids = records.map(r => r.id);
   console.log(`[voorkeursDagdelenService] Created ${ids.length} voorkeur records for user ${gebruikerId}`);
   return { ids };
 }

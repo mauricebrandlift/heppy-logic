@@ -143,15 +143,30 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
     }
 
     // Voorkeurs dagdelen opslaan (indien aanwezig in metadata)
-    if (metadata.dagdelen && typeof metadata.dagdelen === 'object') {
+    if (metadata.dagdelen) {
       console.log(`📅 [ProcessSuccessfulPayment] Saving voorkeurs_dagdelen...`);
       try {
-        await voorkeursDagdelenService.create({
-          gebruikerId: user.id,
-          dagdelen: metadata.dagdelen
-        }, correlationId);
-        console.log(`✅ [ProcessSuccessfulPayment] Voorkeurs_dagdelen saved`);
-        await auditService.log('voorkeurs_dagdelen', user.id, 'created', user.id, { dagdelen: metadata.dagdelen }, correlationId);
+        // Dagdelen komt als JSON string vanuit frontend
+        let dagdelenObject = metadata.dagdelen;
+        if (typeof metadata.dagdelen === 'string') {
+          try {
+            dagdelenObject = JSON.parse(metadata.dagdelen);
+          } catch (parseError) {
+            console.error(`⚠️ [ProcessSuccessfulPayment] Could not parse dagdelen JSON [${correlationId}]`, metadata.dagdelen);
+            dagdelenObject = null;
+          }
+        }
+        
+        if (dagdelenObject && typeof dagdelenObject === 'object' && Object.keys(dagdelenObject).length > 0) {
+          await voorkeursDagdelenService.create({
+            gebruikerId: user.id,
+            dagdelen: dagdelenObject
+          }, correlationId);
+          console.log(`✅ [ProcessSuccessfulPayment] Voorkeurs_dagdelen saved`);
+          await auditService.log('voorkeurs_dagdelen', user.id, 'created', user.id, { dagdelen: dagdelenObject }, correlationId);
+        } else {
+          console.log(`ℹ️ [ProcessSuccessfulPayment] Dagdelen is empty or invalid, skipping`);
+        }
       } catch (error) {
         // Niet-fataal: log maar gooi geen error
         console.error(`⚠️ [ProcessSuccessfulPayment] WARNING: Dagdelen save failed [${correlationId}]`, {

@@ -4,7 +4,7 @@ import { httpClient } from '../utils/apiClient.js';
 import { createAuthUser, findAuthUserByEmail } from './authService.js';
 
 async function selectUserByEmail(email, correlationId){
-  const url = `${supabaseConfig.url}/rest/v1/user_profiles?emailadres=eq.${encodeURIComponent(email)}&select=id`;
+  const url = `${supabaseConfig.url}/rest/v1/user_profiles?email=eq.${encodeURIComponent(email)}&select=id`;
   const resp = await httpClient(url, { headers:{ 'apikey':supabaseConfig.anonKey,'Authorization':`Bearer ${supabaseConfig.anonKey}` } }, correlationId);
   if(!resp.ok) throw new Error(`user_profiles select failed: ${await resp.text()}`);
   return resp.json();
@@ -14,11 +14,11 @@ async function insertUserProfile({ id, email, voornaam, achternaam, telefoon, ro
   const url = `${supabaseConfig.url}/rest/v1/user_profiles`;
   const body = { 
     id, // Gebruik auth user ID!
-    emailadres: email||null, 
+    email: email||null, 
     voornaam: voornaam||null, 
     achternaam: achternaam||null, 
-    telefoonnummer: telefoon||null, 
-    role: rol||'klant' 
+    telefoon: telefoon||null, 
+    rol: rol||'klant' 
   };
   const resp = await httpClient(url, { 
     method:'POST', 
