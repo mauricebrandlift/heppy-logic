@@ -7,17 +7,24 @@
  * No session management, just simple INSERT operations.
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { supabaseConfig } from '../../config/index.js';
+import { httpClient } from '../../utils/apiClient.js';
 
 export default async function handler(req, res) {
   // CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Correlation-ID');
 
   // Handle OPTIONS request
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  // Echo correlation ID if provided
+  const correlationId = req.headers['x-correlation-id'];
+  if (correlationId) {
+    res.setHeader('X-Correlation-ID', correlationId);
   }
 
   // Only allow POST
@@ -30,41 +37,41 @@ export default async function handler(req, res) {
 
     // Validate required fields
     if (!flow_type || !step_name || step_order === undefined) {
+      console.warn('[log-event] Missing required fields', { flow_type, step_name, step_order });
       return res.status(400).json({ 
         error: 'Missing required fields: flow_type, step_name, step_order' 
       });
     }
 
-    // Initialize Supabase client
-    const supabase = createClient(
-      process.env.SUPABASE_URL,
-      process.env.SUPABASE_SERVICE_ROLE_KEY
-    );
+    // Prepare insert body
+    const body = {
+      flow_type,
+      step_name,
+      step_order,
+      is_completion: metadata.is_completion || false,
+      payment_intent_id: metadata.payment_intent_id || null,
+      metadata: metadata || {}
+    };
 
-    // Insert event record
-    const { error } = await supabase
-      .from('funnel_events')
-      .insert({
-        flow_type,
-        step_name,
-        step_order,
-        is_completion: metadata.is_completion || false,
-        payment_intent_id: metadata.payment_intent_id || null,
-        metadata: metadata || {}
-      });
+    // Insert via Supabase REST API
+    const url = `${supabaseConfig.url}/rest/v1/funnel_events`;
+    const response = await httpClient(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(body)
+    }, correlationId);
 
-    if (error) {
-      console.error('Failed to insert funnel event:', error);
-      return res.status(500).json({ 
-        error: 'Failed to log event',
-        details: error.message 
-      });
-    }
+    console.log(`[log-event] [${correlationId || 'no-id'}] Event logged: ${flow_type}/${step_name} (step ${step_order})`);
 
     return res.status(201).json({ ok: true });
 
   } catch (err) {
-    console.error('Tracking endpoint error:', err);
+    console.error('[log-event] Error:', err);
     return res.status(500).json({ 
       error: 'Internal server error',
       details: err.message 
