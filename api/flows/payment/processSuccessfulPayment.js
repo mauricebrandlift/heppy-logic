@@ -8,9 +8,8 @@ import { abonnementService } from '../../services/abonnementService.js';
 import { betalingService } from '../../services/betalingService.js';
 import { auditService } from '../../services/auditService.js';
 import { intakeService } from '../../services/intakeService.js';
-import * as voorkeursDagdelenService from '../../services/voorkeursDagdelenService.js';
-import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
-import { trackingService } from '../../services/trackingService.js';
+import { voorkeursDagdelenService } from '../../services/voorkeursDagdelenService.js';
+import { schoonmaakMatchService } from '../../services/schoonmaakMatchService.js';
 
 export async function processSuccessfulPayment({ paymentIntent, metadata, correlationId, event }){
   console.log(`💰 [ProcessSuccessfulPayment] ========== START ========== [${correlationId}]`);
@@ -19,35 +18,7 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
   console.log(`💰 [ProcessSuccessfulPayment] Metadata:`, JSON.stringify(metadata, null, 2));
   
   try {
-    // Start tracking sessie als deze nog niet bestaat (backward compatibility)
-    let trackingSessionId = metadata.tracking_session_id;
-    if (!trackingSessionId && metadata.flow) {
-      console.log(`📊 [ProcessSuccessfulPayment] No tracking_session_id in metadata, creating retroactive tracking session...`);
-      try {
-        // Genereer UUID voor retroactieve tracking
-        const sessionId = globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : `retroactive-${Date.now()}`;
-        await trackingService.startSession({
-          sessionId,
-          flowType: metadata.flow,
-          metadata: {
-            retroactive: true,
-            payment_intent_id: paymentIntent.id
-          }
-        }, correlationId);
-        
-        // Link payment intent meteen
-        await trackingService.linkPaymentIntent({
-          sessionId,
-          paymentIntentId: paymentIntent.id
-        }, correlationId);
-        
-        trackingSessionId = sessionId;
-        console.log(`✅ [ProcessSuccessfulPayment] Retroactive tracking session created: ${sessionId}`);
-      } catch (error) {
-        console.warn(`⚠️ [ProcessSuccessfulPayment] Failed to create retroactive tracking: ${error.message}`);
-        // Non-fatal, continue
-      }
-    }
+    // NOTE: Oude tracking systeem verwijderd - nu gebruikt frontend simpleFunnelTracker.js
     
     // Intake naar betaald
     console.log(`📝 [ProcessSuccessfulPayment] Updating intake status...`);
@@ -241,29 +212,8 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       throw new Error(`Match creation failed: ${error.message}`);
     }
 
-    // Voltooi tracking sessie (gebruik trackingSessionId van start van functie)
-    if (trackingSessionId) {
-      console.log(`📊 [ProcessSuccessfulPayment] Completing tracking session: ${trackingSessionId}`);
-      try {
-        // Link user aan tracking (als we retroactief zijn)
-        await trackingService.linkUser({
-          sessionId: trackingSessionId,
-          userId: user.id
-        }, correlationId);
-        
-        // Complete de sessie
-        await trackingService.completeSession({
-          sessionId: trackingSessionId,
-          aanvraagId: aanvraag.id
-        }, correlationId);
-        console.log(`✅ [ProcessSuccessfulPayment] Tracking session completed`);
-      } catch (error) {
-        console.warn(`⚠️ [ProcessSuccessfulPayment] Failed to complete tracking session: ${error.message}`);
-        // Non-fatal
-      }
-    } else {
-      console.log(`ℹ️ [ProcessSuccessfulPayment] No tracking session to complete`);
-    }
+    // NOTE: Tracking wordt nu volledig door frontend simpleFunnelTracker.js afgehandeld
+    // Geen backend tracking sessies meer nodig
 
     console.log(`🎉 [ProcessSuccessfulPayment] ========== SUCCESS ========== [${correlationId}]`);
     return { handled:true, intent: paymentIntent.id, abonnement_id: abonnement.id };
