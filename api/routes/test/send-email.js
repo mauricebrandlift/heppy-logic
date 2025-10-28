@@ -1,44 +1,112 @@
 /**
- * POST /api/test/send-email
+ * API Route: Test Email Verzenden
  * 
- * Test endpoint voor email verzending via Resend.
- * Alleen voor development/testing - NIET in production gebruiken!
+ * POST /api/routes/test/send-email
  * 
- * Body (optioneel):
+ * Test endpoint voor Resend API email verzending.
+ * Alleen voor development/testing via Postman.
+ * 
+ * Request Body (optioneel):
  * {
- *   "to": "test@example.com",  // Default: MAIL_ADMIN
- *   "subject": "Custom Subject" // Default: "Test Email - Heppy"
+ *   "to": "test@example.com",      // Default: MAIL_ADMIN
+ *   "subject": "Custom Subject"     // Default: "Test Email - Heppy"
+ * }
+ * 
+ * Response Success (200):
+ * {
+ *   "success": true,
+ *   "message": "Test email succesvol verzonden! 📧",
+ *   "data": {
+ *     "emailId": "resend-email-id",
+ *     "to": "recipient@example.com",
+ *     "from": "no-reply@heppy-schoonmaak.nl",
+ *     "subject": "Test Email - Heppy",
+ *     "timestamp": "2025-10-28T..."
+ *   },
+ *   "instructions": {
+ *     "inbox": "Check je inbox: recipient@example.com",
+ *     "dashboard": "https://resend.com/emails"
+ *   }
+ * }
+ * 
+ * Response Error (500):
+ * {
+ *   "error": "Error message",
+ *   "details": { ... }
  * }
  */
 
 import { emailConfig } from '../../config/index.js';
+import { handleErrorResponse } from '../../utils/errorHandler.js';
 
 export default async function handler(req, res) {
-  // CORS headers
+  // CORS headers voor alle responses
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Correlation-ID, Authorization');
 
+  // Correlation ID voor tracing
+  const correlationId = req.headers['x-correlation-id'] || `test-email-${Date.now()}`;
+  if (correlationId) {
+    res.setHeader('X-Correlation-ID', correlationId);
+  }
+
+  // Handle OPTIONS (preflight) request
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  const logMeta = {
+    correlationId,
+    route: req.url,
+    method: req.method,
+  };
+
+  console.log(JSON.stringify({ 
+    ...logMeta, 
+    level: 'INFO', 
+    message: 'Test email request ontvangen.' 
+  }));
+
+  // Validate method
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
+    res.setHeader('Allow', ['POST']);
+    const msg = 'Method Not Allowed. Only POST requests are accepted.';
+    console.warn(JSON.stringify({ 
+      ...logMeta, 
+      level: 'WARN', 
+      message: msg 
+    }));
+    return res.status(405).json({ 
+      correlationId, 
+      error: msg 
+    });
   }
 
   // Check configuration
   if (!emailConfig.resendApiKey) {
+    const msg = 'RESEND_API_KEY niet geconfigureerd in environment variables';
+    console.error(JSON.stringify({ 
+      ...logMeta, 
+      level: 'ERROR', 
+      message: msg 
+    }));
     return res.status(500).json({ 
-      success: false,
-      error: 'RESEND_API_KEY niet geconfigureerd in environment variables' 
+      correlationId,
+      error: msg 
     });
   }
 
   if (!emailConfig.fromEmail) {
+    const msg = 'MAIL_FROM niet geconfigureerd in environment variables';
+    console.error(JSON.stringify({ 
+      ...logMeta, 
+      level: 'ERROR', 
+      message: msg 
+    }));
     return res.status(500).json({ 
-      success: false,
-      error: 'MAIL_FROM niet geconfigureerd in environment variables' 
+      correlationId,
+      error: msg 
     });
   }
 
@@ -47,6 +115,14 @@ export default async function handler(req, res) {
   
   const recipient = to || emailConfig.adminEmail;
   const emailSubject = subject || 'Test Email - Heppy Schoonmaak';
+
+  console.log(JSON.stringify({ 
+    ...logMeta, 
+    level: 'INFO', 
+    message: 'Email voorbereiden voor verzending',
+    to: recipient,
+    subject: emailSubject
+  }));
 
   // Build test email
   const testEmail = {
@@ -149,6 +225,7 @@ export default async function handler(req, res) {
                   <li><strong>Naar:</strong> ${recipient}</li>
                   <li><strong>Reply-To:</strong> ${emailConfig.replyToEmail}</li>
                   <li><strong>Admin Email:</strong> ${emailConfig.adminEmail}</li>
+                  <li><strong>Correlation ID:</strong> ${correlationId}</li>
                   <li><strong>Timestamp:</strong> ${new Date().toLocaleString('nl-NL', { 
                     timeZone: 'Europe/Amsterdam',
                     dateStyle: 'full',
@@ -163,6 +240,7 @@ export default async function handler(req, res) {
                 <li>✓ Email verzending via fetch() API</li>
                 <li>✓ From/Reply-To headers</li>
                 <li>✓ HTML email rendering</li>
+                <li>✓ Correlation ID tracing</li>
               </ul>
               
               <h3>🚀 Volgende stappen:</h3>
@@ -174,7 +252,7 @@ export default async function handler(req, res) {
               </ul>
               
               <div class="footer">
-                <p>Dit is een test email verzonden via <strong>POST /api/test/send-email</strong></p>
+                <p>Dit is een test email verzonden via <strong>POST /api/routes/test/send-email</strong></p>
                 <p>Heppy Logic Backend • ${new Date().getFullYear()}</p>
               </div>
             </div>
@@ -187,6 +265,12 @@ export default async function handler(req, res) {
 
   try {
     // Send email via Resend API
+    console.log(JSON.stringify({ 
+      ...logMeta, 
+      level: 'INFO', 
+      message: 'Verzenden naar Resend API...' 
+    }));
+
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -199,14 +283,17 @@ export default async function handler(req, res) {
     const responseData = await response.text();
     
     if (!response.ok) {
-      console.error('[Test Email] Resend API error:', {
+      console.error(JSON.stringify({
+        ...logMeta,
+        level: 'ERROR',
+        message: 'Resend API error',
         status: response.status,
         statusText: response.statusText,
         response: responseData,
-      });
+      }));
 
       return res.status(response.status).json({
-        success: false,
+        correlationId,
         error: 'Email verzenden mislukt',
         details: responseData,
         resendStatus: response.status,
@@ -215,11 +302,14 @@ export default async function handler(req, res) {
 
     const result = JSON.parse(responseData);
     
-    console.log('[Test Email] Email verzonden:', {
-      id: result.id,
+    console.log(JSON.stringify({
+      ...logMeta,
+      level: 'INFO',
+      message: 'Email succesvol verzonden',
+      emailId: result.id,
       to: recipient,
       subject: emailSubject,
-    });
+    }));
 
     return res.status(200).json({
       success: true,
@@ -238,12 +328,14 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('[Test Email] Error:', error);
+    console.error(JSON.stringify({
+      ...logMeta,
+      level: 'ERROR',
+      message: 'Email verzending gefaald',
+      error: error.message,
+      stack: error.stack,
+    }));
     
-    return res.status(500).json({
-      success: false,
-      error: 'Email verzenden mislukt',
-      message: error.message,
-    });
+    return handleErrorResponse(res, error, correlationId);
   }
 }
