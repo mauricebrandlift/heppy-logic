@@ -2,7 +2,8 @@
 import { supabaseConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
 import * as schoonmaakMatchService from './schoonmaakMatchService.js';
-import { auditService } from './auditService.js';
+import * as schoonmakerService from './schoonmakerService.js';
+import * as auditService from './auditService.js';
 
 function uuid(){
   return globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});
@@ -359,14 +360,40 @@ export const aanvraagService = {
     console.log(`[aanvraagService.reject] Excluding ${excludeSchoonmakerIds.length} previously rejected schoonmakers [${correlationId}]`);
 
     // STAP 6: Zoek nieuwe schoonmaker
-    // TODO: Implementeer findMatchingSchoonmaker in schoonmakerService
-    // Voor nu: simpele placeholder (return null = geen nieuwe match)
+    // STAP 6: Zoek nieuwe schoonmaker (indien beschikbaar)
+    console.log(`[aanvraagService.reject] Searching for new schoonmaker [${correlationId}]`);
+    
     let newMatch = null;
     let newSchoonmaker = null;
 
-    // PLACEHOLDER: Later vervangen door echte matching logica
-    console.log(`[aanvraagService.reject] TODO: Auto-matching not yet implemented [${correlationId}]`);
-    console.log(`[aanvraagService.reject] Would exclude: ${excludeSchoonmakerIds.join(', ')}`);
+    try {
+      const matchResult = await schoonmakerService.findAndAssignSchoonmaker(
+        aanvraagId,
+        abonnement.id,
+        excludeSchoonmakerIds,
+        correlationId
+      );
+
+      if (matchResult) {
+        newMatch = matchResult;
+        newSchoonmaker = {
+          id: matchResult.schoonmaker_id,
+          voornaam: matchResult.schoonmaker_voornaam,
+          achternaam: matchResult.schoonmaker_achternaam
+        };
+        console.log(`✅ [aanvraagService.reject] New match created [${correlationId}]`, {
+          match_id: newMatch.id,
+          schoonmaker_id: newSchoonmaker.id
+        });
+      } else {
+        console.log(`ℹ️ [aanvraagService.reject] No available schoonmaker found [${correlationId}]`);
+      }
+    } catch (error) {
+      console.error(`❌ [aanvraagService.reject] Auto-matching failed [${correlationId}]`, {
+        error: error.message
+      });
+      // Continue flow - geen nieuwe match betekent admin actie nodig
+    }
 
     // STAP 7: Als geen nieuwe schoonmaker gevonden, update aanvraag status
     if (!newMatch) {
