@@ -3,7 +3,7 @@ import { supabaseConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
 import * as schoonmaakMatchService from './schoonmaakMatchService.js';
 import * as schoonmakerService from './schoonmakerService.js';
-import * as auditService from './auditService.js';
+import { auditService } from './auditService.js';
 
 function uuid(){
   return globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});
@@ -286,7 +286,34 @@ export const aanvraagService = {
       status: aanvraag.status 
     });
 
-    // STAP 2: Haal actieve match op
+    // STAP 2: Haal abonnement op (nodig voor auto-matching)
+    const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?aanvraag_id=eq.${aanvraagId}&select=*`;
+    const abonnementResp = await httpClient(abonnementUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`
+      }
+    }, correlationId);
+
+    if (!abonnementResp.ok) {
+      throw new Error(`Failed to fetch abonnement: ${await abonnementResp.text()}`);
+    }
+
+    const abonnementen = await abonnementResp.json();
+    if (!abonnementen || abonnementen.length === 0) {
+      const error = new Error('Abonnement not found for this aanvraag');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const abonnement = abonnementen[0];
+    console.log(`[aanvraagService.reject] Abonnement found [${correlationId}]`, { 
+      id: abonnement.id, 
+      status: abonnement.status 
+    });
+
+    // STAP 3: Haal actieve match op
     const matches = await schoonmaakMatchService.findByAanvraagId(aanvraagId, correlationId);
     
     if (!matches || matches.length === 0) {
@@ -311,7 +338,7 @@ export const aanvraagService = {
       schoonmaker_id: match.schoonmaker_id
     });
 
-    // STAP 3: Valideer match status
+    // STAP 4: Valideer match status
     if (match.status === 'geweigerd') {
       const error = new Error('Match already rejected by this schoonmaker');
       error.statusCode = 409;
@@ -330,7 +357,7 @@ export const aanvraagService = {
       throw error;
     }
 
-    // STAP 4: Update match status naar 'geweigerd' + reden
+    // STAP 5: Update match status naar 'geweigerd' + reden
     const updateMatchUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?id=eq.${match.id}`;
     const updateMatchResp = await httpClient(updateMatchUrl, {
       method: 'PATCH',
@@ -353,14 +380,13 @@ export const aanvraagService = {
 
     console.log(`[aanvraagService.reject] Match status updated to 'geweigerd' [${correlationId}]`);
 
-    // STAP 5: Haal lijst van eerder afgewezen schoonmakers op
+    // STAP 6: Haal lijst van eerder afgewezen schoonmakers op
     const rejectedMatches = matches.filter(m => m.status === 'geweigerd');
     const excludeSchoonmakerIds = rejectedMatches.map(m => m.schoonmaker_id).filter(Boolean);
     
     console.log(`[aanvraagService.reject] Excluding ${excludeSchoonmakerIds.length} previously rejected schoonmakers [${correlationId}]`);
 
-    // STAP 6: Zoek nieuwe schoonmaker
-    // STAP 6: Zoek nieuwe schoonmaker (indien beschikbaar)
+    // STAP 7: Zoek nieuwe schoonmaker (indien beschikbaar)
     console.log(`[aanvraagService.reject] Searching for new schoonmaker [${correlationId}]`);
     
     let newMatch = null;
@@ -395,7 +421,7 @@ export const aanvraagService = {
       // Continue flow - geen nieuwe match betekent admin actie nodig
     }
 
-    // STAP 7: Als geen nieuwe schoonmaker gevonden, update aanvraag status
+    // STAP 8: Als geen nieuwe schoonmaker gevonden, update aanvraag status
     if (!newMatch) {
       console.log(`[aanvraagService.reject] No new match found, updating aanvraag status [${correlationId}]`);
       
@@ -420,7 +446,7 @@ export const aanvraagService = {
       console.log(`[aanvraagService.reject] Aanvraag status updated to 'afgewezen' [${correlationId}]`);
     }
 
-    // STAP 8: Audit log
+    // STAP 9: Audit log
     await auditService.log(
       'aanvraag_afgewezen',
       aanvraagId,
