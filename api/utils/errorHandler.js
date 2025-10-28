@@ -11,7 +11,8 @@
  * @param {string} [correlationId] Optionele correlation ID.
  */
 export function handleErrorResponse(res, error, defaultStatusCode = 500, correlationId) {
-  const statusCode = typeof error.code === 'number' ? error.code : defaultStatusCode;
+  // Support both error.code and error.statusCode
+  const statusCode = error.statusCode || (typeof error.code === 'number' ? error.code : defaultStatusCode);
   const message = error.message || 'An unexpected error occurred.';
 
   // Log de error server-side (uitgebreider dan wat naar client gaat)
@@ -25,6 +26,7 @@ export function handleErrorResponse(res, error, defaultStatusCode = 500, correla
       message: error.message,
       // stack: error.stack, // Overweeg stack alleen in dev of specifieke scenario's te loggen
       code: error.code,
+      statusCode: error.statusCode,
       // ...andere custom error properties
     },
     path: res.req?.originalUrl || res.req?.url, // Express vs Vercel
@@ -32,8 +34,8 @@ export function handleErrorResponse(res, error, defaultStatusCode = 500, correla
 
   res.status(statusCode).json({
     correlationId,
-    message,
+    error: message,
     // Je kunt hier extra details toevoegen afhankelijk van de error en je policy
-    // bijv. error.details als die bestaan en veilig zijn om te tonen.
+    details: error.details || {}
   });
 }
