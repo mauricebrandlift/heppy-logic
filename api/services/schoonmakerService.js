@@ -84,7 +84,7 @@ export async function findMatchingSchoonmaker({ aanvraagId, excludeSchoonmakerId
 
     // STAP 4: Filter excluded schoonmakers
     const availableSchoonmakers = beschikbareSchoonmakers.filter(s => 
-      !excludeSchoonmakerIds.includes(s.id)
+      !excludeSchoonmakerIds.includes(s.schoonmaker_id)  // ✅ Gebruik schoonmaker_id
     );
 
     if (availableSchoonmakers.length === 0) {
@@ -117,14 +117,14 @@ export async function findMatchingSchoonmaker({ aanvraagId, excludeSchoonmakerId
     const besteMatch = sortedSchoonmakers[0];
 
     console.log(`🎯 [SchoonmakerService] Best match found [${correlationId}]`, {
-      id: besteMatch.id,
+      id: besteMatch.schoonmaker_id,
       voornaam: besteMatch.voornaam,
       rating: besteMatch.rating || 'geen rating',
       actieve_klanten: besteMatch.aantal_actieve_klanten || 0
     });
 
     return {
-      id: besteMatch.id,
+      id: besteMatch.schoonmaker_id,  // ✅ Gebruik schoonmaker_id ipv id
       voornaam: besteMatch.voornaam || null,
       achternaam: besteMatch.achternaam || null,
       rating: besteMatch.rating || null,
