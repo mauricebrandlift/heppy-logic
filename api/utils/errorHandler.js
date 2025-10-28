@@ -17,9 +17,9 @@ export function handleErrorResponse(res, error, defaultStatusCode = 500, correla
 
   // Log de error server-side (uitgebreider dan wat naar client gaat)
   console.error(JSON.stringify({
-    correlationId,
     level: 'ERROR',
     message: `API Error Response: ${message}`,
+    correlationId,
     statusCode,
     errorDetails: {
       name: error.name,

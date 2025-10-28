@@ -287,7 +287,7 @@ export const aanvraagService = {
     });
 
     // STAP 2: Haal abonnement op (nodig voor auto-matching)
-    const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?aanvraag_id=eq.${aanvraagId}&select=*`;
+    const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?schoonmaak_aanvraag_id=eq.${aanvraagId}&select=*`;
     const abonnementResp = await httpClient(abonnementUrl, {
       method: 'GET',
       headers: {
