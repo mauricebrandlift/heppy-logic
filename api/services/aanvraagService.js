@@ -384,7 +384,14 @@ export const aanvraagService = {
     const rejectedMatches = matches.filter(m => m.status === 'geweigerd');
     const excludeSchoonmakerIds = rejectedMatches.map(m => m.schoonmaker_id).filter(Boolean);
     
-    console.log(`[aanvraagService.reject] Excluding ${excludeSchoonmakerIds.length} previously rejected schoonmakers [${correlationId}]`);
+    // Voeg de HUIDIGE afgewezen schoonmaker toe (net ge-update, niet in matches array)
+    if (!excludeSchoonmakerIds.includes(schoonmakerId)) {
+      excludeSchoonmakerIds.push(schoonmakerId);
+    }
+    
+    console.log(`[aanvraagService.reject] Excluding ${excludeSchoonmakerIds.length} previously rejected schoonmakers [${correlationId}]`, {
+      excluded_ids: excludeSchoonmakerIds
+    });
 
     // STAP 7: Zoek nieuwe schoonmaker (indien beschikbaar)
     console.log(`[aanvraagService.reject] Searching for new schoonmaker [${correlationId}]`);
