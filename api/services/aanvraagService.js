@@ -227,5 +227,208 @@ export const aanvraagService = {
         id: schoonmakerId
       }
     };
+  },
+
+  /**
+   * Schoonmaker keurt aanvraag af
+   * 
+   * Flow:
+   * 1. Haal aanvraag op (check bestaat)
+   * 2. Haal actieve match op (schoonmaker_id + aanvraag_id, status='open')
+   * 3. Valideer: match moet status 'open' hebben
+   * 4. Update match.status = 'geweigerd' + afwijzing_reden
+   * 5. Haal lijst van eerder afgewezen schoonmakers op
+   * 6. Zoek nieuwe schoonmaker (exclude afgewezen lijst)
+   * 7a. Als gevonden: maak nieuwe match (status='open')
+   * 7b. Als NIET gevonden: update aanvraag.status = 'afgewezen'
+   * 8. Audit log
+   * 
+   * @param {Object} params
+   * @param {string} params.aanvraagId - UUID van schoonmaak_aanvraag
+   * @param {string} params.schoonmakerId - UUID van schoonmaker die afkeurt
+   * @param {string|null} params.reden - Optionele afwijzingsreden
+   * @param {string} correlationId - Voor logging
+   * @returns {Promise<Object>} Result met aanvraag, rejectedMatch, newMatch (of null)
+   * @throws {Error} Als aanvraag niet bestaat, match niet gevonden, of al afgewezen
+   */
+  async reject({ aanvraagId, schoonmakerId, reden }, correlationId) {
+    console.log(`[aanvraagService.reject] START [${correlationId}]`, { 
+      aanvraagId, 
+      schoonmakerId,
+      reden: reden || '(geen reden)'
+    });
+
+    // STAP 1: Haal aanvraag op
+    const aanvraagUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_aanvragen?id=eq.${aanvraagId}&select=*`;
+    const aanvraagResp = await httpClient(aanvraagUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`
+      }
+    }, correlationId);
+
+    if (!aanvraagResp.ok) {
+      throw new Error(`Failed to fetch aanvraag: ${await aanvraagResp.text()}`);
+    }
+
+    const aanvragen = await aanvraagResp.json();
+    if (!aanvragen || aanvragen.length === 0) {
+      const error = new Error('Aanvraag not found');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    const aanvraag = aanvragen[0];
+    console.log(`[aanvraagService.reject] Aanvraag found [${correlationId}]`, { 
+      id: aanvraag.id, 
+      status: aanvraag.status 
+    });
+
+    // STAP 2: Haal actieve match op
+    const matches = await schoonmaakMatchService.findByAanvraagId(aanvraagId, correlationId);
+    
+    if (!matches || matches.length === 0) {
+      const error = new Error('No match found for this aanvraag');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Neem de meest recente match (array is gesorteerd op aangemaakt_op DESC)
+    const match = matches[0];
+
+    // Valideer dat deze schoonmaker de juiste is
+    if (match.schoonmaker_id !== schoonmakerId) {
+      const error = new Error('This schoonmaker is not assigned to this aanvraag');
+      error.statusCode = 403;
+      throw error;
+    }
+
+    console.log(`[aanvraagService.reject] Match found [${correlationId}]`, { 
+      match_id: match.id,
+      status: match.status,
+      schoonmaker_id: match.schoonmaker_id
+    });
+
+    // STAP 3: Valideer match status
+    if (match.status === 'geweigerd') {
+      const error = new Error('Match already rejected by this schoonmaker');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    if (match.status === 'geaccepteerd') {
+      const error = new Error('Cannot reject an accepted match');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    if (match.status !== 'open') {
+      const error = new Error(`Cannot reject match with status: ${match.status}`);
+      error.statusCode = 409;
+      throw error;
+    }
+
+    // STAP 4: Update match status naar 'geweigerd' + reden
+    const updateMatchUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?id=eq.${match.id}`;
+    const updateMatchResp = await httpClient(updateMatchUrl, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({
+        status: 'geweigerd',
+        afwijzing_reden: reden || null,
+        bijgewerkt_op: new Date().toISOString()
+      })
+    }, correlationId);
+
+    if (!updateMatchResp.ok) {
+      throw new Error(`Failed to update match: ${await updateMatchResp.text()}`);
+    }
+
+    console.log(`[aanvraagService.reject] Match status updated to 'geweigerd' [${correlationId}]`);
+
+    // STAP 5: Haal lijst van eerder afgewezen schoonmakers op
+    const rejectedMatches = matches.filter(m => m.status === 'geweigerd');
+    const excludeSchoonmakerIds = rejectedMatches.map(m => m.schoonmaker_id).filter(Boolean);
+    
+    console.log(`[aanvraagService.reject] Excluding ${excludeSchoonmakerIds.length} previously rejected schoonmakers [${correlationId}]`);
+
+    // STAP 6: Zoek nieuwe schoonmaker
+    // TODO: Implementeer findMatchingSchoonmaker in schoonmakerService
+    // Voor nu: simpele placeholder (return null = geen nieuwe match)
+    let newMatch = null;
+    let newSchoonmaker = null;
+
+    // PLACEHOLDER: Later vervangen door echte matching logica
+    console.log(`[aanvraagService.reject] TODO: Auto-matching not yet implemented [${correlationId}]`);
+    console.log(`[aanvraagService.reject] Would exclude: ${excludeSchoonmakerIds.join(', ')}`);
+
+    // STAP 7: Als geen nieuwe schoonmaker gevonden, update aanvraag status
+    if (!newMatch) {
+      console.log(`[aanvraagService.reject] No new match found, updating aanvraag status [${correlationId}]`);
+      
+      const updateAanvraagUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_aanvragen?id=eq.${aanvraagId}`;
+      const updateAanvraagResp = await httpClient(updateAanvraagUrl, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({
+          status: 'afgewezen'
+        })
+      }, correlationId);
+
+      if (!updateAanvraagResp.ok) {
+        throw new Error(`Failed to update aanvraag: ${await updateAanvraagResp.text()}`);
+      }
+
+      console.log(`[aanvraagService.reject] Aanvraag status updated to 'afgewezen' [${correlationId}]`);
+    }
+
+    // STAP 8: Audit log
+    await auditService.log(
+      'aanvraag_afgewezen',
+      aanvraagId,
+      'rejected',
+      schoonmakerId,
+      {
+        aanvraag_id: aanvraagId,
+        rejected_match_id: match.id,
+        schoonmaker_id: schoonmakerId,
+        reden: reden || null,
+        new_match_found: newMatch !== null,
+        excluded_schoonmakers: excludeSchoonmakerIds
+      },
+      correlationId
+    );
+
+    console.log(`[aanvraagService.reject] SUCCESS [${correlationId}]`);
+
+    // Return complete result
+    return {
+      aanvraag: {
+        id: aanvraag.id,
+        status: newMatch ? 'betaald' : 'afgewezen'
+      },
+      rejectedMatch: {
+        id: match.id,
+        status: 'geweigerd',
+        reden: reden || null
+      },
+      newMatch: newMatch ? {
+        id: newMatch.id,
+        schoonmaker_id: newMatch.schoonmaker_id,
+        status: 'open',
+        schoonmaker_naam: newSchoonmaker?.voornaam || null
+      } : null
+    };
   }
 };

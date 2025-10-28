@@ -171,3 +171,39 @@ export async function deleteMatch(matchId, correlationId = '') {
   console.log(`✅ [SchoonmaakMatchService] Match deleted [${correlationId}]`);
   return true;
 }
+
+/**
+ * Haalt IDs op van schoonmakers die deze aanvraag hebben afgewezen
+ * 
+ * @param {string} aanvraagId - UUID van schoonmaak_aanvraag
+ * @param {string} [correlationId] - Voor logging/tracing
+ * @returns {Promise<Array<string>>} Array van schoonmaker IDs die hebben afgewezen
+ */
+export async function findRejectedSchoonmakers(aanvraagId, correlationId = '') {
+  console.log(`🔍 [SchoonmaakMatchService] Finding rejected schoonmakers for aanvraag ${aanvraagId} [${correlationId}]`);
+
+  const url = `${supabaseConfig.url}/rest/v1/schoonmaak_match?schoonmaak_aanvraag_id=eq.${aanvraagId}&status=eq.geweigerd&select=schoonmaker_id`;
+  
+  const resp = await httpClient(url, {
+    method: 'GET',
+    headers: {
+      'apikey': supabaseConfig.anonKey,
+      'Authorization': `Bearer ${supabaseConfig.anonKey}`
+    }
+  }, correlationId);
+
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    console.error(`❌ [SchoonmaakMatchService] Query failed [${correlationId}]`, errorText);
+    throw new Error(`Fout bij ophalen rejected schoonmakers: ${errorText}`);
+  }
+
+  const data = await resp.json();
+  const rejectedIds = (data || [])
+    .map(m => m.schoonmaker_id)
+    .filter(Boolean); // Filter null values
+
+  console.log(`✅ [SchoonmaakMatchService] Found ${rejectedIds.length} rejected schoonmaker(s) [${correlationId}]`);
+  return rejectedIds;
+}
+
