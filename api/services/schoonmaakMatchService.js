@@ -17,14 +17,16 @@ function uuid(){
  * @param {string} params.aanvraagId - UUID van schoonmaak_aanvraag
  * @param {string|null} params.schoonmakerId - UUID van schoonmaker of null voor "geen voorkeur"
  * @param {string|null} params.abonnementId - UUID van abonnement (optioneel)
+ * @param {boolean} params.autoAssigned - TRUE als gebruiker "geen voorkeur" koos en auto-assigned werd
  * @param {string} [correlationId] - Voor logging/tracing
  * @returns {Promise<Object>} De aangemaakte match record
  */
-export async function create({ aanvraagId, schoonmakerId, abonnementId }, correlationId = '') {
+export async function create({ aanvraagId, schoonmakerId, abonnementId, autoAssigned = false }, correlationId = '') {
   console.log(`🤝 [SchoonmaakMatchService] Creating match [${correlationId}]`, {
     aanvraagId,
     schoonmakerId: schoonmakerId || 'geen voorkeur',
-    abonnementId: abonnementId || 'none'
+    abonnementId: abonnementId || 'none',
+    autoAssigned
   });
 
   // Validatie
@@ -43,7 +45,8 @@ export async function create({ aanvraagId, schoonmakerId, abonnementId }, correl
     abonnement_id: abonnementId || null,
     status: 'open', // Status start als 'open'
     aangemaakt_op: new Date().toISOString(),
-    match_datum: null // Wordt gevuld bij acceptatie door schoonmaker
+    match_datum: null, // Wordt gevuld bij acceptatie door schoonmaker
+    auto_assigned: autoAssigned  // ✨ Track "geen voorkeur" auto-assign
   };
 
   const resp = await httpClient(url, {

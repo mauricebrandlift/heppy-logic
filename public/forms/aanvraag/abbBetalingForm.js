@@ -248,8 +248,32 @@ export async function initAbbBetalingForm() {
         sessions_per_4w: sessionsPer4W.toString(),
         startdatum: flow.startdatum || '',
         
-        // Schoonmaker keuze (kan 'geenVoorkeur' zijn of schoonmaker ID)
-        schoonmaker_id: (flow.schoonmakerKeuze && flow.schoonmakerKeuze !== 'geenVoorkeur') ? flow.schoonmakerKeuze : '',
+        // Schoonmaker keuze met auto-assign voor "geen voorkeur"
+        schoonmaker_id: (() => {
+          // Als specifieke schoonmaker gekozen: gebruik die ID
+          if (flow.schoonmakerKeuze && flow.schoonmakerKeuze !== 'geenVoorkeur') {
+            return flow.schoonmakerKeuze;
+          }
+          
+          // Als "geen voorkeur": haal auto-assign ID op uit radio element
+          if (flow.schoonmakerKeuze === 'geenVoorkeur') {
+            const radio = document.querySelector('input[type="radio"][value="geenVoorkeur"]');
+            const autoAssignId = radio?.getAttribute('data-auto-assign-id');
+            
+            if (autoAssignId) {
+              console.log('✅ [AbbBetaling] Geen voorkeur → Auto-assign ID:', autoAssignId);
+              return autoAssignId;
+            } else {
+              console.warn('⚠️ [AbbBetaling] Geen voorkeur geselecteerd maar geen auto-assign ID gevonden');
+            }
+          }
+          
+          // Fallback: lege string (NULL in database)
+          return '';
+        })(),
+        
+        // ✨ Track of gebruiker "geen voorkeur" had aangeklikt (voor analytics & notificaties)
+        auto_assigned: flow.schoonmakerKeuze === 'geenVoorkeur' ? 'true' : 'false',
         
         // Dagdelen voorkeuren (JSON string van dagdelen object)
         // Format: {"maandag":["ochtend","middag"],"dinsdag":["avond"]}

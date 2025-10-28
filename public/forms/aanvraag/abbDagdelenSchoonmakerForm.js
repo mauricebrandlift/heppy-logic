@@ -514,9 +514,9 @@ function bindSchoonmakerRadioEvents(formElement) {
 
 /**
  * Voeg de "geen voorkeur" radio-optie toe aan de lijst
- * @param {HTMLElement} wrapper - Container voor de opties 
+ * @param {Array} schoonmakersList - Array van schoonmaker objecten (voor auto-assign ID)
  */
-function addNoPreferenceOption() {
+function addNoPreferenceOption(schoonmakersList = []) {
   // Niet meer dynamisch toevoegen; element bestaat extern
   if (formStatus.geenVoorkeurElement) {
     // Zorg dat radio de juiste attributen heeft
@@ -525,6 +525,16 @@ function addNoPreferenceOption() {
       radio.name = 'schoonmakerKeuze';
       radio.setAttribute('data-field-name', 'schoonmakerKeuze');
       if (!radio.value) radio.value = 'geenVoorkeur';
+      
+      // ✨ NIEUWE FEATURE: Auto-assign ID van eerste schoonmaker
+      if (schoonmakersList.length > 0 && schoonmakersList[0].schoonmaker_id) {
+        radio.setAttribute('data-auto-assign-id', schoonmakersList[0].schoonmaker_id);
+        console.log('✅ [SchoonmakerForm] Auto-assign ID gezet:', schoonmakersList[0].schoonmaker_id);
+      } else {
+        radio.removeAttribute('data-auto-assign-id');
+        console.warn('⚠️ [SchoonmakerForm] Geen schoonmakers beschikbaar voor auto-assign');
+      }
+      
       // Default: niet geselecteerd bij laden of her-render
       radio.checked = false;
       radio.removeAttribute('checked');
@@ -626,8 +636,8 @@ async function fetchEnToonSchoonmakers(formElement, gebruikDagdelenFilter = fals
     // Render schoonmakers
     renderSchoonmakers(verwerkteLijst, gebruikDagdelenFilter ? params.dagdelen : null);
     
-    // Voeg geen-voorkeur optie toe
-    addNoPreferenceOption(formStatus.schoonmakersWrapper);
+    // Voeg geen-voorkeur optie toe (met auto-assign ID van eerste schoonmaker)
+    addNoPreferenceOption(verwerkteLijst);
     
   // Leeg selectie na (her)render zodat knop disabled is tot er een keuze is
   clearSchoonmakerKeuze(formElement);

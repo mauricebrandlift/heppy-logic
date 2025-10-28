@@ -192,15 +192,24 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
     console.log(`🤝 [ProcessSuccessfulPayment] Creating schoonmaak match...`);
     try {
       const schoonmakerId = metadata.schoonmaker_id === 'geenVoorkeur' ? null : metadata.schoonmaker_id;
+      const autoAssigned = metadata.auto_assigned === 'true'; // String naar boolean
+      
       await schoonmaakMatchService.create({
         aanvraagId: aanvraag.id,
         schoonmakerId: schoonmakerId,
-        abonnementId: abonnement.id
+        abonnementId: abonnement.id,
+        autoAssigned: autoAssigned  // ✨ Track "geen voorkeur" selectie
       }, correlationId);
-      console.log(`✅ [ProcessSuccessfulPayment] Schoonmaak match created`);
+      
+      console.log(`✅ [ProcessSuccessfulPayment] Schoonmaak match created`, {
+        schoonmaker_id: schoonmakerId || 'none',
+        auto_assigned: autoAssigned
+      });
+      
       await auditService.log('schoonmaak_match', aanvraag.id, 'created', user.id, { 
         schoonmaker_id: schoonmakerId || 'geen voorkeur',
-        abonnement_id: abonnement.id
+        abonnement_id: abonnement.id,
+        auto_assigned: autoAssigned
       }, correlationId);
     } catch (error) {
       console.error(`❌ [ProcessSuccessfulPayment] FAILED: Match creation error [${correlationId}]`, {
