@@ -13,6 +13,10 @@ const {
   STRIPE_PUBLIC_KEY,
   STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET,
+  RESEND_API_KEY,
+  MAIL_ADMIN,
+  MAIL_FROM,
+  MAIL_REPLY_TO,
   CURRENCY = 'EUR',
   COUNTRY = 'NL',
 } = process.env;
@@ -45,6 +49,20 @@ if (!STRIPE_WEBHOOK_SECRET) {
   console.warn('⚠️ [API Config] STRIPE_WEBHOOK_SECRET ontbreekt. Webhook verificatie uitgeschakeld.');
 }
 
+// Resend email vars
+if (!RESEND_API_KEY) {
+  console.warn('⚠️ [API Config] RESEND_API_KEY ontbreekt. Email verzending uitgeschakeld.');
+}
+if (!MAIL_ADMIN) {
+  console.warn('⚠️ [API Config] MAIL_ADMIN ontbreekt. Admin notificaties kunnen niet verzonden worden.');
+}
+if (!MAIL_FROM) {
+  console.warn('⚠️ [API Config] MAIL_FROM ontbreekt. Emails kunnen niet verzonden worden.');
+}
+if (!MAIL_REPLY_TO) {
+  console.warn('⚠️ [API Config] MAIL_REPLY_TO ontbreekt. Reply-to header niet ingesteld.');
+}
+
 // Exporteer de configuratie objecten
 export const postcodeApiConfig = {
   baseUrl: POSTCODE_API_URL,
@@ -65,4 +83,11 @@ export const stripeConfig = {
   webhookSecret: STRIPE_WEBHOOK_SECRET,
   currency: CURRENCY,
   country: COUNTRY,
+};
+
+export const emailConfig = {
+  resendApiKey: RESEND_API_KEY,
+  adminEmail: MAIL_ADMIN,
+  fromEmail: MAIL_FROM,
+  replyToEmail: MAIL_REPLY_TO,
 };
