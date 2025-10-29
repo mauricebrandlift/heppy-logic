@@ -38,6 +38,7 @@
 
 import { emailConfig } from '../../config/index.js';
 import { handleErrorResponse } from '../../utils/errorHandler.js';
+import { sendEmail } from '../../services/emailService.js';
 
 export default async function handler(req, res) {
   // CORS headers voor alle responses
@@ -124,198 +125,164 @@ export default async function handler(req, res) {
     subject: emailSubject
   }));
 
-  // Build test email
-  const testEmail = {
-    from: emailConfig.fromEmail,
-    to: recipient,
-    subject: emailSubject,
-    html: `
-      <html>
-        <head>
-          <style>
-            body { 
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-              line-height: 1.6; 
-              color: #333; 
-              margin: 0;
-              padding: 0;
-              background-color: #f5f5f5;
-            }
-            .container { 
-              max-width: 600px; 
-              margin: 40px auto; 
-              background: white;
-              border-radius: 8px;
-              overflow: hidden;
-              box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            }
-            .header { 
-              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-              color: white; 
-              padding: 40px 20px; 
-              text-align: center; 
-            }
-            .header h1 {
-              margin: 0;
-              font-size: 28px;
-              font-weight: 600;
-            }
-            .content { 
-              padding: 40px 30px;
-            }
-            .content h2 {
-              color: #667eea;
-              margin-top: 0;
-            }
-            .info-box {
-              background: #f9fafb;
-              border-left: 4px solid #667eea;
-              padding: 15px;
-              margin: 20px 0;
-            }
-            .info-box strong {
-              color: #667eea;
-            }
-            .success-badge {
-              display: inline-block;
-              background: #10b981;
-              color: white;
-              padding: 8px 16px;
-              border-radius: 20px;
-              font-size: 14px;
-              font-weight: 600;
-              margin: 20px 0;
-            }
-            .footer { 
-              margin-top: 30px; 
-              padding-top: 20px; 
-              border-top: 1px solid #e5e7eb; 
-              font-size: 12px; 
-              color: #6b7280;
-              text-align: center;
-            }
-            ul {
-              list-style: none;
-              padding: 0;
-            }
-            li {
-              padding: 8px 0;
-              border-bottom: 1px solid #f3f4f6;
-            }
-            li:last-child {
-              border-bottom: none;
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <h1>🧹 Heppy Schoonmaak</h1>
+  // Build test email HTML
+  const htmlContent = `
+    <html>
+      <head>
+        <style>
+          body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6; 
+            color: #333; 
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+          }
+          .container { 
+            max-width: 600px; 
+            margin: 40px auto; 
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+          }
+          .header { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; 
+            padding: 40px 20px; 
+            text-align: center; 
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+          }
+          .content { 
+            padding: 40px 30px;
+          }
+          .content h2 {
+            color: #667eea;
+            margin-top: 0;
+          }
+          .info-box {
+            background: #f9fafb;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin: 20px 0;
+          }
+          .info-box strong {
+            color: #667eea;
+          }
+          .success-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 20px 0;
+          }
+          .footer { 
+            margin-top: 30px; 
+            padding-top: 20px; 
+            border-top: 1px solid #e5e7eb; 
+            font-size: 12px; 
+            color: #6b7280;
+            text-align: center;
+          }
+          ul {
+            list-style: none;
+            padding: 0;
+          }
+          li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f3f4f6;
+          }
+          li:last-child {
+            border-bottom: none;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>🧹 Heppy Schoonmaak</h1>
+          </div>
+          <div class="content">
+            <div class="success-badge">✓ Email System Operationeel</div>
+            
+            <h2>Test Email Succesvol Verzonden!</h2>
+            <p>Als je deze email ontvangt, werkt de Resend API integratie perfect.</p>
+            
+            <div class="info-box">
+              <h3 style="margin-top: 0;">📋 Configuratie Details</h3>
+              <ul>
+                <li><strong>Van:</strong> ${emailConfig.fromEmail}</li>
+                <li><strong>Naar:</strong> ${recipient}</li>
+                <li><strong>Reply-To:</strong> ${emailConfig.replyToEmail}</li>
+                <li><strong>Admin Email:</strong> ${emailConfig.adminEmail}</li>
+                <li><strong>Correlation ID:</strong> ${correlationId}</li>
+                <li><strong>Timestamp:</strong> ${new Date().toLocaleString('nl-NL', { 
+                  timeZone: 'Europe/Amsterdam',
+                  dateStyle: 'full',
+                  timeStyle: 'long'
+                })}</li>
+              </ul>
             </div>
-            <div class="content">
-              <div class="success-badge">✓ Email System Operationeel</div>
-              
-              <h2>Test Email Succesvol Verzonden!</h2>
-              <p>Als je deze email ontvangt, werkt de Resend API integratie perfect.</p>
-              
-              <div class="info-box">
-                <h3 style="margin-top: 0;">📋 Configuratie Details</h3>
-                <ul>
-                  <li><strong>Van:</strong> ${emailConfig.fromEmail}</li>
-                  <li><strong>Naar:</strong> ${recipient}</li>
-                  <li><strong>Reply-To:</strong> ${emailConfig.replyToEmail}</li>
-                  <li><strong>Admin Email:</strong> ${emailConfig.adminEmail}</li>
-                  <li><strong>Correlation ID:</strong> ${correlationId}</li>
-                  <li><strong>Timestamp:</strong> ${new Date().toLocaleString('nl-NL', { 
-                    timeZone: 'Europe/Amsterdam',
-                    dateStyle: 'full',
-                    timeStyle: 'long'
-                  })}</li>
-                </ul>
-              </div>
-              
-              <h3>✅ Wat werkt nu:</h3>
-              <ul>
-                <li>✓ Resend API key configuratie</li>
-                <li>✓ Email verzending via fetch() API</li>
-                <li>✓ From/Reply-To headers</li>
-                <li>✓ HTML email rendering</li>
-                <li>✓ Correlation ID tracing</li>
-              </ul>
-              
-              <h3>🚀 Volgende stappen:</h3>
-              <ul>
-                <li>→ Email templates bouwen</li>
-                <li>→ Integreren in aanvraag flows</li>
-                <li>→ Approve/reject notificaties</li>
-                <li>→ Admin alerts</li>
-              </ul>
-              
-              <div class="footer">
-                <p>Dit is een test email verzonden via <strong>POST /api/routes/test/send-email</strong></p>
-                <p>Heppy Logic Backend • ${new Date().getFullYear()}</p>
-              </div>
+            
+            <h3>✅ Wat werkt nu:</h3>
+            <ul>
+              <li>✓ Resend API key configuratie</li>
+              <li>✓ Email verzending via emailService</li>
+              <li>✓ From/Reply-To headers</li>
+              <li>✓ HTML email rendering</li>
+              <li>✓ Correlation ID tracing</li>
+              <li>✓ Error handling & retry logica</li>
+              <li>✓ Audit logging</li>
+            </ul>
+            
+            <h3>🚀 Volgende stappen:</h3>
+            <ul>
+              <li>→ Email templates bouwen</li>
+              <li>→ Integreren in aanvraag flows</li>
+              <li>→ Approve/reject notificaties</li>
+              <li>→ Admin alerts</li>
+            </ul>
+            
+            <div class="footer">
+              <p>Dit is een test email verzonden via <strong>emailService.sendEmail()</strong></p>
+              <p>Heppy Logic Backend • ${new Date().getFullYear()}</p>
             </div>
           </div>
-        </body>
-      </html>
-    `,
-    reply_to: emailConfig.replyToEmail,
-  };
+        </div>
+      </body>
+    </html>
+  `;
 
   try {
-    // Send email via Resend API
-    console.log(JSON.stringify({ 
-      ...logMeta, 
-      level: 'INFO', 
-      message: 'Verzenden naar Resend API...' 
-    }));
-
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${emailConfig.resendApiKey}`,
-        'Content-Type': 'application/json',
+    // Send email via emailService
+    const result = await sendEmail(
+      {
+        to: recipient,
+        subject: emailSubject,
+        html: htmlContent,
       },
-      body: JSON.stringify(testEmail),
-    });
+      correlationId
+    );
 
-    const responseData = await response.text();
-    
-    if (!response.ok) {
-      console.error(JSON.stringify({
-        ...logMeta,
-        level: 'ERROR',
-        message: 'Resend API error',
-        status: response.status,
-        statusText: response.statusText,
-        response: responseData,
-      }));
-
-      return res.status(response.status).json({
-        correlationId,
-        error: 'Email verzenden mislukt',
-        details: responseData,
-        resendStatus: response.status,
-      });
-    }
-
-    const result = JSON.parse(responseData);
-    
     console.log(JSON.stringify({
       ...logMeta,
       level: 'INFO',
-      message: 'Email succesvol verzonden',
-      emailId: result.id,
-      to: recipient,
-      subject: emailSubject,
+      message: 'Test email succesvol verzonden via emailService',
+      emailId: result.emailId,
     }));
 
     return res.status(200).json({
       success: true,
       message: 'Test email succesvol verzonden! 📧',
       data: {
-        emailId: result.id,
+        emailId: result.emailId,
         to: recipient,
         from: emailConfig.fromEmail,
         subject: emailSubject,
