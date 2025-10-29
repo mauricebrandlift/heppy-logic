@@ -27,18 +27,14 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
   try {
     // NOTE: Oude tracking systeem verwijderd - nu gebruikt frontend simpleFunnelTracker.js
     
-    // Intake naar betaald
-    console.log(`📝 [ProcessSuccessfulPayment] Updating intake status...`);
+    // Intake naar betaald (optioneel - alleen voor intake flow, niet voor direct formulier orders)
+    console.log(`📝 [ProcessSuccessfulPayment] Checking for intake record...`);
     try {
       await intakeService.updateStatus(paymentIntent.id, 'betaald', correlationId);
       console.log(`✅ [ProcessSuccessfulPayment] Intake status updated`);
     } catch (error) {
-      console.error(`❌ [ProcessSuccessfulPayment] FAILED: Intake update error [${correlationId}]`, {
-        error: error.message,
-        stack: error.stack,
-        paymentIntentId: paymentIntent.id
-      });
-      throw new Error(`Intake update failed: ${error.message}`);
+      // Intake is optioneel - niet alle orders komen via intake flow (sommige direct via formulier)
+      console.log(`ℹ️ [ProcessSuccessfulPayment] No intake record found (skip, non-critical) [${correlationId}]`);
     }
 
     // Idempotency: betaling bestaat al?
