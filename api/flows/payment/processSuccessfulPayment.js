@@ -10,6 +10,13 @@ import { auditService } from '../../services/auditService.js';
 import { intakeService } from '../../services/intakeService.js';
 import { voorkeursDagdelenService } from '../../services/voorkeursDagdelenService.js';
 import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
+import { sendEmail } from '../../services/emailService.js';
+import { emailConfig } from '../../config/index.js';
+import { 
+  nieuweAanvraagAdmin, 
+  betalingBevestigingKlant,
+  matchToegewezenSchoonmaker 
+} from '../../templates/emails/index.js';
 
 export async function processSuccessfulPayment({ paymentIntent, metadata, correlationId, event }){
   console.log(`💰 [ProcessSuccessfulPayment] ========== START ========== [${correlationId}]`);
@@ -95,6 +102,40 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       aanvraag = await aanvraagService.create(metadata, address.id, correlationId);
       console.log(`✅ [ProcessSuccessfulPayment] Aanvraag created: ${aanvraag.id}`);
       await auditService.log('schoonmaak_aanvraag', aanvraag.id, 'created', user.id, { intent: paymentIntent.id }, correlationId);
+      
+      // 📧 EMAIL TRIGGER 1: Nieuwe aanvraag → Admin
+      console.log(`📧 [ProcessSuccessfulPayment] Sending email to admin (nieuwe aanvraag)...`);
+      try {
+        const schoonmakerNaam = metadata.schoonmaker_naam || null;
+        const autoAssigned = metadata.auto_assigned === 'true';
+        
+        const adminEmailHtml = nieuweAanvraagAdmin({
+          klantNaam: `${user.voornaam} ${user.achternaam}`,
+          klantEmail: user.email,
+          plaats: metadata.plaats,
+          uren: parseInt(metadata.gewenste_uren) || 0,
+          dagdelen: metadata.dagdelen ? JSON.parse(metadata.dagdelen) : [],
+          startdatum: metadata.startdatum,
+          schoonmakerNaam,
+          autoAssigned,
+          aanvraagId: aanvraag.id,
+          bedrag: paymentIntent.amount / 100 // Cents naar euros
+        });
+        
+        await sendEmail({
+          to: emailConfig.adminEmail,
+          subject: `🆕 Nieuwe Aanvraag - ${user.voornaam} ${user.achternaam} (${metadata.plaats})`,
+          html: adminEmailHtml
+        }, correlationId);
+        
+        console.log(`✅ [ProcessSuccessfulPayment] Admin email verzonden`);
+      } catch (emailError) {
+        console.error(`⚠️ [ProcessSuccessfulPayment] Admin email failed (non-critical) [${correlationId}]`, {
+          error: emailError.message
+        });
+        // Email failure mag flow niet breken
+      }
+      
     } catch (error) {
       console.error(`❌ [ProcessSuccessfulPayment] FAILED: Aanvraag creation error [${correlationId}]`, {
         error: error.message,
@@ -138,6 +179,39 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       }, correlationId);
       console.log(`✅ [ProcessSuccessfulPayment] Payment ${betaling.updated ? 'updated' : 'created'}: ${betaling.id}`);
       await auditService.log('betaling', betaling.id, betaling.updated?'updated':'created', user.id, { amount_cents: paymentIntent.amount }, correlationId);
+      
+      // 📧 EMAIL TRIGGER 2: Betaling bevestiging → Klant
+      console.log(`📧 [ProcessSuccessfulPayment] Sending email to klant (betaling bevestiging)...`);
+      try {
+        const schoonmakerNaam = metadata.schoonmaker_naam || null;
+        const autoAssigned = metadata.auto_assigned === 'true';
+        
+        const klantEmailHtml = betalingBevestigingKlant({
+          klantNaam: user.voornaam,
+          plaats: metadata.plaats,
+          uren: parseInt(metadata.gewenste_uren) || 0,
+          dagdelen: metadata.dagdelen ? JSON.parse(metadata.dagdelen) : [],
+          startdatum: metadata.startdatum,
+          schoonmakerNaam,
+          autoAssigned,
+          bedrag: paymentIntent.amount / 100, // Cents naar euros
+          betalingId: paymentIntent.id
+        });
+        
+        await sendEmail({
+          to: user.email,
+          subject: '✅ Betaling Bevestiging - Heppy Schoonmaak',
+          html: klantEmailHtml
+        }, correlationId);
+        
+        console.log(`✅ [ProcessSuccessfulPayment] Klant email verzonden naar ${user.email}`);
+      } catch (emailError) {
+        console.error(`⚠️ [ProcessSuccessfulPayment] Klant email failed (non-critical) [${correlationId}]`, {
+          error: emailError.message
+        });
+        // Email failure mag flow niet breken
+      }
+      
     } catch (error) {
       console.error(`❌ [ProcessSuccessfulPayment] FAILED: Payment record creation error [${correlationId}]`, {
         error: error.message,
@@ -211,6 +285,52 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         abonnement_id: abonnement.id,
         auto_assigned: autoAssigned
       }, correlationId);
+      
+      // 📧 EMAIL TRIGGER 3: Match toegewezen → Schoonmaker (alleen als schoonmaker bekend is)
+      if (schoonmakerId) {
+        console.log(`📧 [ProcessSuccessfulPayment] Sending email to schoonmaker (match toegewezen)...`);
+        try {
+          // Haal schoonmaker gegevens op
+          const schoonmakerResponse = await userService.findById(schoonmakerId, correlationId);
+          
+          if (schoonmakerResponse && schoonmakerResponse.email) {
+            const schoonmakerEmailHtml = matchToegewezenSchoonmaker({
+              schoonmakerNaam: `${schoonmakerResponse.voornaam} ${schoonmakerResponse.achternaam}`,
+              klantNaam: `${user.voornaam} ${user.achternaam}`,
+              adres: `${address.straat} ${address.huisnummer}`,
+              plaats: address.plaats,
+              postcode: address.postcode,
+              uren: parseInt(metadata.gewenste_uren) || 0,
+              dagdelen: metadata.dagdelen ? JSON.parse(metadata.dagdelen) : [],
+              startdatum: metadata.startdatum,
+              autoAssigned,
+              aanvraagId: aanvraag.id,
+              matchId: 'match-id-placeholder' // Match ID komt van schoonmaakMatchService
+            });
+            
+            await sendEmail({
+              to: schoonmakerResponse.email,
+              subject: `🎉 Nieuwe Aanvraag Voor U - ${user.voornaam} ${user.achternaam}`,
+              html: schoonmakerEmailHtml
+            }, correlationId);
+            
+            console.log(`✅ [ProcessSuccessfulPayment] Schoonmaker email verzonden naar ${schoonmakerResponse.email}`);
+          } else {
+            console.warn(`⚠️ [ProcessSuccessfulPayment] Schoonmaker email niet gevonden [${correlationId}]`, {
+              schoonmakerId
+            });
+          }
+        } catch (emailError) {
+          console.error(`⚠️ [ProcessSuccessfulPayment] Schoonmaker email failed (non-critical) [${correlationId}]`, {
+            error: emailError.message,
+            schoonmakerId
+          });
+          // Email failure mag flow niet breken
+        }
+      } else {
+        console.log(`ℹ️ [ProcessSuccessfulPayment] Geen schoonmaker geselecteerd, skip email naar schoonmaker`);
+      }
+      
     } catch (error) {
       console.error(`❌ [ProcessSuccessfulPayment] FAILED: Match creation error [${correlationId}]`, {
         error: error.message,
