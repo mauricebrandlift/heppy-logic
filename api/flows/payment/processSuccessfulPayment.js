@@ -126,7 +126,7 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         });
         
         await sendEmail({
-          to: emailConfig.adminEmail,
+          to: emailConfig.notificationsEmail,
           subject: `🆕 Nieuwe Aanvraag - ${klantNaam} (${metadata.plaats})`,
           html: adminEmailHtml
         }, correlationId);
@@ -268,11 +268,12 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
 
     // Schoonmaak match opslaan (schoonmaker koppeling)
     console.log(`🤝 [ProcessSuccessfulPayment] Creating schoonmaak match...`);
+    let schoonmaakMatch;
     try {
       const schoonmakerId = metadata.schoonmaker_id === 'geenVoorkeur' ? null : metadata.schoonmaker_id;
       const autoAssigned = metadata.auto_assigned === 'true'; // String naar boolean
       
-      await schoonmaakMatchService.create({
+      schoonmaakMatch = await schoonmaakMatchService.create({
         aanvraagId: aanvraag.id,
         schoonmakerId: schoonmakerId,
         abonnementId: abonnement.id,
@@ -280,6 +281,7 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       }, correlationId);
       
       console.log(`✅ [ProcessSuccessfulPayment] Schoonmaak match created`, {
+        match_id: schoonmaakMatch.id,
         schoonmaker_id: schoonmakerId || 'none',
         auto_assigned: autoAssigned
       });
@@ -328,7 +330,7 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
               startdatum: metadata.startdatum,
               autoAssigned,
               aanvraagId: aanvraag.id,
-              matchId: 'match-id-placeholder' // Match ID komt van schoonmaakMatchService
+              matchId: schoonmaakMatch.id // Gebruik echte match ID
             });
             
             await sendEmail({

@@ -15,6 +15,7 @@ const {
   STRIPE_WEBHOOK_SECRET,
   RESEND_API_KEY,
   MAIL_ADMIN,
+  MAIL_NOTIFICATIONS,
   MAIL_FROM,
   MAIL_REPLY_TO,
   CURRENCY = 'EUR',
@@ -53,8 +54,11 @@ if (!STRIPE_WEBHOOK_SECRET) {
 if (!RESEND_API_KEY) {
   console.warn('⚠️ [API Config] RESEND_API_KEY ontbreekt. Email verzending uitgeschakeld.');
 }
+if (!MAIL_NOTIFICATIONS && !MAIL_ADMIN) {
+  console.warn('⚠️ [API Config] MAIL_NOTIFICATIONS en MAIL_ADMIN ontbreken. System notificaties kunnen niet verzonden worden.');
+}
 if (!MAIL_ADMIN) {
-  console.warn('⚠️ [API Config] MAIL_ADMIN ontbreekt. Admin notificaties kunnen niet verzonden worden.');
+  console.warn('⚠️ [API Config] MAIL_ADMIN ontbreekt (deprecated, gebruik MAIL_NOTIFICATIONS).');
 }
 if (!MAIL_FROM) {
   console.warn('⚠️ [API Config] MAIL_FROM ontbreekt. Emails kunnen niet verzonden worden.');
@@ -87,7 +91,8 @@ export const stripeConfig = {
 
 export const emailConfig = {
   resendApiKey: RESEND_API_KEY,
-  adminEmail: MAIL_ADMIN,
+  adminEmail: MAIL_ADMIN, // Deprecated: gebruik notificationsEmail
+  notificationsEmail: MAIL_NOTIFICATIONS || MAIL_ADMIN, // Fallback naar MAIL_ADMIN voor backwards compatibility
   fromEmail: MAIL_FROM,
   replyToEmail: MAIL_REPLY_TO,
 };
