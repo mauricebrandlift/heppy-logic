@@ -150,11 +150,12 @@ export async function sendEmail(emailData, correlationId) {
       // Audit log
       await auditService.log(
         'email',
-        to,
+        null, // entityId = null voor standalone emails (to is geen UUID)
         'sent',
         null,
         {
           email_id: result.id,
+          to, // Email adres in metadata ipv entityId
           subject,
           from,
           attempt,
