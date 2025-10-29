@@ -113,8 +113,8 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
           klantNaam: `${user.voornaam} ${user.achternaam}`,
           klantEmail: user.email,
           plaats: metadata.plaats,
-          uren: parseInt(metadata.gewenste_uren) || 0,
-          dagdelen: metadata.dagdelen ? JSON.parse(metadata.dagdelen) : [],
+          uren: parseInt(metadata.uren || metadata.gewenste_uren) || 0,
+          dagdelen: metadata.dagdelen || [],
           startdatum: metadata.startdatum,
           schoonmakerNaam,
           autoAssigned,
@@ -189,8 +189,8 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         const klantEmailHtml = betalingBevestigingKlant({
           klantNaam: user.voornaam,
           plaats: metadata.plaats,
-          uren: parseInt(metadata.gewenste_uren) || 0,
-          dagdelen: metadata.dagdelen ? JSON.parse(metadata.dagdelen) : [],
+          uren: parseInt(metadata.uren || metadata.gewenste_uren) || 0,
+          dagdelen: metadata.dagdelen || [],
           startdatum: metadata.startdatum,
           schoonmakerNaam,
           autoAssigned,
@@ -290,8 +290,24 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       if (schoonmakerId) {
         console.log(`📧 [ProcessSuccessfulPayment] Sending email to schoonmaker (match toegewezen)...`);
         try {
-          // Haal schoonmaker gegevens op
-          const schoonmakerResponse = await userService.findById(schoonmakerId, correlationId);
+          // Haal schoonmaker gegevens op via directe Supabase query
+          const { supabaseConfig } = await import('../../config/index.js');
+          const supabaseUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${schoonmakerId}&select=*`;
+          const response = await fetch(supabaseUrl, {
+            method: 'GET',
+            headers: {
+              'apikey': supabaseConfig.anonKey,
+              'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (!response.ok) {
+            throw new Error(`Failed to fetch schoonmaker: ${response.status}`);
+          }
+
+          const schoonmakerData = await response.json();
+          const schoonmakerResponse = schoonmakerData[0];
           
           if (schoonmakerResponse && schoonmakerResponse.email) {
             const schoonmakerEmailHtml = matchToegewezenSchoonmaker({
@@ -300,8 +316,8 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
               adres: `${address.straat} ${address.huisnummer}`,
               plaats: address.plaats,
               postcode: address.postcode,
-              uren: parseInt(metadata.gewenste_uren) || 0,
-              dagdelen: metadata.dagdelen ? JSON.parse(metadata.dagdelen) : [],
+              uren: parseInt(metadata.uren || metadata.gewenste_uren) || 0,
+              dagdelen: metadata.dagdelen || [],
               startdatum: metadata.startdatum,
               autoAssigned,
               aanvraagId: aanvraag.id,
