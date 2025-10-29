@@ -9,9 +9,15 @@
  * const html = templates.nieuweAanvraagAdmin(data);
  */
 
+// Payment Flow Templates
 export { nieuweAanvraagAdmin } from './nieuweAanvraagAdmin.js';
 export { betalingBevestigingKlant } from './betalingBevestigingKlant.js';
 export { matchToegewezenSchoonmaker } from './matchToegewezenSchoonmaker.js';
+
+// Approve/Reject Flow Templates
+export { matchGoedgekeurdKlant } from './matchGoedgekeurdKlant.js';
+export { matchAfgewezenAdmin } from './matchAfgewezenAdmin.js';
+export { geenSchoonmakerBeschikbaarKlant } from './geenSchoonmakerBeschikbaarKlant.js';
 
 // Helper functions
 export { 
@@ -25,9 +31,15 @@ export {
  * Template registry object voor dynamische template selectie
  */
 export const templates = {
+  // Payment Flow
   nieuweAanvraagAdmin: (await import('./nieuweAanvraagAdmin.js')).nieuweAanvraagAdmin,
   betalingBevestigingKlant: (await import('./betalingBevestigingKlant.js')).betalingBevestigingKlant,
   matchToegewezenSchoonmaker: (await import('./matchToegewezenSchoonmaker.js')).matchToegewezenSchoonmaker,
+  
+  // Approve/Reject Flow
+  matchGoedgekeurdKlant: (await import('./matchGoedgekeurdKlant.js')).matchGoedgekeurdKlant,
+  matchAfgewezenAdmin: (await import('./matchAfgewezenAdmin.js')).matchAfgewezenAdmin,
+  geenSchoonmakerBeschikbaarKlant: (await import('./geenSchoonmakerBeschikbaarKlant.js')).geenSchoonmakerBeschikbaarKlant,
 };
 
 /**
