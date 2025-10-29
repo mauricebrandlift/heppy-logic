@@ -197,16 +197,56 @@ export function formatBedrag(amount) {
 }
 
 /**
- * Format dagdelen array naar leesbare string
+ * Format dagdelen array of object naar leesbare string
+ * Ondersteunt beide formaten:
+ * - Array: ['ochtend', 'middag']
+ * - Object: {maandag: ['ochtend'], dinsdag: ['middag']}
  */
 export function formatDagdelen(dagdelen) {
-  if (!Array.isArray(dagdelen)) return dagdelen;
+  if (!dagdelen) return 'Niet opgegeven';
   
-  const dagdelenNamen = {
-    'ochtend': 'Ochtend (08:00-12:00)',
-    'middag': 'Middag (12:00-17:00)',
-    'avond': 'Avond (17:00-20:00)'
-  };
+  // Als het een object is (formaat: {dag: [dagdelen]})
+  if (typeof dagdelen === 'object' && !Array.isArray(dagdelen)) {
+    const dagNamen = {
+      'maandag': 'Ma',
+      'dinsdag': 'Di',
+      'woensdag': 'Wo',
+      'donderdag': 'Do',
+      'vrijdag': 'Vr',
+      'zaterdag': 'Za',
+      'zondag': 'Zo'
+    };
+    
+    const dagdelenNamen = {
+      'ochtend': 'ochtend',
+      'middag': 'middag',
+      'avond': 'avond'
+    };
+    
+    const formatted = Object.entries(dagdelen)
+      .map(([dag, delen]) => {
+        const dagNaam = dagNamen[dag.toLowerCase()] || dag;
+        const delenStr = Array.isArray(delen) 
+          ? delen.map(d => dagdelenNamen[d.toLowerCase()] || d).join('+')
+          : delen;
+        return `${dagNaam} ${delenStr}`;
+      })
+      .join(', ');
+    
+    return formatted || 'Niet opgegeven';
+  }
   
-  return dagdelen.map(d => dagdelenNamen[d] || d).join(', ');
+  // Als het een array is (legacy formaat)
+  if (Array.isArray(dagdelen)) {
+    const dagdelenNamen = {
+      'ochtend': 'Ochtend (08:00-12:00)',
+      'middag': 'Middag (12:00-17:00)',
+      'avond': 'Avond (17:00-20:00)'
+    };
+    
+    return dagdelen.map(d => dagdelenNamen[d] || d).join(', ');
+  }
+  
+  // Fallback voor andere types
+  return String(dagdelen);
 }

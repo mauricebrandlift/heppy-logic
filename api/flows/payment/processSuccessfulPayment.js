@@ -109,9 +109,12 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         const schoonmakerNaam = metadata.schoonmaker_naam || null;
         const autoAssigned = metadata.auto_assigned === 'true';
         
+        // User data komt uit metadata (niet uit user object - die heeft alleen id)
+        const klantNaam = `${metadata.voornaam || ''} ${metadata.achternaam || ''}`.trim();
+        
         const adminEmailHtml = nieuweAanvraagAdmin({
-          klantNaam: `${user.voornaam} ${user.achternaam}`,
-          klantEmail: user.email,
+          klantNaam,
+          klantEmail: metadata.email,
           plaats: metadata.plaats,
           uren: parseInt(metadata.uren || metadata.gewenste_uren) || 0,
           dagdelen: metadata.dagdelen || [],
@@ -124,7 +127,7 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         
         await sendEmail({
           to: emailConfig.adminEmail,
-          subject: `🆕 Nieuwe Aanvraag - ${user.voornaam} ${user.achternaam} (${metadata.plaats})`,
+          subject: `🆕 Nieuwe Aanvraag - ${klantNaam} (${metadata.plaats})`,
           html: adminEmailHtml
         }, correlationId);
         
@@ -185,9 +188,10 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       try {
         const schoonmakerNaam = metadata.schoonmaker_naam || null;
         const autoAssigned = metadata.auto_assigned === 'true';
+        const klantNaam = `${metadata.voornaam || ''} ${metadata.achternaam || ''}`.trim();
         
         const klantEmailHtml = betalingBevestigingKlant({
-          klantNaam: user.voornaam,
+          klantNaam,
           plaats: metadata.plaats,
           uren: parseInt(metadata.uren || metadata.gewenste_uren) || 0,
           dagdelen: metadata.dagdelen || [],
@@ -199,12 +203,12 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         });
         
         await sendEmail({
-          to: user.email,
+          to: metadata.email,
           subject: '✅ Betaling Bevestiging - Heppy Schoonmaak',
           html: klantEmailHtml
         }, correlationId);
         
-        console.log(`✅ [ProcessSuccessfulPayment] Klant email verzonden naar ${user.email}`);
+        console.log(`✅ [ProcessSuccessfulPayment] Klant email verzonden naar ${metadata.email}`);
       } catch (emailError) {
         console.error(`⚠️ [ProcessSuccessfulPayment] Klant email failed (non-critical) [${correlationId}]`, {
           error: emailError.message
@@ -309,11 +313,14 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
           const schoonmakerData = await response.json();
           const schoonmakerResponse = schoonmakerData[0];
           
+          // Klant naam uit metadata
+          const klantNaam = `${metadata.voornaam || ''} ${metadata.achternaam || ''}`.trim();
+          
           if (schoonmakerResponse && schoonmakerResponse.email) {
             const schoonmakerEmailHtml = matchToegewezenSchoonmaker({
-              schoonmakerNaam: `${schoonmakerResponse.voornaam} ${schoonmakerResponse.achternaam}`,
-              klantNaam: `${user.voornaam} ${user.achternaam}`,
-              adres: `${address.straat} ${address.huisnummer}`,
+              schoonmakerNaam: `${schoonmakerResponse.voornaam || ''} ${schoonmakerResponse.achternaam || ''}`.trim(),
+              klantNaam,
+              adres: `${address.straat} ${address.huisnummer}${address.toevoeging || ''}`,
               plaats: address.plaats,
               postcode: address.postcode,
               uren: parseInt(metadata.uren || metadata.gewenste_uren) || 0,
@@ -326,7 +333,7 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
             
             await sendEmail({
               to: schoonmakerResponse.email,
-              subject: `🎉 Nieuwe Aanvraag Voor U - ${user.voornaam} ${user.achternaam}`,
+              subject: `🎉 Nieuwe Aanvraag Voor U - ${klantNaam}`,
               html: schoonmakerEmailHtml
             }, correlationId);
             
