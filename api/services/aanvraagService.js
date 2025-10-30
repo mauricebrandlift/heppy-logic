@@ -213,10 +213,16 @@ export const aanvraagService = {
       correlationId
     );
 
-    // STAP 9: 📧 EMAIL TRIGGER: Match goedgekeurd → Klant
-    console.log(`📧 [aanvraagService.approve] Sending email to klant [${correlationId}]`);
+    // STAP 9: Haal schoonmaker gegevens + dagdelen op (voor alle emails)
+    let schoonmakerData = null;
+    let dagdelen = {};
+    let klantNaam = `${aanvraag.voornaam || ''} ${aanvraag.achternaam || ''}`.trim() || 'Beste klant';
+    let plaats = aanvraag.plaats || 'onbekend';
+    let startdatum = aanvraag.startdatum || abonnement.startdatum;
+    let uren = aanvraag.uren || 4;
+
     try {
-      // Haal schoonmaker gegevens op voor in email
+      // Haal schoonmaker gegevens op
       const schoonmakerUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${schoonmakerId}&select=*`;
       const schoonmakerResp = await httpClient(schoonmakerUrl, {
         method: 'GET',
@@ -226,7 +232,6 @@ export const aanvraagService = {
         }
       }, correlationId);
 
-      let schoonmakerData = null;
       if (schoonmakerResp.ok) {
         const schoonmakers = await schoonmakerResp.json();
         if (schoonmakers && schoonmakers.length > 0) {
@@ -235,46 +240,50 @@ export const aanvraagService = {
       }
 
       // Haal voorkeurs_dagdelen op (indien beschikbaar)
-      let dagdelen = {};
-      try {
-        const dagdelenUrl = `${supabaseConfig.url}/rest/v1/voorkeurs_dagdelen?user_id=eq.${abonnement.user_id}&select=*`;
-        const dagdelenResp = await httpClient(dagdelenUrl, {
-          method: 'GET',
-          headers: {
-            'apikey': supabaseConfig.anonKey,
-            'Authorization': `Bearer ${supabaseConfig.anonKey}`
-          }
-        }, correlationId);
-
-        if (dagdelenResp.ok) {
-          const dagdelenData = await dagdelenResp.json();
-          if (dagdelenData && dagdelenData.length > 0) {
-            // Convert array naar object format {maandag: ['ochtend']}
-            dagdelenData.forEach(item => {
-              if (!dagdelen[item.dag]) {
-                dagdelen[item.dag] = [];
-              }
-              dagdelen[item.dag].push(item.dagdeel);
-            });
-          }
+      const dagdelenUrl = `${supabaseConfig.url}/rest/v1/voorkeurs_dagdelen?user_id=eq.${abonnement.user_id}&select=*`;
+      const dagdelenResp = await httpClient(dagdelenUrl, {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${supabaseConfig.anonKey}`
         }
-      } catch (err) {
-        console.warn(`⚠️ [aanvraagService.approve] Could not fetch dagdelen [${correlationId}]`, err.message);
+      }, correlationId);
+
+      if (dagdelenResp.ok) {
+        const dagdelenData = await dagdelenResp.json();
+        if (dagdelenData && dagdelenData.length > 0) {
+          // Convert array naar object format {maandag: ['ochtend']}
+          dagdelenData.forEach(item => {
+            if (!dagdelen[item.dag]) {
+              dagdelen[item.dag] = [];
+            }
+            dagdelen[item.dag].push(item.dagdeel);
+          });
+        }
       }
+    } catch (err) {
+      console.warn(`⚠️ [aanvraagService.approve] Could not fetch schoonmaker/dagdelen data [${correlationId}]`, err.message);
+    }
 
-      const schoonmakerNaam = schoonmakerData 
-        ? `${schoonmakerData.voornaam || ''} ${schoonmakerData.achternaam || ''}`.trim()
-        : 'Je schoonmaker';
+    const schoonmakerNaam = schoonmakerData 
+      ? `${schoonmakerData.voornaam || ''} ${schoonmakerData.achternaam || ''}`.trim()
+      : 'Je schoonmaker';
 
+    const schoonmakerEmail = schoonmakerData?.email || null;
+    const schoonmakerTelefoon = schoonmakerData?.telefoon || null;
+
+    // STAP 10: 📧 EMAIL TRIGGER: Match goedgekeurd → Klant
+    console.log(`📧 [aanvraagService.approve] Sending email to klant [${correlationId}]`);
+    try {
       const emailHtml = matchGoedgekeurdKlant({
-        klantNaam: `${aanvraag.voornaam || ''} ${aanvraag.achternaam || ''}`.trim() || 'Beste klant',
+        klantNaam,
         schoonmakerNaam,
         schoonmakerFoto: null, // TODO: Add when schoonmaker fotos are implemented
         schoonmakerBio: null, // TODO: Add when schoonmaker bios are available
-        startdatum: aanvraag.startdatum || abonnement.startdatum,
-        uren: aanvraag.uren || 4,
-        dagdelen: Object.keys(dagdelen).length > 0 ? dagdelen : {},
-        plaats: aanvraag.plaats || 'onbekend',
+        startdatum,
+        uren,
+        dagdelen: Object.keys(dagdelen).length > 0 ? dagdelen : null,
+        plaats,
         aanvraagId: aanvraag.id,
         matchId: match.id
       });
@@ -288,22 +297,116 @@ export const aanvraagService = {
       console.log(`✅ [aanvraagService.approve] Email sent to klant: ${aanvraag.email} [${correlationId}]`);
     } catch (emailError) {
       // Email failure mag approve flow niet breken
-      console.error(`⚠️ [aanvraagService.approve] Email failed (non-critical) [${correlationId}]`, {
+      console.error(`⚠️ [aanvraagService.approve] Klant email failed (non-critical) [${correlationId}]`, {
         error: emailError.message,
         klant_email: aanvraag.email
       });
     }
 
-    // STAP 10: 📧 EMAIL TRIGGER: Admin notificatie - Match geaccepteerd
+    // STAP 11: 📧 EMAIL TRIGGER: Match goedgekeurd → Schoonmaker (bevestiging)
+    console.log(`📧 [aanvraagService.approve] Sending confirmation email to schoonmaker [${correlationId}]`);
+    if (schoonmakerEmail) {
+      try {
+        const schoonmakerEmailHtml = `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          </head>
+          <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f5;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px;">
+              <tr>
+                <td align="center">
+                  <table width="600" cellpadding="0" cellspacing="0" style="background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <tr>
+                      <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center;">
+                        <h1 style="color: white; margin: 0; font-size: 24px;">✅ Bevestiging: Aanvraag Geaccepteerd</h1>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 30px;">
+                        <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">
+                          Hoi ${schoonmakerNaam},
+                        </p>
+                        <p style="font-size: 16px; color: #333; margin: 0 0 20px 0;">
+                          Je hebt de aanvraag succesvol geaccepteerd! Hier zijn de klant gegevens voor de eerste schoonmaak.
+                        </p>
+                        
+                        <div style="background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                          <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">📋 Klant Gegevens</h3>
+                          <p style="margin: 0; font-size: 14px; color: #666;">
+                            <strong style="color: #333;">Naam:</strong> ${klantNaam}<br>
+                            <strong style="color: #333;">Email:</strong> <a href="mailto:${aanvraag.email}" style="color: #667eea;">${aanvraag.email}</a><br>
+                            ${aanvraag.telefoon ? `<strong style="color: #333;">Telefoon:</strong> <a href="tel:${aanvraag.telefoon}" style="color: #667eea;">${aanvraag.telefoon}</a><br>` : ''}
+                            <strong style="color: #333;">Adres:</strong> ${plaats}<br>
+                            <strong style="color: #333;">Startdatum:</strong> ${startdatum}<br>
+                            <strong style="color: #333;">Uren per week:</strong> ${uren} uur
+                          </p>
+                        </div>
+
+                        <div style="background-color: #e7f3ff; border-left: 4px solid #2196F3; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                          <h3 style="margin: 0 0 10px 0; color: #333; font-size: 16px;">🕐 Voorkeur Dagdelen Klant</h3>
+                          <p style="margin: 0; font-size: 14px; color: #666;">
+                            ${Object.keys(dagdelen).length > 0 
+                              ? Object.entries(dagdelen).map(([dag, delen]) => `<strong>${dag.charAt(0).toUpperCase() + dag.slice(1)}:</strong> ${delen.join(', ')}`).join('<br>')
+                              : '<em>Klant heeft geen specifieke voorkeur doorgegeven</em>'}
+                          </p>
+                        </div>
+
+                        <div style="background-color: #fff3cd; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                          <h3 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">💬 Communicatie</h3>
+                          <p style="margin: 0; font-size: 14px; color: #856404;">
+                            • <strong>Direct contact:</strong> Neem contact op via email of telefoon voor eerste afspraak<br>
+                            • <strong>Dashboard chat:</strong> Communiceer via het dashboard voor vragen en updates
+                          </p>
+                        </div>
+
+                        <div style="text-align: center; margin: 30px 0;">
+                          <a href="https://heppy-schoonmaak.nl/dashboard/schoonmaker" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; text-decoration: none; padding: 15px 30px; border-radius: 8px; font-weight: bold; font-size: 16px;">
+                            Open Dashboard
+                          </a>
+                        </div>
+
+                        <p style="font-size: 14px; color: #666; margin: 20px 0 0 0;">
+                          Succes met je nieuwe klant! 🎉
+                        </p>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="background-color: #f8f9fa; padding: 20px; text-align: center; border-top: 1px solid #e9ecef;">
+                        <p style="margin: 0; font-size: 12px; color: #6c757d;">
+                          Vragen? Neem contact op via <a href="mailto:${emailConfig.supportEmail || 'support@heppy-schoonmaak.nl'}" style="color: #667eea;">support</a>
+                        </p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+          </body>
+          </html>
+        `;
+
+        await sendEmail({
+          to: schoonmakerEmail,
+          subject: `✅ Bevestiging: Je hebt de aanvraag geaccepteerd - ${klantNaam}`,
+          html: schoonmakerEmailHtml
+        }, correlationId);
+
+        console.log(`✅ [aanvraagService.approve] Schoonmaker confirmation sent to: ${schoonmakerEmail} [${correlationId}]`);
+      } catch (emailError) {
+        console.error(`⚠️ [aanvraagService.approve] Schoonmaker email failed (non-critical) [${correlationId}]`, {
+          error: emailError.message
+        });
+      }
+    } else {
+      console.warn(`⚠️ [aanvraagService.approve] No schoonmaker email found, skipping confirmation [${correlationId}]`);
+    }
+
+    // STAP 12: 📧 EMAIL TRIGGER: Admin notificatie - Match geaccepteerd
     try {
       console.log(`📧 [aanvraagService.approve] Sending admin notification [${correlationId}]`);
-      
-      const klantNaam = `${aanvraag.voornaam || ''} ${aanvraag.achternaam || ''}`.trim() || 'Onbekende klant';
-      const plaats = aanvraag.plaats || 'onbekend';
-      const startdatum = aanvraag.startdatum || abonnement.startdatum;
-      const uren = aanvraag.uren || 4;
-      const matchId = match.id;
-      const aanvraagId = aanvraag.id;
       
       const adminEmailHtml = `
         <!DOCTYPE html>
@@ -328,19 +431,17 @@ export const aanvraagService = {
                         Goed nieuws! Een schoonmaker heeft de aanvraag geaccepteerd.
                       </p>
                       
-                      <div style="background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                          <div style="background-color: #f8f9fa; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0; border-radius: 4px;">
                         <p style="margin: 0; font-size: 14px; color: #666;">
                           <strong style="color: #333;">Schoonmaker:</strong> ${schoonmakerNaam}<br>
                           <strong style="color: #333;">Klant:</strong> ${klantNaam}<br>
                           <strong style="color: #333;">Plaats:</strong> ${plaats}<br>
                           <strong style="color: #333;">Startdatum:</strong> ${startdatum}<br>
                           <strong style="color: #333;">Uren:</strong> ${uren} uur per week<br>
-                          <strong style="color: #333;">Match ID:</strong> ${matchId}<br>
-                          <strong style="color: #333;">Aanvraag ID:</strong> ${aanvraagId}
+                          <strong style="color: #333;">Match ID:</strong> ${match.id}<br>
+                          <strong style="color: #333;">Aanvraag ID:</strong> ${aanvraag.id}
                         </p>
-                      </div>
-
-                      <p style="font-size: 14px; color: #666; margin: 20px 0 0 0;">
+                      </div>                      <p style="font-size: 14px; color: #666; margin: 20px 0 0 0;">
                         De klant heeft een bevestigingsmail ontvangen met de schoonmaker gegevens.
                       </p>
                     </td>
@@ -736,6 +837,28 @@ export const aanvraagService = {
         try {
           console.log(`📧 [aanvraagService.reject] Sending admin notification for new match [${correlationId}]`);
           
+          // Haal afgewezen schoonmaker naam op
+          let afgewezenSchoonmakerNaam = 'Onbekende schoonmaker';
+          try {
+            const afgewezenUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${schoonmakerId}&select=voornaam,achternaam`;
+            const afgewezenResp = await httpClient(afgewezenUrl, {
+              method: 'GET',
+              headers: {
+                'apikey': supabaseConfig.anonKey,
+                'Authorization': `Bearer ${supabaseConfig.anonKey}`
+              }
+            }, correlationId);
+
+            if (afgewezenResp.ok) {
+              const afgewezen = await afgewezenResp.json();
+              if (afgewezen && afgewezen.length > 0) {
+                afgewezenSchoonmakerNaam = `${afgewezen[0].voornaam || ''} ${afgewezen[0].achternaam || ''}`.trim() || 'Onbekende schoonmaker';
+              }
+            }
+          } catch (err) {
+            console.warn(`⚠️ [aanvraagService.reject] Could not fetch rejected schoonmaker name [${correlationId}]`);
+          }
+          
           const adminEmailHtml = `
             <!DOCTYPE html>
             <html>
@@ -767,7 +890,7 @@ export const aanvraagService = {
 
                           <div style="background-color: #f8f9fa; padding: 15px; margin: 20px 0; border-radius: 4px;">
                             <p style="margin: 0; font-size: 14px; color: #666;">
-                              <strong style="color: #333;">Afgewezen door:</strong> ${`${aanvraag.voornaam || ''} ${aanvraag.achternaam || ''}`.trim()}<br>
+                              <strong style="color: #333;">Afgewezen door:</strong> ${afgewezenSchoonmakerNaam}<br>
                               <strong style="color: #333;">Nieuwe schoonmaker:</strong> ${`${newSchoonmaker?.voornaam || ''} ${newSchoonmaker?.achternaam || ''}`.trim()}<br>
                               <strong style="color: #333;">Klant:</strong> ${`${aanvraag.voornaam || ''} ${aanvraag.achternaam || ''}`.trim()}<br>
                               <strong style="color: #333;">Plaats:</strong> ${adresData.plaats || aanvraag.plaats || 'onbekend'}<br>

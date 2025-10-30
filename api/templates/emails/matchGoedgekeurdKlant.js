@@ -38,8 +38,8 @@ export function matchGoedgekeurdKlant(data) {
   } = data;
 
   // Format dagdelen voor display
-  let dagdelenText = 'Volgens afspraak';
-  if (typeof dagdelen === 'object' && !Array.isArray(dagdelen)) {
+  let dagdelenText = 'Geen specifieke voorkeur doorgegeven';
+  if (dagdelen && typeof dagdelen === 'object' && !Array.isArray(dagdelen) && Object.keys(dagdelen).length > 0) {
     const formatted = Object.entries(dagdelen)
       .map(([dag, delen]) => {
         const dagNamen = { maandag: 'ma', dinsdag: 'di', woensdag: 'wo', donderdag: 'do', vrijdag: 'vr', zaterdag: 'za', zondag: 'zo' };
@@ -47,7 +47,7 @@ export function matchGoedgekeurdKlant(data) {
       })
       .join(', ');
     dagdelenText = formatted;
-  } else if (Array.isArray(dagdelen)) {
+  } else if (Array.isArray(dagdelen) && dagdelen.length > 0) {
     dagdelenText = dagdelen.join(', ');
   }
 
