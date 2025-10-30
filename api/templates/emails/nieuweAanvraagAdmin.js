@@ -41,7 +41,7 @@ export function nieuweAanvraagAdmin(data) {
     ? (autoAssigned 
         ? `<div class="warning-badge">⚡ Auto-toegewezen: ${schoonmakerNaam}</div>`
         : `<div class="success-badge">✓ Klant koos: ${schoonmakerNaam}</div>`)
-    : '<div class="warning-badge">⚠️ Geen voorkeur - Handmatige toewijzing vereist</div>';
+    : '<div class="info-badge">📋 Schoonmaker wacht op goedkeuring</div>';
 
   const content = `
     <h2>🆕 Nieuwe Schoonmaak Aanvraag Ontvangen</h2>

@@ -102,8 +102,33 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       // 📧 EMAIL TRIGGER 1: Nieuwe aanvraag → Admin
       console.log(`📧 [ProcessSuccessfulPayment] Sending email to admin (nieuwe aanvraag)...`);
       try {
-        const schoonmakerNaam = metadata.schoonmaker_naam || null;
+        let schoonmakerNaam = null;
         const autoAssigned = metadata.auto_assigned === 'true';
+        
+        // Haal schoonmaker naam op als schoonmaker_id aanwezig is
+        if (metadata.schoonmaker_id && metadata.schoonmaker_id !== 'geenVoorkeur') {
+          try {
+            const { supabaseConfig } = await import('../../config/index.js');
+            const supabaseUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${metadata.schoonmaker_id}&select=voornaam,achternaam`;
+            const response = await fetch(supabaseUrl, {
+              method: 'GET',
+              headers: {
+                'apikey': supabaseConfig.anonKey,
+                'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (response.ok) {
+              const schoonmakerData = await response.json();
+              if (schoonmakerData && schoonmakerData.length > 0) {
+                schoonmakerNaam = `${schoonmakerData[0].voornaam || ''} ${schoonmakerData[0].achternaam || ''}`.trim();
+              }
+            }
+          } catch (err) {
+            console.warn(`⚠️ [ProcessSuccessfulPayment] Could not fetch schoonmaker name [${correlationId}]`, err.message);
+          }
+        }
         
         // User data komt uit metadata (niet uit user object - die heeft alleen id)
         const klantNaam = `${metadata.voornaam || ''} ${metadata.achternaam || ''}`.trim();
@@ -134,6 +159,9 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         });
         // Email failure mag flow niet breken
       }
+
+      // Delay tussen emails (rate limit protection)
+      await new Promise(resolve => setTimeout(resolve, 600));
       
     } catch (error) {
       console.error(`❌ [ProcessSuccessfulPayment] FAILED: Aanvraag creation error [${correlationId}]`, {
@@ -182,17 +210,44 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       // 📧 EMAIL TRIGGER 2: Betaling bevestiging → Klant
       console.log(`📧 [ProcessSuccessfulPayment] Sending email to klant (betaling bevestiging)...`);
       try {
-        const schoonmakerNaam = metadata.schoonmaker_naam || null;
+        // Gebruik dezelfde schoonmakerNaam die we voor admin email hebben opgehaald
+        let klantSchoonmakerNaam = null;
         const autoAssigned = metadata.auto_assigned === 'true';
+        
+        // Haal schoonmaker naam op als schoonmaker_id aanwezig is
+        if (metadata.schoonmaker_id && metadata.schoonmaker_id !== 'geenVoorkeur') {
+          try {
+            const { supabaseConfig } = await import('../../config/index.js');
+            const supabaseUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${metadata.schoonmaker_id}&select=voornaam,achternaam`;
+            const response = await fetch(supabaseUrl, {
+              method: 'GET',
+              headers: {
+                'apikey': supabaseConfig.anonKey,
+                'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (response.ok) {
+              const schoonmakerData = await response.json();
+              if (schoonmakerData && schoonmakerData.length > 0) {
+                klantSchoonmakerNaam = `${schoonmakerData[0].voornaam || ''} ${schoonmakerData[0].achternaam || ''}`.trim();
+              }
+            }
+          } catch (err) {
+            console.warn(`⚠️ [ProcessSuccessfulPayment] Could not fetch schoonmaker name for klant email [${correlationId}]`, err.message);
+          }
+        }
+        
         const klantNaam = `${metadata.voornaam || ''} ${metadata.achternaam || ''}`.trim();
         
         const klantEmailHtml = betalingBevestigingKlant({
           klantNaam,
           plaats: metadata.plaats,
           uren: parseInt(metadata.uren || metadata.gewenste_uren) || 0,
-          dagdelen: metadata.dagdelen || [],
+          dagdelen: metadata.dagdelen || {},
           startdatum: metadata.startdatum,
-          schoonmakerNaam,
+          schoonmakerNaam: klantSchoonmakerNaam,
           autoAssigned,
           bedrag: paymentIntent.amount / 100, // Cents naar euros
           betalingId: paymentIntent.id
@@ -211,6 +266,9 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         });
         // Email failure mag flow niet breken
       }
+
+      // Delay tussen emails (rate limit protection)
+      await new Promise(resolve => setTimeout(resolve, 600));
       
     } catch (error) {
       console.error(`❌ [ProcessSuccessfulPayment] FAILED: Payment record creation error [${correlationId}]`, {
@@ -318,11 +376,11 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
             const schoonmakerEmailHtml = matchToegewezenSchoonmaker({
               schoonmakerNaam: `${schoonmakerResponse.voornaam || ''} ${schoonmakerResponse.achternaam || ''}`.trim(),
               klantNaam,
-              adres: `${address.straat} ${address.huisnummer}${address.toevoeging || ''}`,
-              plaats: address.plaats,
-              postcode: address.postcode,
+              adres: `${adres.straat} ${adres.huisnummer}${adres.toevoeging || ''}`,
+              plaats: adres.plaats,
+              postcode: adres.postcode,
               uren: parseInt(metadata.uren || metadata.gewenste_uren) || 0,
-              dagdelen: metadata.dagdelen || [],
+              dagdelen: metadata.dagdelen || {},
               startdatum: metadata.startdatum,
               autoAssigned,
               aanvraagId: aanvraag.id,
