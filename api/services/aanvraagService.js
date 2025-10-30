@@ -239,8 +239,8 @@ export const aanvraagService = {
         }
       }
 
-      // Haal voorkeurs_dagdelen op (indien beschikbaar)
-      const dagdelenUrl = `${supabaseConfig.url}/rest/v1/voorkeurs_dagdelen?user_id=eq.${abonnement.user_id}&select=*`;
+      // Haal voorkeurs_dagdelen op (gebruik aanvraag.user_id!)
+      const dagdelenUrl = `${supabaseConfig.url}/rest/v1/voorkeurs_dagdelen?user_id=eq.${aanvraag.user_id}&select=*`;
       const dagdelenResp = await httpClient(dagdelenUrl, {
         method: 'GET',
         headers: {
@@ -251,6 +251,7 @@ export const aanvraagService = {
 
       if (dagdelenResp.ok) {
         const dagdelenData = await dagdelenResp.json();
+        console.log(`📊 [aanvraagService.approve] Dagdelen data fetched [${correlationId}]`, { count: dagdelenData?.length || 0 });
         if (dagdelenData && dagdelenData.length > 0) {
           // Convert array naar object format {maandag: ['ochtend']}
           dagdelenData.forEach(item => {
@@ -259,6 +260,30 @@ export const aanvraagService = {
             }
             dagdelen[item.dag].push(item.dagdeel);
           });
+        }
+      }
+
+      // Haal adres op voor volledige adresgegevens
+      if (aanvraag.adres_id) {
+        try {
+          const adresUrl = `${supabaseConfig.url}/rest/v1/adressen?id=eq.${aanvraag.adres_id}&select=*`;
+          const adresResp = await httpClient(adresUrl, {
+            method: 'GET',
+            headers: {
+              'apikey': supabaseConfig.anonKey,
+              'Authorization': `Bearer ${supabaseConfig.anonKey}`
+            }
+          }, correlationId);
+
+          if (adresResp.ok) {
+            const adressen = await adresResp.json();
+            if (adressen && adressen.length > 0) {
+              const adres = adressen[0];
+              plaats = adres.plaats || plaats; // Update plaats met volledige adres data
+            }
+          }
+        } catch (err) {
+          console.warn(`⚠️ [aanvraagService.approve] Could not fetch address [${correlationId}]`, err.message);
         }
       }
     } catch (err) {
@@ -302,6 +327,9 @@ export const aanvraagService = {
         klant_email: aanvraag.email
       });
     }
+
+    // Delay tussen emails (rate limit protection)
+    await new Promise(resolve => setTimeout(resolve, 600));
 
     // STAP 11: 📧 EMAIL TRIGGER: Match goedgekeurd → Schoonmaker (bevestiging)
     console.log(`📧 [aanvraagService.approve] Sending confirmation email to schoonmaker [${correlationId}]`);
@@ -403,6 +431,9 @@ export const aanvraagService = {
     } else {
       console.warn(`⚠️ [aanvraagService.approve] No schoonmaker email found, skipping confirmation [${correlationId}]`);
     }
+
+    // Delay tussen emails (rate limit protection)
+    await new Promise(resolve => setTimeout(resolve, 600));
 
     // STAP 12: 📧 EMAIL TRIGGER: Admin notificatie - Match geaccepteerd
     try {
