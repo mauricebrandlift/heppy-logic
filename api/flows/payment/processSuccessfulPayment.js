@@ -376,9 +376,9 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
             const schoonmakerEmailHtml = matchToegewezenSchoonmaker({
               schoonmakerNaam: `${schoonmakerResponse.voornaam || ''} ${schoonmakerResponse.achternaam || ''}`.trim(),
               klantNaam,
-              adres: `${address.straat} ${address.huisnummer}${address.toevoeging || ''}`,
-              plaats: address.plaats,
-              postcode: address.postcode,
+              adres: `${metadata.straat} ${metadata.huisnummer}${metadata.toevoeging || ''}`,
+              plaats: metadata.plaats,
+              postcode: metadata.postcode,
               uren: parseInt(metadata.uren || metadata.gewenste_uren) || 0,
               dagdelen: metadata.dagdelen || {},
               startdatum: metadata.startdatum,
