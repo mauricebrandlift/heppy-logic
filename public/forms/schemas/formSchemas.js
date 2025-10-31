@@ -425,6 +425,50 @@ export function getFormSchema(name) {
       // Submit logica wordt later toegevoegd in sollAlgemeenForm.js
     },
 
+    // ============================================================
+    // DIEPTEREINIGING FLOW
+    // ============================================================
+    
+    // Formulier voor stap 1 van dieptereiniging aanvraag - adresgegevens
+    'dr_adres-form': {
+      name: 'dr_adres-form',
+      selector: '[data-form-name="dr_adres-form"]',
+      fields: {
+        postcode: commonFields.postcode,
+        huisnummer: commonFields.huisnummer,
+        toevoeging: commonFields.toevoeging,
+        straatnaam: {
+          ...commonFields.straatnaam,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+        plaats: {
+          ...commonFields.plaats,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in drAdresForm.js
+      },
+      triggers: [
+        {
+          type: 'addressLookup',
+        }
+      ],
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.address,
+        commonMessages.coverage,
+        commonMessages.server,
+        {
+          // Formulier-specifieke berichten voor adres
+          CUSTOM_SUCCESS: 'Je adresgegevens zijn succesvol gecontroleerd.',
+          LOCAL_ONLY: 'Deze actie is alleen beschikbaar voor lokale adressen.'
+        }
+      ),
+    },
+
     // Andere formulieren...
   };
 

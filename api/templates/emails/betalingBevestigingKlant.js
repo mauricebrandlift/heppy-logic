@@ -39,6 +39,9 @@ export function betalingBevestigingKlant(data) {
     ? `
       <div class="warning-badge">⏳ Aanvraag verzonden - wacht op goedkeuring</div>
       <p>Uw aanvraag is verzonden naar <strong>${schoonmakerNaam}</strong>. Deze schoonmaker beoordeelt nu uw aanvraag en laat binnen 48 uur weten of de opdracht geaccepteerd wordt.</p>
+      <p style="font-size: 14px; color: #6b7280; margin-top: 12px; padding: 12px; background: #f0fdf4; border-left: 3px solid #22c55e; border-radius: 4px;">
+        <strong>✓ Geen zorgen:</strong> Mocht deze schoonmaker de aanvraag niet kunnen accepteren, dan zorgen wij direct voor een geschikte vervanger. Zo garanderen we dat u op tijd een schoonmaker heeft voor uw gewenste startweek.
+      </p>
     `
     : `
       <div class="warning-badge">⏳ Schoonmaker wordt gezocht</div>
