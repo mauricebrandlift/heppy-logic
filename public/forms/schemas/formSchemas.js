@@ -469,6 +469,76 @@ export function getFormSchema(name) {
       ),
     },
 
+    // Formulier voor stap 2 van dieptereiniging aanvraag - opdracht details
+    'dr_opdracht-form': {
+      name: 'dr_opdracht-form',
+      selector: '[data-form-name="dr_opdracht-form"]',
+      fields: {
+        dr_m2: {
+          label: 'Aantal vierkante meters',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:20', 'max:500'],
+          persist: 'flow',
+          messages: {
+            required: 'Vul het aantal vierkante meters in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 20m² voor dieptereiniging',
+            max: 'Maximaal 500m² per opdracht'
+          }
+        },
+        dr_toiletten: {
+          label: 'Aantal toiletten',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:0', 'max:10'],
+          persist: 'flow',
+          messages: {
+            required: 'Vul het aantal toiletten in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 0 toiletten',
+            max: 'Maximaal 10 toiletten'
+          }
+        },
+        dr_badkamers: {
+          label: 'Aantal badkamers',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:0', 'max:10'],
+          persist: 'flow',
+          messages: {
+            required: 'Vul het aantal badkamers in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 0 badkamers',
+            max: 'Maximaal 10 badkamers'
+          }
+        },
+        dr_datum: {
+          label: 'Gewenste datum',
+          inputType: 'date',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'flow',
+          messages: {
+            required: 'Kies een datum voor de dieptereiniging',
+            INVALID_DATE: 'Deze datum is niet beschikbaar'
+          }
+        }
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in drOpdrachtForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          INVALID_DATE: 'Kies een geldige datum binnen het toegestane bereik',
+          INCOMPLETE_FORM: 'Vul alle velden in om door te gaan',
+          CUSTOM_SUCCESS: 'Opdracht details succesvol opgeslagen'
+        }
+      ),
+    },
+
     // Andere formulieren...
   };
 
