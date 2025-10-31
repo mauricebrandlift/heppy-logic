@@ -4,28 +4,35 @@
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
-import { showError, hideError } from '../ui/formUi.js';
+import { showError, hideError, showFieldErrors } from '../ui/formUi.js';
 import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
+import { fetchPricingConfiguration } from '../../utils/api/index.js';
 
 const FORM_NAME = 'dr_opdracht-form';
-const NEXT_FORM_NAME = 'dr_persoonsgegevens-form'; // TODO: aanpassen naar juiste volgende stap
+const NEXT_FORM_NAME = 'dr_persoonsgegevens-form';
 
-// Prijsconstanten - TODO: ophalen van API/env
-const PRIJS_PER_UUR = 45; // €45 per uur
+// Spoed constanten
 const SPOED_TOESLAG = 100; // €100 extra bij spoed
 const MIN_DAGEN_VOORUIT = 2; // Minimaal 2 dagen vooruit
 const SPOED_DREMPEL_DAGEN = 7; // < 7 dagen = spoed
 const MAX_DAGEN_VOORUIT = 90; // Maximaal 3 maanden (90 dagen)
 
-// Berekenin constanten voor uren
-const MINUTEN_PER_10M2 = 10; // 10 minuten per 10m2
-const MINUTEN_PER_TOILET = 15; // 15 minuten per toilet
-const MINUTEN_PER_BADKAMER = 30; // 30 minuten per badkamer
-const MIN_UREN = 4; // Minimum 4 uur voor dieptereiniging
+// Prijsconfiguratie object (wordt gevuld via API)
+const pricingConfig = {
+  timePerM2: null,       // minuten per 10m2
+  timePerToilet: null,   // minuten per toilet
+  timePerBathroom: null, // minuten per badkamer
+  pricePerHour: null,    // prijs per uur
+  minHours: 3,           // minimum aantal uren
+  isLoading: false,
+  isLoaded: false
+};
 
 // Huidige berekening
 const calculation = {
-  uren: 0,
+  hours: 0,              // onafgeronde uren
+  adjustedHours: 0,      // afgeronde uren (gebruiker kan aanpassen)
+  minAllowedHours: 0,    // minimum uren op basis van berekening
   basisPrijs: 0,
   spoedToeslag: 0,
   totaalPrijs: 0,
@@ -61,13 +68,73 @@ function goToFormStep(nextFormName) {
 }
 
 /**
+ * Haal de prijsconfiguratie op van de backend API
+ */
+async function getPricingConfiguration() {
+  if (pricingConfig.isLoading || pricingConfig.isLoaded) {
+    return pricingConfig.isLoaded;
+  }
+  
+  pricingConfig.isLoading = true;
+  
+  try {
+    console.log('🔄 [drOpdrachtForm] Ophalen prijsconfiguratie via API client...');
+    const result = await fetchPricingConfiguration('dieptereiniging');
+    const data = result;
+    
+    console.log('✅ [drOpdrachtForm] Prijsconfiguratie opgehaald:', data);
+    
+    // Verwerk de data uit de database
+    if (Array.isArray(data.pricing) && data.pricing.length > 0) {
+      data.pricing.forEach(item => {
+        const configKey = item.config_key;
+        const configValue = parseFloat(item.config_value);
+        
+        switch(configKey) {
+          case 'timePer10m2':
+          case 'timePerM2': 
+            pricingConfig.timePerM2 = configValue;
+            break;
+          case 'timePerToilet':
+            pricingConfig.timePerToilet = configValue;
+            break;
+          case 'timePerBathroom':
+            pricingConfig.timePerBathroom = configValue;
+            break;
+          case 'pricePerHour':
+            pricingConfig.pricePerHour = configValue;
+            break;
+          case 'minHours':
+            if (configValue > 0) {
+              pricingConfig.minHours = configValue;
+            }
+            break;
+        }
+      });
+      
+      pricingConfig.isLoaded = true;
+      console.log('✅ [drOpdrachtForm] Prijsconfiguratie verwerkt:', pricingConfig);
+      return true;
+    } else {
+      console.error('❌ [drOpdrachtForm] Geen geldige prijsconfiguratie gevonden in de API respons');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ [drOpdrachtForm] Fout bij ophalen prijsconfiguratie:', error);
+    return false;
+  } finally {
+    pricingConfig.isLoading = false;
+  }
+}
+
+/**
  * Bereken aantal dagen tussen vandaag en gekozen datum
  */
 function berekenDagenVooruit(datumString) {
   if (!datumString) return 0;
   
   const vandaag = new Date();
-  vandaag.setHours(0, 0, 0, 0); // Zet tijd op middernacht voor accurate dag vergelijking
+  vandaag.setHours(0, 0, 0, 0);
   
   const gekozenDatum = new Date(datumString);
   gekozenDatum.setHours(0, 0, 0, 0);
@@ -75,93 +142,153 @@ function berekenDagenVooruit(datumString) {
   const verschilMs = gekozenDatum - vandaag;
   const dagen = Math.floor(verschilMs / (1000 * 60 * 60 * 24));
   
+  console.log(`[drOpdrachtForm] Datum check: ${datumString} = ${dagen} dagen vooruit`);
+  
   return dagen;
 }
 
 /**
  * Valideer of gekozen datum binnen toegestane bereik valt
  */
-function valideerDatum(datumString) {
+function valideerDatum(datumString, formElement = null, showUI = true) {
+  if (!datumString) {
+    return { valid: false, error: 'Kies een datum' };
+  }
+  
   const dagen = berekenDagenVooruit(datumString);
   
+  console.log(`[drOpdrachtForm] Valideer datum: ${datumString}, dagen: ${dagen}, min: ${MIN_DAGEN_VOORUIT}, max: ${MAX_DAGEN_VOORUIT}`);
+  
+  const datumField = formElement?.querySelector('[data-field-name="dr_datum"]');
+  const errorContainer = formElement?.querySelector('[data-error-for="dr_datum"]');
+  
   if (dagen < MIN_DAGEN_VOORUIT) {
-    return {
-      valid: false,
-      error: `Kies een datum minimaal ${MIN_DAGEN_VOORUIT} dagen vooruit. We hebben tijd nodig om een schoonmaker in te plannen.`
-    };
+    const error = `Kies een datum minimaal ${MIN_DAGEN_VOORUIT} dagen vooruit. We hebben tijd nodig om een schoonmaker in te plannen.`;
+    console.log('❌ [drOpdrachtForm] Datum te vroeg:', error);
+    
+    if (showUI && errorContainer) {
+      showFieldErrors(formElement, 'dr_datum', error);
+      datumField?.classList.add('input-error');
+    }
+    
+    return { valid: false, error, dagen };
   }
   
   if (dagen > MAX_DAGEN_VOORUIT) {
-    return {
-      valid: false,
-      error: `Je kunt maximaal ${MAX_DAGEN_VOORUIT} dagen (3 maanden) vooruit plannen.`
-    };
+    const error = `Je kunt maximaal ${MAX_DAGEN_VOORUIT} dagen (3 maanden) vooruit plannen.`;
+    console.log('❌ [drOpdrachtForm] Datum te ver:', error);
+    
+    if (showUI && errorContainer) {
+      showFieldErrors(formElement, 'dr_datum', error);
+      datumField?.classList.add('input-error');
+    }
+    
+    return { valid: false, error, dagen };
   }
+  
+  // Datum is geldig - verwijder eventuele errors
+  if (showUI && errorContainer) {
+    hideError(errorContainer);
+    datumField?.classList.remove('input-error');
+  }
+  
+  console.log('✅ [drOpdrachtForm] Datum geldig:', dagen, 'dagen');
   
   return { valid: true, dagen };
 }
 
 /**
- * Bereken aantal uren op basis van m2, toiletten en badkamers
+ * Bereken de uren op basis van de invoergegevens
  */
-function berekenUren(m2, toiletten, badkamers) {
-  // Converteer naar nummers en handel edge cases af
+function calculateHours(m2, toilets, bathrooms) {
   const m2Num = parseInt(m2) || 0;
-  const toilettenNum = parseInt(toiletten) || 0;
-  const badkamersNum = parseInt(badkamers) || 0;
+  const toiletsNum = parseInt(toilets) || 0;
+  const bathroomsNum = parseInt(bathrooms) || 0;
   
   // Bereken totale minuten
-  let totaalMinuten = 0;
-  totaalMinuten += (m2Num / 10) * MINUTEN_PER_10M2; // Per 10m2
-  totaalMinuten += toilettenNum * MINUTEN_PER_TOILET;
-  totaalMinuten += badkamersNum * MINUTEN_PER_BADKAMER;
+  const m2Minutes = (m2Num / 10) * (pricingConfig.timePerM2 || 0);
+  const toiletMinutes = toiletsNum * (pricingConfig.timePerToilet || 0);
+  const bathroomMinutes = bathroomsNum * (pricingConfig.timePerBathroom || 0);
   
-  // Converteer naar uren en rond af naar boven per heel uur
-  let uren = Math.ceil(totaalMinuten / 60);
+  const totalMinutes = m2Minutes + toiletMinutes + bathroomMinutes;
+  const hours = totalMinutes / 60;
   
-  // Minimum uren check
-  if (uren < MIN_UREN) {
-    uren = MIN_UREN;
-  }
+  console.log(`🧮 [drOpdrachtForm] Berekening: ${m2Num}m² (${m2Minutes}min) + ${toiletsNum} toiletten (${toiletMinutes}min) + ${bathroomsNum} badkamers (${bathroomMinutes}min) = ${totalMinutes}min = ${hours}u`);
   
-  console.log(`[drOpdrachtForm] Berekening: ${m2Num}m2 + ${toilettenNum} toiletten + ${badkamersNum} badkamers = ${totaalMinuten} min = ${uren} uur`);
-  
-  return uren;
+  return hours;
 }
 
 /**
- * Bereken totaalprijs inclusief spoed toeslag
+ * Rond uren af naar boven naar het dichtstbijzijnde halve uur, met een minimum
  */
-function berekenPrijs(uren, isSpoed) {
-  const basisPrijs = uren * PRIJS_PER_UUR;
+function roundHoursUp(hours) {
+  const minHours = pricingConfig.minHours || 3;
+  
+  if (hours <= 0) return minHours;
+  
+  // Rond af naar boven naar het dichtstbijzijnde halve uur
+  const roundedHours = Math.ceil(hours * 2) / 2;
+  
+  // Zorg ervoor dat het resultaat niet lager is dan het minimum
+  return Math.max(roundedHours, minHours);
+}
+
+/**
+ * Formatteer uren voor UI-weergave
+ */
+function formatHours(hours) {
+  if (typeof hours !== 'number' || Number.isNaN(hours)) {
+    return '0';
+  }
+
+  const normalized = Math.round((hours + Number.EPSILON) * 2) / 2;
+  const formatted = normalized % 1 === 0 ? normalized.toFixed(0) : normalized.toFixed(1);
+  return formatted.replace('.0', '');
+}
+
+/**
+ * Bereken de prijs op basis van de afgeronde uren en uurtarief + spoed
+ */
+function calculatePrice(hours, isSpoed) {
+  const basisPrijs = hours * (pricingConfig.pricePerHour || 0);
   const spoedToeslag = isSpoed ? SPOED_TOESLAG : 0;
   const totaalPrijs = basisPrijs + spoedToeslag;
-  
-  calculation.uren = uren;
-  calculation.basisPrijs = basisPrijs;
-  calculation.spoedToeslag = spoedToeslag;
-  calculation.totaalPrijs = totaalPrijs;
-  calculation.isSpoed = isSpoed;
-  
-  console.log(`[drOpdrachtForm] Prijs: ${uren}u × €${PRIJS_PER_UUR} = €${basisPrijs}${isSpoed ? ' + €' + SPOED_TOESLAG + ' spoed' : ''} = €${totaalPrijs}`);
   
   return { basisPrijs, spoedToeslag, totaalPrijs };
 }
 
 /**
- * Update UI met berekende waarden
+ * Normaliseer naar halve uren stappen
  */
-function updateBerekeningUI(formElement) {
-  // Update uren display
-  const urenElement = formElement.querySelector('[data-field-total="calculate_form_dr_uren"]');
-  if (urenElement) {
-    urenElement.textContent = calculation.uren;
+function normaliseHalfStep(val) {
+  return Math.round((val + Number.EPSILON) * 2) / 2;
+}
+
+/**
+ * Update de UI met de berekende waarden
+ */
+function updateCalculationUI(formElement) {
+  if (!formElement) return;
+  
+  // Update uren weergave
+  const urenField = formElement.querySelector('[data-field-total="calculate_form_dr_uren"]');
+  if (urenField) {
+    urenField.textContent = formatHours(calculation.adjustedHours);
   }
   
-  // Update prijs display
-  const prijsElement = formElement.querySelector('[data-field-total="calculate_form_dr_prijs"]');
-  if (prijsElement) {
-    prijsElement.textContent = `€${calculation.totaalPrijs}`;
+  // Update minimum uren weergave
+  const minUrenField = formElement.querySelector('[data-field-total="calculate_form__min_dr_uren"]');
+  if (minUrenField) {
+    const minHoursValue = calculation.minAllowedHours > 0 
+      ? calculation.minAllowedHours 
+      : roundHoursUp(pricingConfig.minHours || 0);
+    minUrenField.textContent = formatHours(minHoursValue);
+  }
+  
+  // Update prijs weergave (ZONDER € teken, want Webflow heeft die al)
+  const prijsField = formElement.querySelector('[data-field-total="calculate_form_dr_prijs"]');
+  if (prijsField) {
+    prijsField.textContent = `${calculation.totaalPrijs.toFixed(2).replace('.', ',')}`;
   }
   
   // Update spoed waarschuwing
@@ -176,47 +303,76 @@ function updateBerekeningUI(formElement) {
       `;
     } else {
       spoedWarning.style.display = 'none';
+      spoedWarning.innerHTML = '';
     }
   }
+  
+  // Sla de berekende waarden op in flow data
+  const flowData = loadFlowData('dieptereiniging-aanvraag') || {};
+  flowData.dr_uren = calculation.adjustedHours.toString();
+  flowData.dr_prijs = calculation.totaalPrijs.toFixed(2);
+  flowData.dr_min_uren = calculation.minAllowedHours.toString();
+  flowData.dr_basis_prijs = calculation.basisPrijs.toFixed(2);
+  flowData.dr_spoed_toeslag = calculation.spoedToeslag.toFixed(2);
+  flowData.is_spoed = calculation.isSpoed;
+  
+  saveFlowData('dieptereiniging-aanvraag', flowData);
 }
 
 /**
- * Handler voor input wijzigingen - herbereken alles
+ * Voer alle berekeningen uit en update de UI
  */
-function handleInputChange(formElement) {
-  // Haal waarden op
-  const m2Input = formElement.querySelector('[data-field-name="dr_m2"]');
-  const toilettenInput = formElement.querySelector('[data-field-name="dr_toiletten"]');
-  const badkamersInput = formElement.querySelector('[data-field-name="dr_badkamers"]');
-  const datumInput = formElement.querySelector('[data-field-name="dr_datum"]');
-  
-  const m2 = m2Input?.value || 0;
-  const toiletten = toilettenInput?.value || 0;
-  const badkamers = badkamersInput?.value || 0;
-  const datum = datumInput?.value;
-  
-  // Bereken uren
-  const uren = berekenUren(m2, toiletten, badkamers);
-  
-  // Check spoed status op basis van datum
-  let isSpoed = false;
-  if (datum) {
-    const dagen = berekenDagenVooruit(datum);
-    calculation.dagenVooruit = dagen;
-    isSpoed = dagen >= MIN_DAGEN_VOORUIT && dagen < SPOED_DREMPEL_DAGEN;
+async function performCalculations(formElement) {
+  // Zorg ervoor dat we de prijsconfiguratie hebben
+  if (!pricingConfig.isLoaded) {
+    const success = await getPricingConfiguration();
+    if (!success) {
+      console.error('❌ [drOpdrachtForm] Kon berekening niet uitvoeren: prijsconfiguratie niet beschikbaar');
+      return;
+    }
   }
   
-  // Bereken prijs
-  berekenPrijs(uren, isSpoed);
+  // Haal waarden op
+  const m2 = formElement.querySelector('[data-field-name="dr_m2"]')?.value || 0;
+  const toiletten = formElement.querySelector('[data-field-name="dr_toiletten"]')?.value || 0;
+  const badkamers = formElement.querySelector('[data-field-name="dr_badkamers"]')?.value || 0;
+  const datum = formElement.querySelector('[data-field-name="dr_datum"]')?.value;
   
-  // Update UI
-  updateBerekeningUI(formElement);
+  console.log('[drOpdrachtForm] Perform calculations:', { m2, toiletten, badkamers, datum });
+  
+  // Bereken uren
+  const calculatedHours = calculateHours(m2, toiletten, badkamers);
+  calculation.hours = calculatedHours;
+  
+  // Rond uren af naar boven (minimum 3 uur, per half uur)
+  calculation.adjustedHours = roundHoursUp(calculatedHours);
+  calculation.minAllowedHours = calculation.adjustedHours;
+  
+  // Check spoed status
+  let isSpoed = false;
+  if (datum) {
+    const datumValidatie = valideerDatum(datum, formElement, false); // Geen UI errors tijdens live calc
+    if (datumValidatie.valid) {
+      calculation.dagenVooruit = datumValidatie.dagen;
+      isSpoed = datumValidatie.dagen < SPOED_DREMPEL_DAGEN;
+    }
+  }
+  calculation.isSpoed = isSpoed;
+  
+  // Bereken prijs
+  const prijsBerekening = calculatePrice(calculation.adjustedHours, isSpoed);
+  calculation.basisPrijs = prijsBerekening.basisPrijs;
+  calculation.spoedToeslag = prijsBerekening.spoedToeslag;
+  calculation.totaalPrijs = prijsBerekening.totaalPrijs;
+  
+  // Update de UI
+  updateCalculationUI(formElement);
 }
 
 /**
- * Initialiseert het opdracht formulier voor de dieptereiniging aanvraag.
+ * Initialiseert het opdracht formulier voor de dieptereiniging aanvraag
  */
-export function initDrOpdrachtForm() {
+export async function initDrOpdrachtForm() {
   console.log('[drOpdrachtForm] Initialiseren van formulier:', FORM_NAME);
   
   // Haal het schema op
@@ -227,6 +383,29 @@ export function initDrOpdrachtForm() {
     console.error(`[drOpdrachtForm] Schema '${FORM_NAME}' niet gevonden in formSchemas.js!`);
     return;
   }
+  
+  // Haal form element op EERST (voor error display)
+  const formElement = document.querySelector(schema.selector);
+  if (!formElement) {
+    console.error('[drOpdrachtForm] Form element niet gevonden!');
+    return;
+  }
+  
+  console.log('[drOpdrachtForm] Formulier gevonden, ophalen prijsconfiguratie...');
+  
+  // Haal de prijsconfiguratie op
+  const success = await getPricingConfiguration();
+  if (!success) {
+    console.error('❌ [drOpdrachtForm] Kan formulier niet initialiseren: prijsconfiguratie ophalen mislukt');
+    // Toon error aan gebruiker
+    const errorDiv = document.createElement('div');
+    errorDiv.style.cssText = 'background: #fee; border: 1px solid #c00; color: #c00; padding: 1rem; border-radius: 4px; margin-bottom: 1rem;';
+    errorDiv.textContent = 'Er ging iets mis bij het laden van de prijsinformatie. Probeer de pagina opnieuw te laden.';
+    formElement.prepend(errorDiv);
+    return;
+  }
+  
+  console.log('✅ [drOpdrachtForm] Prijsconfiguratie geladen, koppelen event handlers...');
   
   // Laad eventueel bestaande flow data
   const flowData = loadFlowData('dieptereiniging-aanvraag');
@@ -239,8 +418,8 @@ export function initDrOpdrachtForm() {
       
       const { dr_datum, dr_m2, dr_toiletten, dr_badkamers } = formData;
       
-      // Valideer datum
-      const datumValidatie = valideerDatum(dr_datum);
+      // Valideer datum met UI feedback
+      const datumValidatie = valideerDatum(dr_datum, formElement, true);
       if (!datumValidatie.valid) {
         const error = new Error(datumValidatie.error);
         error.code = 'INVALID_DATE';
@@ -255,22 +434,18 @@ export function initDrOpdrachtForm() {
         throw error;
       }
       
-      // Bereken finale waarden
-      const uren = berekenUren(dr_m2, dr_toiletten, dr_badkamers);
-      const isSpoed = datumValidatie.dagen < SPOED_DREMPEL_DAGEN;
-      const prijsBerekening = berekenPrijs(uren, isSpoed);
-      
+      // Gebruik de huidige calculation waarden (al berekend tijdens input)
       // Sla alles op in flow data
       const updatedFlowData = loadFlowData('dieptereiniging-aanvraag') || {};
       updatedFlowData.dr_datum = dr_datum;
       updatedFlowData.dr_m2 = dr_m2;
       updatedFlowData.dr_toiletten = dr_toiletten;
       updatedFlowData.dr_badkamers = dr_badkamers;
-      updatedFlowData.uren = uren;
-      updatedFlowData.basis_prijs = prijsBerekening.basisPrijs;
-      updatedFlowData.spoed_toeslag = prijsBerekening.spoedToeslag;
-      updatedFlowData.totaal_prijs = prijsBerekening.totaalPrijs;
-      updatedFlowData.is_spoed = isSpoed;
+      updatedFlowData.dr_uren = calculation.adjustedHours.toString();
+      updatedFlowData.dr_basis_prijs = calculation.basisPrijs.toFixed(2);
+      updatedFlowData.dr_spoed_toeslag = calculation.spoedToeslag.toFixed(2);
+      updatedFlowData.dr_totaal_prijs = calculation.totaalPrijs.toFixed(2);
+      updatedFlowData.is_spoed = calculation.isSpoed;
       updatedFlowData.dagen_vooruit = datumValidatie.dagen;
       
       saveFlowData('dieptereiniging-aanvraag', updatedFlowData);
@@ -283,16 +458,16 @@ export function initDrOpdrachtForm() {
         m2: dr_m2,
         toiletten: dr_toiletten,
         badkamers: dr_badkamers,
-        uren,
-        prijs: prijsBerekening.totaalPrijs,
-        is_spoed: isSpoed
+        uren: calculation.adjustedHours,
+        prijs: calculation.totaalPrijs,
+        is_spoed: calculation.isSpoed
       }).catch(err => console.warn('[drOpdrachtForm] Tracking failed:', err));
     },
     
     onSuccess: () => {
       console.log('[drOpdrachtForm] Submit succesvol, navigeer naar volgende stap');
       
-      // Navigeer naar volgende stap (TODO: aanpassen naar juiste stap)
+      // Navigeer naar volgende stap
       goToFormStep(NEXT_FORM_NAME);
     }
   };
@@ -300,44 +475,108 @@ export function initDrOpdrachtForm() {
   // Initialiseer de formHandler met het bijgewerkte schema
   formHandler.init(schema);
   
-  // Haal form element op
-  const formElement = document.querySelector(schema.selector);
-  if (!formElement) {
-    console.error('[drOpdrachtForm] Form element niet gevonden!');
-    return;
-  }
+  // Haal input velden op
+  const m2Input = formElement.querySelector('[data-field-name="dr_m2"]');
+  const toilettenInput = formElement.querySelector('[data-field-name="dr_toiletten"]');
+  const badkamersInput = formElement.querySelector('[data-field-name="dr_badkamers"]');
+  const datumInput = formElement.querySelector('[data-field-name="dr_datum"]');
   
-  // Bind input change events voor real-time berekening
-  const inputFields = ['dr_m2', 'dr_toiletten', 'dr_badkamers', 'dr_datum'];
-  inputFields.forEach(fieldName => {
-    const input = formElement.querySelector(`[data-field-name="${fieldName}"]`);
+  // Event listeners voor live berekeningen
+  [m2Input, toilettenInput, badkamersInput].forEach(input => {
     if (input) {
-      input.addEventListener('input', () => handleInputChange(formElement));
-      input.addEventListener('change', () => handleInputChange(formElement));
+      input.addEventListener('input', () => {
+        console.log(`[drOpdrachtForm] Input gewijzigd: ${input.dataset.fieldName} = ${input.value}`);
+        performCalculations(formElement);
+      });
     }
   });
   
-  // Pre-fill formuliervelden als er flowData beschikbaar is
-  if (flowData) {
-    const m2Field = formElement.querySelector('[data-field-name="dr_m2"]');
-    const toilettenField = formElement.querySelector('[data-field-name="dr_toiletten"]');
-    const badkamersField = formElement.querySelector('[data-field-name="dr_badkamers"]');
-    const datumField = formElement.querySelector('[data-field-name="dr_datum"]');
+  // Speciale behandeling voor datum veld (validatie + spoed check)
+  if (datumInput) {
+    datumInput.addEventListener('change', () => {
+      const datum = datumInput.value;
+      console.log(`[drOpdrachtForm] Datum gewijzigd: ${datum}`);
+      
+      if (datum) {
+        const validatie = valideerDatum(datum, formElement, true); // showUI = true
+        
+        if (validatie.valid) {
+          // Update berekeningen (voor spoed check)
+          performCalculations(formElement);
+        }
+      }
+    });
+  }
+  
+  // Uren +/- buttons
+  const increaseBtn = formElement.querySelector('[data-btn="uren_up"]');
+  const decreaseBtn = formElement.querySelector('[data-btn="uren_down"]');
+  
+  if (increaseBtn) {
+    increaseBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      console.log('[drOpdrachtForm] Uren verhogen (+0.5)');
+      
+      calculation.adjustedHours = normaliseHalfStep(calculation.adjustedHours + 0.5);
+      
+      // Herbereken prijs met nieuwe uren
+      const prijsBerekening = calculatePrice(calculation.adjustedHours, calculation.isSpoed);
+      calculation.basisPrijs = prijsBerekening.basisPrijs;
+      calculation.spoedToeslag = prijsBerekening.spoedToeslag;
+      calculation.totaalPrijs = prijsBerekening.totaalPrijs;
+      
+      updateCalculationUI(formElement);
+    });
+  }
+  
+  if (decreaseBtn) {
+    decreaseBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      console.log('[drOpdrachtForm] Uren verlagen (-0.5)');
+      
+      const minHours = calculation.minAllowedHours > 0 
+        ? calculation.minAllowedHours 
+        : (pricingConfig.minHours || 3);
+      
+      const nextValue = normaliseHalfStep(calculation.adjustedHours - 0.5);
+      calculation.adjustedHours = Math.max(nextValue, minHours);
+      
+      console.log(`[drOpdrachtForm] Nieuwe uren: ${calculation.adjustedHours} (min: ${minHours})`);
+      
+      // Herbereken prijs met nieuwe uren
+      const prijsBerekening = calculatePrice(calculation.adjustedHours, calculation.isSpoed);
+      calculation.basisPrijs = prijsBerekening.basisPrijs;
+      calculation.spoedToeslag = prijsBerekening.spoedToeslag;
+      calculation.totaalPrijs = prijsBerekening.totaalPrijs;
+      
+      updateCalculationUI(formElement);
+    });
+  }
+  
+  // Herstel vorige invoer als die er is (bijv. na terug navigeren)
+  if (flowData && (flowData.dr_m2 || flowData.dr_toiletten || flowData.dr_badkamers)) {
+    console.log('[drOpdrachtForm] Herstellen vorige invoer:', flowData);
     
-    if (flowData.dr_m2 && m2Field) m2Field.value = flowData.dr_m2;
-    if (flowData.dr_toiletten && toilettenField) toilettenField.value = flowData.dr_toiletten;
-    if (flowData.dr_badkamers && badkamersField) badkamersField.value = flowData.dr_badkamers;
-    if (flowData.dr_datum && datumField) datumField.value = flowData.dr_datum;
+    if (m2Input && flowData.dr_m2) m2Input.value = flowData.dr_m2;
+    if (toilettenInput && flowData.dr_toiletten) toilettenInput.value = flowData.dr_toiletten;
+    if (badkamersInput && flowData.dr_badkamers) badkamersInput.value = flowData.dr_badkamers;
+    if (datumInput && flowData.dr_datum) datumInput.value = flowData.dr_datum;
     
-    // Update ook de formData in de formHandler
+    // Update formHandler.formData
     if (flowData.dr_m2) formHandler.formData.dr_m2 = flowData.dr_m2;
     if (flowData.dr_toiletten) formHandler.formData.dr_toiletten = flowData.dr_toiletten;
     if (flowData.dr_badkamers) formHandler.formData.dr_badkamers = flowData.dr_badkamers;
     if (flowData.dr_datum) formHandler.formData.dr_datum = flowData.dr_datum;
     
     // Trigger initiële berekening
-    handleInputChange(formElement);
+    await performCalculations(formElement);
+  } else {
+    // Toon standaard minimum uren als er nog geen invoer is
+    const minUrenField = formElement.querySelector('[data-field-total="calculate_form__min_dr_uren"]');
+    if (minUrenField) {
+      minUrenField.textContent = formatHours(pricingConfig.minHours || 3);
+    }
   }
   
-  console.log(`[drOpdrachtForm] Formulier '${FORM_NAME}' is succesvol geïnitialiseerd.`);
+  console.log(`✅ [drOpdrachtForm] Formulier '${FORM_NAME}' is succesvol geïnitialiseerd.`);
 }
