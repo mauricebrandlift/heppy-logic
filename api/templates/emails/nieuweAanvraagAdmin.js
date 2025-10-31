@@ -5,7 +5,7 @@
  * Gebruikt na succesvolle betaling in de payment flow.
  */
 
-import { baseLayout, formatDatum, formatBedrag, formatDagdelen } from './baseLayout.js';
+import { baseLayout, formatDatum, formatBedrag, formatDagdelen, formatStartWeek } from './baseLayout.js';
 
 /**
  * Genereer HTML voor nieuwe aanvraag notificatie (Admin)
@@ -76,14 +76,17 @@ export function nieuweAanvraagAdmin(data) {
           <td>${formatDagdelen(dagdelen)}</td>
         </tr>
         <tr>
-          <td><strong>Startdatum</strong></td>
-          <td>${formatDatum(startdatum)}</td>
+          <td><strong>Startweek</strong></td>
+          <td>${formatStartWeek(startdatum)}</td>
         </tr>
         <tr>
           <td><strong>Betaald bedrag</strong></td>
           <td>${formatBedrag(bedrag)}</td>
         </tr>
       </table>
+      <p style="font-size: 13px; color: #6b7280; margin-top: 10px; margin-bottom: 0;">
+        <em>ℹ️ Klant en schoonmaker spreken samen een specifieke dag en tijd af binnen deze week.</em>
+      </p>
     </div>
     
     <div class="info-box">

@@ -42,8 +42,8 @@ export function baseLayout(content, title = 'Heppy Schoonmaak') {
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
           }
           .header { 
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white; 
+            background: #c9e9b1;
+            color: #013d29; 
             padding: 40px 20px; 
             text-align: center; 
           }
@@ -197,16 +197,64 @@ export function formatBedrag(amount) {
 }
 
 /**
+ * Bereken ISO weeknummer van een datum
+ */
+function getISOWeek(date) {
+  const tmp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  // Donderdag in huidige week bepaalt weeknummer
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7);
+  return weekNo;
+}
+
+/**
+ * Haal start datum van een ISO week
+ */
+function getStartDateOfISOWeek(week, year) {
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  const dayOfWeek = simple.getUTCDay() || 7;
+  if (dayOfWeek > 4) {
+    simple.setUTCDate(simple.getUTCDate() + 8 - dayOfWeek);
+  } else {
+    simple.setUTCDate(simple.getUTCDate() - (dayOfWeek - 1));
+  }
+  return simple;
+}
+
+/**
+ * Format startdatum naar week weergave
+ * Bijvoorbeeld: "Week 46 (11 november – 17 november 2025)"
+ */
+export function formatStartWeek(dateString) {
+  const date = new Date(dateString);
+  const weekNr = getISOWeek(date);
+  const year = date.getFullYear();
+  const startDate = getStartDateOfISOWeek(weekNr, year);
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 6);
+  
+  const formatShortDate = (d) => {
+    return `${d.getDate()} ${d.toLocaleString('nl-NL', { month: 'long' })}`;
+  };
+  
+  return `Week ${weekNr} (${formatShortDate(startDate)} – ${formatShortDate(endDate)} ${year})`;
+}
+
+/**
  * Format dagdelen array of object naar leesbare string
  * Ondersteunt beide formaten:
  * - Array: ['ochtend', 'middag']
  * - Object: {maandag: ['ochtend'], dinsdag: ['middag']}
  */
 export function formatDagdelen(dagdelen) {
-  if (!dagdelen) return 'Niet opgegeven';
+  // Check voor null, undefined, of leeg
+  if (!dagdelen) return 'Geen specifieke voorkeur doorgegeven';
   
   // Als het een object is (formaat: {dag: [dagdelen]})
   if (typeof dagdelen === 'object' && !Array.isArray(dagdelen)) {
+    // Check of object leeg is
+    if (Object.keys(dagdelen).length === 0) return 'Geen specifieke voorkeur doorgegeven';
     const dagNamen = {
       'maandag': 'Ma',
       'dinsdag': 'Di',

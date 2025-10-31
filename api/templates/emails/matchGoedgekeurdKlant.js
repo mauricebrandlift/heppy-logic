@@ -5,7 +5,7 @@
  * Bevestigt de match en geeft informatie over de schoonmaker.
  */
 
-import { baseLayout, formatDatum } from './baseLayout.js';
+import { baseLayout, formatDatum, formatStartWeek, formatDagdelen } from './baseLayout.js';
 
 /**
  * Genereer HTML voor match goedgekeurd notificatie (Klant)
@@ -37,20 +37,6 @@ export function matchGoedgekeurdKlant(data) {
     matchId
   } = data;
 
-  // Format dagdelen voor display
-  let dagdelenText = 'Geen specifieke voorkeur doorgegeven';
-  if (dagdelen && typeof dagdelen === 'object' && !Array.isArray(dagdelen) && Object.keys(dagdelen).length > 0) {
-    const formatted = Object.entries(dagdelen)
-      .map(([dag, delen]) => {
-        const dagNamen = { maandag: 'ma', dinsdag: 'di', woensdag: 'wo', donderdag: 'do', vrijdag: 'vr', zaterdag: 'za', zondag: 'zo' };
-        return `${dagNamen[dag] || dag} ${Array.isArray(delen) ? delen.join('+') : delen}`;
-      })
-      .join(', ');
-    dagdelenText = formatted;
-  } else if (Array.isArray(dagdelen) && dagdelen.length > 0) {
-    dagdelenText = dagdelen.join(', ');
-  }
-
   const content = `
     <h2>🎉 Goed Nieuws! Je Schoonmaker Heeft Geaccepteerd</h2>
     
@@ -80,8 +66,8 @@ export function matchGoedgekeurdKlant(data) {
           <th>Waarde</th>
         </tr>
         <tr>
-          <td><strong>Startdatum</strong></td>
-          <td>${formatDatum(startdatum)}</td>
+          <td><strong>Startweek</strong></td>
+          <td>${formatStartWeek(startdatum)}</td>
         </tr>
         <tr>
           <td><strong>Plaats</strong></td>
@@ -93,15 +79,18 @@ export function matchGoedgekeurdKlant(data) {
         </tr>
         <tr>
           <td><strong>Dagdelen</strong></td>
-          <td>${dagdelenText}</td>
+          <td>${formatDagdelen(dagdelen)}</td>
         </tr>
       </table>
+      <p style="font-size: 13px; color: #6b7280; margin-top: 10px; margin-bottom: 0;">
+        <em>💡 U spreekt samen met ${schoonmakerNaam.split(' ')[0]} een specifieke dag en tijd af binnen deze week.</em>
+      </p>
     </div>
     
     <h3>📌 Wat Gebeurt Er Nu?</h3>
     <ul>
-      <li>✓ Je abonnement is actief en loopt vanaf ${formatDatum(startdatum)}</li>
-      <li>📞 ${schoonmakerNaam} neemt binnenkort contact met je op om de details af te stemmen</li>
+      <li>✓ Je abonnement is actief en start in ${formatStartWeek(startdatum)}</li>
+      <li>📞 ${schoonmakerNaam} neemt binnenkort contact met je op om een specifieke dag en tijd af te spreken</li>
       <li>🗓️ Jullie plannen samen de eerste schoonmaakbeurt in</li>
       <li>📱 Je kunt de planning volgen in je persoonlijke dashboard</li>
     </ul>

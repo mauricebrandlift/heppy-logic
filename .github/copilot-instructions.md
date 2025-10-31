@@ -2,6 +2,11 @@
 
 > Important: Only follow instructions that are logically related to the specific files being edited and the current development task. Disregard instructions that are not relevant to the immediate context.
 
+## Project URLs
+
+- **Frontend & Backend (Vercel)**: https://heppy-frontend-code.vercel.app/
+- **Email Domain**: mail.heppy-schoonmaak.nl (via Resend)
+
 ## General instructions
 
 - Implement changes incrementally and iteratively

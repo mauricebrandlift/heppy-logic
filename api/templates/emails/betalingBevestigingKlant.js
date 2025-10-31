@@ -5,7 +5,7 @@
  * Bevestigt de aanvraag en geeft informatie over volgende stappen.
  */
 
-import { baseLayout, formatDatum, formatBedrag, formatDagdelen } from './baseLayout.js';
+import { baseLayout, formatDatum, formatBedrag, formatDagdelen, formatStartWeek } from './baseLayout.js';
 
 /**
  * Genereer HTML voor betaling bevestiging (Klant)
@@ -37,8 +37,8 @@ export function betalingBevestigingKlant(data) {
 
   const schoonmakerInfo = schoonmakerNaam 
     ? `
-      <div class="success-badge">✓ Schoonmaker Toegewezen</div>
-      <p>We hebben <strong>${schoonmakerNaam}</strong> voor u ${autoAssigned ? 'geselecteerd' : 'toegewezen'}. Deze schoonmaker ontvangt nu uw aanvraag en zal deze beoordelen.</p>
+      <div class="warning-badge">⏳ Aanvraag verzonden - wacht op goedkeuring</div>
+      <p>Uw aanvraag is verzonden naar <strong>${schoonmakerNaam}</strong>. Deze schoonmaker beoordeelt nu uw aanvraag en laat binnen 48 uur weten of de opdracht geaccepteerd wordt.</p>
     `
     : `
       <div class="warning-badge">⏳ Schoonmaker wordt gezocht</div>
@@ -74,10 +74,13 @@ export function betalingBevestigingKlant(data) {
           <td>${formatDagdelen(dagdelen)}</td>
         </tr>
         <tr>
-          <td><strong>Gewenste start</strong></td>
-          <td>${formatDatum(startdatum)}</td>
+          <td><strong>Gewenste startweek</strong></td>
+          <td>${formatStartWeek(startdatum)}</td>
         </tr>
       </table>
+      <p style="font-size: 13px; color: #6b7280; margin-top: 10px; margin-bottom: 0;">
+        <em>💡 U spreekt samen met uw schoonmaker een specifieke dag en tijd af binnen deze week.</em>
+      </p>
     </div>
     
     <div class="info-box">

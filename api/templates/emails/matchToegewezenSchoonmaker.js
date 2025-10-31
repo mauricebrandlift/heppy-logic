@@ -5,7 +5,7 @@
  * Bevat alle relevante informatie en knoppen om te accepteren/weigeren.
  */
 
-import { baseLayout, formatDatum, formatDagdelen } from './baseLayout.js';
+import { baseLayout, formatDatum, formatDagdelen, formatStartWeek } from './baseLayout.js';
 
 /**
  * Genereer HTML voor match toegewezen notificatie (Schoonmaker)
@@ -80,14 +80,17 @@ export function matchToegewezenSchoonmaker(data) {
           <td>${formatDagdelen(dagdelen)}</td>
         </tr>
         <tr>
-          <td><strong>Gewenste startdatum</strong></td>
-          <td>${formatDatum(startdatum)}</td>
+          <td><strong>Gewenste startweek</strong></td>
+          <td>${formatStartWeek(startdatum)}</td>
         </tr>
       </table>
+      <p style="font-size: 13px; color: #6b7280; margin-top: 10px; margin-bottom: 0;">
+        <em>💡 U spreekt samen met de klant een specifieke dag en tijd af binnen deze week.</em>
+      </p>
     </div>
     
     <h3>❓ Wat Moet U Doen?</h3>
-    <p>Bekijk de aanvraag en geef aan of u deze kunt accepteren. Als u de opdracht accepteert, wordt de klant op de hoogte gebracht en kunnen jullie de details verder bespreken.</p>
+    <p>Bekijk de aanvraag en geef aan of u deze kunt accepteren. Als u de opdracht accepteert, wordt de klant op de hoogte gebracht en kunnen jullie samen een dag en tijd afspreken voor de eerste schoonmaakbeurt.</p>
     
     <div style="text-align: center; margin: 40px 0;">
       <p>
