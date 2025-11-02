@@ -91,10 +91,10 @@ async function loadCleaners(existingChoice) {
     const flowData = loadFlowData('dieptereiniging-aanvraag') || {};
     console.log('[DR Schoonmaker Form] Flow data geladen:', flowData);
     
-    // Controleer vereiste velden
-    if (!flowData.dr_plaats || !flowData.dr_datum || !flowData.dr_uren) {
+    // Controleer vereiste velden (plaats = globaal veld, dr_datum en dr_uren = form-specific)
+    if (!flowData.plaats || !flowData.dr_datum || !flowData.dr_uren) {
       console.error('❌ [DR Schoonmaker Form] Missing required flow data:', {
-        dr_plaats: flowData.dr_plaats,
+        plaats: flowData.plaats,
         dr_datum: flowData.dr_datum,
         dr_uren: flowData.dr_uren,
         allKeys: Object.keys(flowData)
@@ -103,14 +103,14 @@ async function loadCleaners(existingChoice) {
     }
 
     console.log('🌐 [DR Schoonmaker Form] Fetching cleaners from API...', {
-      plaats: flowData.dr_plaats,
+      plaats: flowData.plaats,
       datum: flowData.dr_datum,
       uren: flowData.dr_uren,
       type: 'dieptereiniging'
     });
     
     const response = await fetchAvailableCleaners({
-      plaats: flowData.dr_plaats,
+      plaats: flowData.plaats,
       datum: flowData.dr_datum,
       minUren: flowData.dr_uren,
       type: 'dieptereiniging' // Signal to use dieptereiniging endpoint
