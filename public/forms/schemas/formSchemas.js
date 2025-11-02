@@ -539,6 +539,35 @@ export function getFormSchema(name) {
       ),
     },
 
+    // Dieptereiniging stap 3: Schoonmaker keuze
+    'dr_schoonmaker-form': {
+      selector: '[data-form-name="dr_schoonmaker-form"]',
+      fields: {
+        schoonmakerKeuze: {
+          label: 'Schoonmaker keuze',
+          inputType: 'radio',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'form',
+          messages: {
+            required: 'Kies een schoonmaker of selecteer "Geen voorkeur"'
+          }
+        }
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in drSchoonmakerForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          NO_CLEANERS_FOUND: 'Geen beschikbare schoonmakers gevonden voor de gekozen datum',
+          CLEANER_SELECTION_REQUIRED: 'Selecteer een schoonmaker om door te gaan',
+          CUSTOM_SUCCESS: 'Schoonmaker gekozen, ga door naar de volgende stap'
+        }
+      ),
+    },
+
     // Andere formulieren...
   };
 

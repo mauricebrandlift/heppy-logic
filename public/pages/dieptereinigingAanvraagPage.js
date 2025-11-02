@@ -38,6 +38,22 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   }
 
+  // Check voor schoonmaker formulier (stap 3)
+  const schoonmakerFormElement = document.querySelector('[data-form-name="dr_schoonmaker-form"]');
+  
+  if (schoonmakerFormElement) {
+    console.log('👷 Dieptereiniging schoonmaker formulier gevonden, initialiseren...');
+    import('../forms/dieptereiniging/drSchoonmakerForm.js')
+      .then((m) => {
+        if (m && typeof m.initDrSchoonmakerForm === 'function') {
+          m.initDrSchoonmakerForm();
+        }
+      })
+      .catch((err) => {
+        console.error('Kon schoonmaker formulier niet laden:', err);
+      });
+  }
+
   // Check voor persoonsgegevens formulier
   const persoonsgegevensFormElement = document.querySelector('[data-form-name="dr_persoonsgegevens-form"]');
   
