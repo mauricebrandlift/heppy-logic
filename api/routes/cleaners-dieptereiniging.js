@@ -71,7 +71,10 @@ export default async function handler(req, res) {
 
     // Parse en valideer datum
     const datumDate = new Date(datum);
+    console.log(`[cleaners-dieptereiniging] 📅 Datum parsing: ${datum} → ${datumDate.toISOString()}`);
+    
     if (isNaN(datumDate.getTime())) {
+      console.error(`[cleaners-dieptereiniging] ❌ Invalid datum: ${datum}`);
       return res.status(400).json({ 
         error: 'Invalid datum format. Use ISO format: YYYY-MM-DD',
         correlationId 
@@ -80,19 +83,21 @@ export default async function handler(req, res) {
 
     // Bepaal weekdag
     const weekdag = getWeekdayName(datum);
-    console.log(`[cleaners-dieptereiniging] Weekdag voor ${datum}: ${weekdag}`);
+    console.log(`[cleaners-dieptereiniging] 📆 Weekdag voor ${datum}: ${weekdag}`);
 
     // Parse uren (moet integer zijn)
     const urenRequired = Math.max(Math.ceil(parseFloat(minUren)), 1);
+    console.log(`[cleaners-dieptereiniging] ⏱️ Uren: ${minUren} → ${urenRequired}`);
 
-    console.log(`[cleaners-dieptereiniging] Zoeken naar schoonmakers:`, {
-      plaats: plaats.toLowerCase(),
-      weekdag,
-      minUren: urenRequired,
-      startTijd: '08:00-10:00'
+    console.log(`[cleaners-dieptereiniging] 🔍 Zoeken naar schoonmakers met parameters:`, {
+      plaats_input: plaats.toLowerCase(),
+      weekdag_input: weekdag,
+      gewenste_uren: urenRequired,
+      startTijdFilter: '08:00-10:00'
     });
 
     // RPC call naar database functie
+    console.log(`[cleaners-dieptereiniging] 🌐 Calling Supabase RPC: get_beschikbare_schoonmakers_dieptereiniging`);
     const { data, error } = await supabase.rpc('get_beschikbare_schoonmakers_dieptereiniging', {
       plaats_input: plaats.toLowerCase(),
       weekdag_input: weekdag,
@@ -100,7 +105,12 @@ export default async function handler(req, res) {
     });
 
     if (error) {
-      console.error('[cleaners-dieptereiniging] Database error:', error);
+      console.error('[cleaners-dieptereiniging] ❌ Database error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       return res.status(500).json({ 
         error: 'Database query failed',
         details: error.message,
@@ -108,7 +118,18 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`[cleaners-dieptereiniging] Gevonden: ${data?.length || 0} schoonmakers`);
+    console.log(`[cleaners-dieptereiniging] ✅ Query succesvol. Gevonden: ${data?.length || 0} schoonmakers`);
+    
+    if (data && data.length > 0) {
+      console.log(`[cleaners-dieptereiniging] 👥 Eerste schoonmaker:`, {
+        id: data[0].id,
+        naam: `${data[0].voornaam} ${data[0].achternaam}`,
+        plaats: data[0].plaats,
+        rating: data[0].rating
+      });
+    } else {
+      console.warn(`[cleaners-dieptereiniging] ⚠️ Geen schoonmakers gevonden voor ${plaats} op ${weekdag} (${urenRequired} uur)`);
+    }
 
     return res.status(200).json({
       correlationId,

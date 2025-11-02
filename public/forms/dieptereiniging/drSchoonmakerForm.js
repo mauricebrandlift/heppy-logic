@@ -11,56 +11,94 @@ import { fetchAvailableCleaners } from '../../utils/api/cleaners.js';
  * Initialiseert het schoonmaker selectie formulier voor dieptereiniging
  */
 export async function initDrSchoonmakerForm() {
-  console.log('[DR Schoonmaker Form] Initializing...');
+  console.log('🚀 [DR Schoonmaker Form] ===== INITIALISATIE START =====');
 
   const formElement = document.querySelector('[data-form-name="dr_schoonmaker-form"]');
+  console.log('[DR Schoonmaker Form] Form element gevonden:', !!formElement);
+  
   if (!formElement) {
-    console.warn('[DR Schoonmaker Form] Form element not found');
+    console.warn('⚠️ [DR Schoonmaker Form] Form element niet gevonden');
     return;
   }
 
   // Haal bestaande keuze op (bij terugkomen)
   const existingChoice = formHandler.formData.schoonmakerKeuze || null;
-  console.log('[DR Schoonmaker Form] Existing choice:', existingChoice);
+  console.log('[DR Schoonmaker Form] Bestaande keuze:', existingChoice);
+
+  // Check of alle UI elementen aanwezig zijn
+  const listContainer = document.querySelector('[data-element="schoonmakers-list"]');
+  const loadingSpinner = document.querySelector('[data-loading-spinner="schoonmakers"]');
+  const emptyState = document.querySelector('[data-element="schoonmakers-empty"]');
+  const totalElement = document.querySelector('[data-element="schoonmakers-total"]');
+  const template = document.querySelector('[data-render-element="schoonmaker"]');
+  
+  console.log('[DR Schoonmaker Form] UI elementen check:', {
+    listContainer: !!listContainer,
+    loadingSpinner: !!loadingSpinner,
+    emptyState: !!emptyState,
+    totalElement: !!totalElement,
+    template: !!template
+  });
 
   // Laad schoonmakers (error handling gebeurt in loadCleaners zelf)
+  console.log('[DR Schoonmaker Form] Start laden schoonmakers...');
   await loadCleaners(existingChoice);
 
   // Setup event handlers
   setupEventHandlers();
 
-  console.log('[DR Schoonmaker Form] Initialization complete');
+  console.log('✅ [DR Schoonmaker Form] ===== INITIALISATIE COMPLEET =====');
 }
 
 /**
  * Laadt beschikbare schoonmakers van de API
  */
 async function loadCleaners(existingChoice) {
+  console.log('📦 [DR Schoonmaker Form] loadCleaners() START');
+  
   const listContainer = document.querySelector('[data-element="schoonmakers-list"]');
   const loadingSpinner = document.querySelector('[data-loading-spinner="schoonmakers"]');
   const emptyState = document.querySelector('[data-element="schoonmakers-empty"]');
   const totalElement = document.querySelector('[data-element="schoonmakers-total"]');
 
+  console.log('[DR Schoonmaker Form] UI elementen voor loading:', {
+    listContainer: !!listContainer,
+    loadingSpinner: !!loadingSpinner,
+    emptyState: !!emptyState
+  });
+
   // Toon loading
-  if (loadingSpinner) loadingSpinner.style.display = 'flex';
+  if (loadingSpinner) {
+    loadingSpinner.style.display = 'flex';
+    console.log('[DR Schoonmaker Form] Loading spinner getoond');
+  }
   if (listContainer) listContainer.style.display = 'none';
   if (emptyState) emptyState.style.display = 'none';
 
   try {
     // Haal flow data op
     const flowKey = 'dieptereiniging-aanvraag';
-    const flowData = JSON.parse(sessionStorage.getItem(flowKey) || '{}');
+    const flowDataStr = sessionStorage.getItem(flowKey);
+    console.log('[DR Schoonmaker Form] Flow data raw:', flowDataStr);
+    
+    const flowData = JSON.parse(flowDataStr || '{}');
+    console.log('[DR Schoonmaker Form] Flow data parsed:', flowData);
     
     // Controleer vereiste velden
     if (!flowData.dr_plaats || !flowData.dr_datum || !flowData.dr_uren) {
-      console.error('[DR Schoonmaker Form] Missing required flow data:', flowData);
+      console.error('❌ [DR Schoonmaker Form] Missing required flow data:', {
+        dr_plaats: flowData.dr_plaats,
+        dr_datum: flowData.dr_datum,
+        dr_uren: flowData.dr_uren
+      });
       throw new Error('Adres- of opdrachtgegevens ontbreken. Ga terug naar de vorige stap.');
     }
 
-    console.log('[DR Schoonmaker Form] Fetching cleaners from API...', {
+    console.log('🌐 [DR Schoonmaker Form] Fetching cleaners from API...', {
       plaats: flowData.dr_plaats,
       datum: flowData.dr_datum,
-      uren: flowData.dr_uren
+      uren: flowData.dr_uren,
+      type: 'dieptereiniging'
     });
     
     const response = await fetchAvailableCleaners({
@@ -70,33 +108,46 @@ async function loadCleaners(existingChoice) {
       type: 'dieptereiniging' // Signal to use dieptereiniging endpoint
     });
 
-    console.log('[DR Schoonmaker Form] API response:', response);
+    console.log('📨 [DR Schoonmaker Form] API response:', response);
 
     const cleaners = response.cleaners || [];
-    console.log('[DR Schoonmaker Form] Cleaners count:', cleaners.length);
+    console.log(`👥 [DR Schoonmaker Form] Cleaners count: ${cleaners.length}`);
 
     // Verberg loading
-    if (loadingSpinner) loadingSpinner.style.display = 'none';
+    if (loadingSpinner) {
+      loadingSpinner.style.display = 'none';
+      console.log('[DR Schoonmaker Form] Loading spinner verborgen');
+    }
 
     if (cleaners.length === 0) {
+      console.warn('⚠️ [DR Schoonmaker Form] Geen schoonmakers gevonden');
       // Toon empty state
-      if (emptyState) emptyState.style.display = 'block';
+      if (emptyState) {
+        emptyState.style.display = 'block';
+        console.log('[DR Schoonmaker Form] Empty state getoond');
+      }
       return;
     }
 
     // Render schoonmakers
+    console.log('[DR Schoonmaker Form] Start rendering schoonmakers...');
     renderCleaners(cleaners, existingChoice);
 
     // Update totaal
     if (totalElement) {
       totalElement.textContent = cleaners.length;
+      console.log(`[DR Schoonmaker Form] Totaal element updated: ${cleaners.length}`);
     }
 
     // Toon lijst
-    if (listContainer) listContainer.style.display = 'block';
+    if (listContainer) {
+      listContainer.style.display = 'block';
+      console.log('[DR Schoonmaker Form] Lijst container getoond');
+    }
 
   } catch (error) {
-    console.error('[DR Schoonmaker Form] Failed to load cleaners:', error);
+    console.error('❌ [DR Schoonmaker Form] ERROR in loadCleaners:', error);
+    console.error('[DR Schoonmaker Form] Error stack:', error.stack);
     
     // Verberg loading
     if (loadingSpinner) loadingSpinner.style.display = 'none';
@@ -104,30 +155,47 @@ async function loadCleaners(existingChoice) {
     // Toon empty state (geen alert!)
     if (emptyState) {
       emptyState.style.display = 'block';
+      console.log('[DR Schoonmaker Form] Empty state getoond na error');
     }
   }
+  
+  console.log('✅ [DR Schoonmaker Form] loadCleaners() COMPLEET');
 }
 
 /**
  * Rendert schoonmaker kaarten in de lijst
  */
 function renderCleaners(cleaners, existingChoice) {
+  console.log('🎨 [DR Schoonmaker Form] renderCleaners() START');
+  
   const template = document.querySelector('[data-render-element="schoonmaker"]');
   const listContainer = document.querySelector('[data-element="schoonmakers-list"]');
 
+  console.log('[DR Schoonmaker Form] Template & container check:', {
+    template: !!template,
+    listContainer: !!listContainer
+  });
+
   if (!template || !listContainer) {
-    console.error('[DR Schoonmaker Form] Missing template or list container');
+    console.error('❌ [DR Schoonmaker Form] Missing template or list container');
     return;
   }
 
-  console.log('[DR Schoonmaker Form] Rendering', cleaners.length, 'cleaners');
+  console.log(`[DR Schoonmaker Form] Rendering ${cleaners.length} cleaners`);
 
   // Clear bestaande items (behalve template)
   const existingCards = listContainer.querySelectorAll('[data-render-element="schoonmaker"]:not([data-render-element="schoonmaker"]:first-child)');
+  console.log(`[DR Schoonmaker Form] Removing ${existingCards.length} existing cards`);
   existingCards.forEach(card => card.remove());
 
   // Render elke schoonmaker
   cleaners.forEach((cleaner, index) => {
+    console.log(`[DR Schoonmaker Form] Rendering cleaner ${index + 1}/${cleaners.length}:`, {
+      id: cleaner.id,
+      naam: `${cleaner.voornaam} ${cleaner.achternaam}`,
+      plaats: cleaner.plaats
+    });
+    
     const card = template.cloneNode(true);
     card.style.display = 'block'; // Template is meestal hidden
     
@@ -136,8 +204,7 @@ function renderCleaners(cleaners, existingChoice) {
 
     // Voeg toe aan lijst
     listContainer.appendChild(card);
-
-    console.log(`[DR Schoonmaker Form] Rendered cleaner ${index + 1}:`, cleaner.voornaam, cleaner.achternaam);
+    console.log(`[DR Schoonmaker Form] ✅ Card ${index + 1} toegevoegd aan lijst`);
   });
 
   // Pre-select bestaande keuze indien aanwezig
@@ -153,8 +220,12 @@ function renderCleaners(cleaners, existingChoice) {
     if (geenVoorkeurRadio) {
       geenVoorkeurRadio.checked = true;
       console.log('[DR Schoonmaker Form] Pre-selected "Geen voorkeur"');
+    } else {
+      console.warn('⚠️ [DR Schoonmaker Form] "Geen voorkeur" radio niet gevonden');
     }
   }
+  
+  console.log('✅ [DR Schoonmaker Form] renderCleaners() COMPLEET');
 }
 
 /**
