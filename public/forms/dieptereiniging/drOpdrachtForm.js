@@ -113,7 +113,13 @@ async function getPricingConfiguration() {
       });
       
       pricingConfig.isLoaded = true;
-      console.log('✅ [drOpdrachtForm] Prijsconfiguratie verwerkt:', pricingConfig);
+      console.log('✅ [drOpdrachtForm] Prijsconfiguratie verwerkt:', {
+        timePerM2: pricingConfig.timePerM2,
+        timePerToilet: pricingConfig.timePerToilet,
+        timePerBathroom: pricingConfig.timePerBathroom,
+        pricePerHour: pricingConfig.pricePerHour,
+        minHours: pricingConfig.minHours
+      });
       return true;
     } else {
       console.error('❌ [drOpdrachtForm] Geen geldige prijsconfiguratie gevonden in de API respons');
@@ -367,6 +373,13 @@ async function performCalculations(formElement) {
   
   // Update de UI
   updateCalculationUI(formElement);
+  
+  // Trigger formHandler hervalidatie om submit button te updaten
+  if (formHandler.validateForm) {
+    setTimeout(() => {
+      formHandler.validateForm();
+    }, 50);
+  }
 }
 
 /**
@@ -486,6 +499,12 @@ export async function initDrOpdrachtForm() {
     if (input) {
       input.addEventListener('input', () => {
         console.log(`[drOpdrachtForm] Input gewijzigd: ${input.dataset.fieldName} = ${input.value}`);
+        
+        // Update formHandler data
+        if (formHandler.formData) {
+          formHandler.formData[input.dataset.fieldName] = input.value;
+        }
+        
         performCalculations(formElement);
       });
     }
@@ -493,19 +512,33 @@ export async function initDrOpdrachtForm() {
   
   // Speciale behandeling voor datum veld (validatie + spoed check)
   if (datumInput) {
-    datumInput.addEventListener('change', () => {
+    const handleDatumChange = async () => {
       const datum = datumInput.value;
-      console.log(`[drOpdrachtForm] Datum gewijzigd: ${datum}`);
+      console.log(`[drOpdrachtForm] Datum change event: ${datum}`);
+      
+      // Update formHandler data DIRECT
+      if (formHandler.formData) {
+        formHandler.formData.dr_datum = datum;
+        console.log('[drOpdrachtForm] formHandler.formData.dr_datum updated:', datum);
+      }
       
       if (datum) {
         const validatie = valideerDatum(datum, formElement, true); // showUI = true
         
         if (validatie.valid) {
           // Update berekeningen (voor spoed check)
-          performCalculations(formElement);
+          await performCalculations(formElement);
         }
       }
-    });
+    };
+    
+    // Luister naar BEIDE events (Webflow kan input of change gebruiken)
+    datumInput.addEventListener('change', handleDatumChange);
+    datumInput.addEventListener('input', handleDatumChange);
+    
+    console.log('[drOpdrachtForm] Datum event listeners toegevoegd aan:', datumInput);
+  } else {
+    console.warn('[drOpdrachtForm] ⚠️ Datum input niet gevonden!');
   }
   
   // Uren +/- buttons
