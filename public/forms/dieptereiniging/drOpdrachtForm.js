@@ -518,10 +518,26 @@ export async function initDrOpdrachtForm() {
   });
   
   // Speciale behandeling voor datum veld (validatie + spoed check)
+  console.log('[drOpdrachtForm] 🔍 Zoeken naar datum input met selector: [data-field-name="dr_datum"]');
+  console.log('[drOpdrachtForm] 🔍 Alle inputs in form:', Array.from(formElement.querySelectorAll('input')).map(i => ({
+    name: i.name,
+    type: i.type,
+    dataFieldName: i.getAttribute('data-field-name'),
+    id: i.id
+  })));
+  
   if (datumInput) {
+    console.log('[drOpdrachtForm] ✅ Datum input gevonden:', {
+      element: datumInput,
+      type: datumInput.type,
+      name: datumInput.name,
+      dataFieldName: datumInput.getAttribute('data-field-name'),
+      currentValue: datumInput.value
+    });
+    
     const handleDatumChange = async () => {
       const datum = datumInput.value;
-      console.log(`[drOpdrachtForm] Datum change event: ${datum}`);
+      console.log(`[drOpdrachtForm] 📅 Datum change event: "${datum}"`);
       
       // Update formHandler data DIRECT
       if (formHandler.formData) {
@@ -531,11 +547,17 @@ export async function initDrOpdrachtForm() {
       
       if (datum) {
         const validatie = valideerDatum(datum, formElement, true); // showUI = true
+        console.log('[drOpdrachtForm] Datum validatie resultaat:', validatie);
         
         if (validatie.valid) {
+          console.log('[drOpdrachtForm] Datum is geldig, voer berekeningen uit...');
           // Update berekeningen (voor spoed check)
           await performCalculations(formElement);
+        } else {
+          console.warn('[drOpdrachtForm] Datum is NIET geldig:', validatie.error);
         }
+      } else {
+        console.warn('[drOpdrachtForm] Datum is leeg');
       }
     };
     
@@ -543,9 +565,10 @@ export async function initDrOpdrachtForm() {
     datumInput.addEventListener('change', handleDatumChange);
     datumInput.addEventListener('input', handleDatumChange);
     
-    console.log('[drOpdrachtForm] Datum event listeners toegevoegd aan:', datumInput);
+    console.log('[drOpdrachtForm] ✅ Datum event listeners toegevoegd');
   } else {
-    console.warn('[drOpdrachtForm] ⚠️ Datum input niet gevonden!');
+    console.error('[drOpdrachtForm] ❌ Datum input NIET gevonden met selector [data-field-name="dr_datum"]');
+    console.error('[drOpdrachtForm] ❌ Check of de HTML data-field-name attribute correct is (geen komma, spaties, etc)');
   }
   
   // Uren +/- buttons
@@ -593,25 +616,24 @@ export async function initDrOpdrachtForm() {
     });
   }
   
-  // Herstel vorige invoer als die er is (bijv. na terug navigeren)
-  if (flowData && (flowData.dr_m2 || flowData.dr_toiletten || flowData.dr_badkamers)) {
-    console.log('[drOpdrachtForm] Herstellen vorige invoer:', flowData);
-    
-    if (m2Input && flowData.dr_m2) m2Input.value = flowData.dr_m2;
-    if (toilettenInput && flowData.dr_toiletten) toilettenInput.value = flowData.dr_toiletten;
-    if (badkamersInput && flowData.dr_badkamers) badkamersInput.value = flowData.dr_badkamers;
-    if (datumInput && flowData.dr_datum) datumInput.value = flowData.dr_datum;
-    
-    // Update formHandler.formData
-    if (flowData.dr_m2) formHandler.formData.dr_m2 = flowData.dr_m2;
-    if (flowData.dr_toiletten) formHandler.formData.dr_toiletten = flowData.dr_toiletten;
-    if (flowData.dr_badkamers) formHandler.formData.dr_badkamers = flowData.dr_badkamers;
-    if (flowData.dr_datum) formHandler.formData.dr_datum = flowData.dr_datum;
-    
-    // Trigger initiële berekening
+  // Check of formHandler velden heeft prefilled (dit gebeurt automatisch via persist: 'form')
+  const hasPrefillData = formHandler.formData.dr_m2 || formHandler.formData.dr_toiletten || formHandler.formData.dr_badkamers;
+  
+  console.log('[drOpdrachtForm] FormHandler formData na init:', {
+    dr_m2: formHandler.formData.dr_m2,
+    dr_toiletten: formHandler.formData.dr_toiletten,
+    dr_badkamers: formHandler.formData.dr_badkamers,
+    dr_datum: formHandler.formData.dr_datum,
+    hasPrefillData
+  });
+  
+  // Als er prefill data is, voer dan direct berekening uit
+  if (hasPrefillData) {
+    console.log('[drOpdrachtForm] Prefill data gevonden, voer initiële berekening uit...');
     await performCalculations(formElement);
   } else {
     // Toon standaard minimum uren als er nog geen invoer is
+    console.log('[drOpdrachtForm] Geen prefill data, toon standaard minimum uren');
     const minUrenField = formElement.querySelector('[data-field-total="calculate_form__min_dr_uren"]');
     if (minUrenField) {
       minUrenField.textContent = formatHours(pricingConfig.minHours || 3);
