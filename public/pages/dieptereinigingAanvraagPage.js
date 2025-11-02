@@ -12,7 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialiseer logout handlers
   initLogoutHandlers();
 
-  // Zoek het formulier op basis van de schema-selector met data-form-name
+  // ⚠️ BELANGRIJK: Initialiseer ALLEEN stap 1 (adres formulier)
+  // Andere stappen worden lazy loaded via onSuccess handlers in de vorige stap
+  // Dit voorkomt dat alle formulieren tegelijk initialiseren en data proberen te laden
   const adresFormElement = document.querySelector('[data-form-name="dr_adres-form"]');
 
   if (adresFormElement) {
@@ -22,51 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('🚫 Geen dieptereiniging adres formulier gevonden op deze pagina.');
   }
 
-  // Check voor opdracht formulier (stap 2)
-  const opdrachtFormElement = document.querySelector('[data-form-name="dr_opdracht-form"]');
-  
-  if (opdrachtFormElement) {
-    console.log('📅 Dieptereiniging opdracht formulier gevonden, initialiseren...');
-    import('../forms/dieptereiniging/drOpdrachtForm.js')
-      .then((m) => {
-        if (m && typeof m.initDrOpdrachtForm === 'function') {
-          m.initDrOpdrachtForm();
-        }
-      })
-      .catch((err) => {
-        console.error('Kon opdracht formulier niet laden:', err);
-      });
-  }
-
-  // Check voor schoonmaker formulier (stap 3)
-  const schoonmakerFormElement = document.querySelector('[data-form-name="dr_schoonmaker-form"]');
-  
-  if (schoonmakerFormElement) {
-    console.log('👷 Dieptereiniging schoonmaker formulier gevonden, initialiseren...');
-    import('../forms/dieptereiniging/drSchoonmakerForm.js')
-      .then((m) => {
-        if (m && typeof m.initDrSchoonmakerForm === 'function') {
-          m.initDrSchoonmakerForm();
-        }
-      })
-      .catch((err) => {
-        console.error('Kon schoonmaker formulier niet laden:', err);
-      });
-  }
-
-  // Check voor persoonsgegevens formulier
-  const persoonsgegevensFormElement = document.querySelector('[data-form-name="dr_persoonsgegevens-form"]');
-  
-  if (persoonsgegevensFormElement) {
-    console.log('👤 Dieptereiniging persoonsgegevens formulier gevonden, initialiseren...');
-    import('../forms/dieptereiniging/drPersoonsgegevensForm.js')
-      .then((m) => {
-        if (m && typeof m.initDrPersoonsgegevensForm === 'function') {
-          m.initDrPersoonsgegevensForm();
-        }
-      })
-      .catch((err) => {
-        console.error('Kon persoonsgegevens formulier niet laden:', err);
-      });
-  }
+  // Stap 2 (opdracht) wordt geïnitialiseerd door drAdresForm.js onSuccess handler
+  // Stap 3 (schoonmaker) wordt geïnitialiseerd door drOpdrachtForm.js onSuccess handler
+  // Stap 4 (persoonsgegevens) wordt geïnitialiseerd door drSchoonmakerForm.js onSuccess handler
+  // etc.
 });
