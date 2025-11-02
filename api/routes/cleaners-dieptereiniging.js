@@ -1,16 +1,8 @@
 // api/routes/cleaners-dieptereiniging.js
 // Haalt beschikbare schoonmakers op voor dieptereiniging op een specifieke datum
 
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { handleErrorResponse } from '../utils/errorHandler.js';
+import { supabaseConfig } from '../config/index.js';
 
 /**
  * Bepaal de weekdag naam uit een ISO datum string (2025-11-11)
@@ -96,28 +88,40 @@ export default async function handler(req, res) {
       startTijdFilter: '08:00-10:00'
     });
 
-    // RPC call naar database functie
-    console.log(`[cleaners-dieptereiniging] 🌐 Calling Supabase RPC: get_beschikbare_schoonmakers_dieptereiniging`);
-    const { data, error } = await supabase.rpc('get_beschikbare_schoonmakers_dieptereiniging', {
+    // Bereid de aanroep voor naar de Supabase stored procedure
+    const payload = {
       plaats_input: plaats.toLowerCase(),
       weekdag_input: weekdag,
       gewenste_uren: urenRequired
+    };
+
+    console.log(`[cleaners-dieptereiniging] 🌐 Calling Supabase RPC: get_beschikbare_schoonmakers_dieptereiniging`);
+
+    // Supabase RPC aanroep via fetch (GEEN @supabase/supabase-js package!)
+    const rpcUrl = `${supabaseConfig.url}/rest/v1/rpc/get_beschikbare_schoonmakers_dieptereiniging`;
+    const response = await fetch(rpcUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
     });
 
-    if (error) {
-      console.error('[cleaners-dieptereiniging] ❌ Database error:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
-      return res.status(500).json({ 
-        error: 'Database query failed',
-        details: error.message,
-        correlationId 
-      });
+    // Controleer voor HTTP fouten
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[cleaners-dieptereiniging] ❌ Supabase API error:`, errorText);
+      
+      const error = new Error('Fout bij ophalen schoonmakers');
+      error.status = response.status;
+      error.details = errorText;
+      throw error;
     }
 
+    // Verwerk het resultaat
+    const data = await response.json();
     console.log(`[cleaners-dieptereiniging] ✅ Query succesvol. Gevonden: ${data?.length || 0} schoonmakers`);
     
     if (data && data.length > 0) {
@@ -142,10 +146,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('[cleaners-dieptereiniging] Unexpected error:', err);
-    return res.status(500).json({ 
-      error: 'Internal server error',
-      message: err.message,
-      correlationId 
-    });
+    return handleErrorResponse(res, err, 500, correlationId);
   }
 }
