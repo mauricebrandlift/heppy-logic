@@ -479,7 +479,7 @@ export function getFormSchema(name) {
           inputType: 'number',
           sanitizers: ['trim'],
           validators: ['required', 'integer', 'min:20', 'max:500'],
-          persist: 'flow',
+          persist: 'form',
           messages: {
             required: 'Vul het aantal vierkante meters in',
             integer: 'Vul een geldig getal in',
@@ -492,7 +492,7 @@ export function getFormSchema(name) {
           inputType: 'number',
           sanitizers: ['trim'],
           validators: ['required', 'integer', 'min:0', 'max:10'],
-          persist: 'flow',
+          persist: 'form',
           messages: {
             required: 'Vul het aantal toiletten in',
             integer: 'Vul een geldig getal in',
@@ -505,7 +505,7 @@ export function getFormSchema(name) {
           inputType: 'number',
           sanitizers: ['trim'],
           validators: ['required', 'integer', 'min:0', 'max:10'],
-          persist: 'flow',
+          persist: 'form',
           messages: {
             required: 'Vul het aantal badkamers in',
             integer: 'Vul een geldig getal in',
@@ -518,7 +518,7 @@ export function getFormSchema(name) {
           inputType: 'date',
           sanitizers: ['trim'],
           validators: ['required'],
-          persist: 'flow',
+          persist: 'form',
           messages: {
             required: 'Kies een datum voor de dieptereiniging',
             INVALID_DATE: 'Deze datum is niet beschikbaar'

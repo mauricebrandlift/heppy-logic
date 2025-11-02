@@ -494,6 +494,13 @@ export async function initDrOpdrachtForm() {
   const badkamersInput = formElement.querySelector('[data-field-name="dr_badkamers"]');
   const datumInput = formElement.querySelector('[data-field-name="dr_datum"]');
   
+  console.log('[drOpdrachtForm] Input elements gevonden:', {
+    m2Input: !!m2Input,
+    toilettenInput: !!toilettenInput,
+    badkamersInput: !!badkamersInput,
+    datumInput: !!datumInput
+  });
+  
   // Event listeners voor live berekeningen
   [m2Input, toilettenInput, badkamersInput].forEach(input => {
     if (input) {
