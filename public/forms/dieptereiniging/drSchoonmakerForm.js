@@ -5,6 +5,7 @@
  */
 
 import { formHandler } from '../logic/formHandler.js';
+import { loadFlowData, saveFlowData } from '../logic/formStorage.js';
 import { fetchAvailableCleaners } from '../../utils/api/cleaners.js';
 
 /**
@@ -76,20 +77,17 @@ async function loadCleaners(existingChoice) {
   if (emptyState) emptyState.style.display = 'none';
 
   try {
-    // Haal flow data op
-    const flowKey = 'dieptereiniging-aanvraag';
-    const flowDataStr = sessionStorage.getItem(flowKey);
-    console.log('[DR Schoonmaker Form] Flow data raw:', flowDataStr);
-    
-    const flowData = JSON.parse(flowDataStr || '{}');
-    console.log('[DR Schoonmaker Form] Flow data parsed:', flowData);
+    // Haal flow data op via loadFlowData helper
+    const flowData = loadFlowData('dieptereiniging-aanvraag') || {};
+    console.log('[DR Schoonmaker Form] Flow data geladen:', flowData);
     
     // Controleer vereiste velden
     if (!flowData.dr_plaats || !flowData.dr_datum || !flowData.dr_uren) {
       console.error('❌ [DR Schoonmaker Form] Missing required flow data:', {
         dr_plaats: flowData.dr_plaats,
         dr_datum: flowData.dr_datum,
-        dr_uren: flowData.dr_uren
+        dr_uren: flowData.dr_uren,
+        allKeys: Object.keys(flowData)
       });
       throw new Error('Adres- of opdrachtgegevens ontbreken. Ga terug naar de vorige stap.');
     }
