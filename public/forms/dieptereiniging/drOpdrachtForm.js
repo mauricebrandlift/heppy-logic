@@ -480,8 +480,15 @@ export async function initDrOpdrachtForm() {
     onSuccess: () => {
       console.log('[drOpdrachtForm] Submit succesvol, navigeer naar volgende stap');
       
-      // Navigeer naar volgende stap
-      goToFormStep(NEXT_FORM_NAME);
+      // Import en initialiseer de volgende stap: schoonmaker keuze
+      import('./drSchoonmakerForm.js').then(module => {
+        console.log('[drOpdrachtForm] Stap 3 (drSchoonmakerForm) wordt geïnitialiseerd...');
+        module.initDrSchoonmakerForm();
+        goToFormStep(NEXT_FORM_NAME);
+      }).catch(err => {
+        console.error('[drOpdrachtForm] Kon stap 3 niet laden:', err);
+        goToFormStep(NEXT_FORM_NAME);
+      });
     }
   };
   
