@@ -5,6 +5,7 @@
  */
 
 import { formHandler } from '../logic/formHandler.js';
+import { getFormSchema } from '../schemas/formSchemas.js';
 import { loadFlowData, saveFlowData } from '../logic/formStorage.js';
 import { fetchAvailableCleaners } from '../../utils/api/cleaners.js';
 
@@ -20,6 +21,15 @@ export async function initDrSchoonmakerForm() {
   if (!formElement) {
     console.warn('⚠️ [DR Schoonmaker Form] Form element niet gevonden');
     return;
+  }
+
+  // Initialiseer formHandler met schema
+  const schema = getFormSchema('dr_schoonmaker-form');
+  console.log('[DR Schoonmaker Form] Schema geladen:', schema);
+  
+  if (schema) {
+    formHandler.init(schema);
+    console.log('[DR Schoonmaker Form] FormHandler geïnitialiseerd');
   }
 
   // Haal bestaande keuze op (bij terugkomen)
