@@ -19,22 +19,12 @@ export async function initDrSchoonmakerForm() {
     return;
   }
 
-  // Haal flow data op
-  const flowData = getFlowData();
-  if (!flowData) {
-    console.error('[DR Schoonmaker Form] Missing required flow data');
-    showError('Kan geen schoonmakers laden. Ga terug naar de vorige stap.');
-    return;
-  }
-
-  console.log('[DR Schoonmaker Form] Flow data:', flowData);
-
   // Haal bestaande keuze op (bij terugkomen)
   const existingChoice = formHandler.formData.schoonmakerKeuze || null;
   console.log('[DR Schoonmaker Form] Existing choice:', existingChoice);
 
-  // Laad schoonmakers
-  await loadCleaners(flowData, existingChoice);
+  // Laad schoonmakers (error handling gebeurt in loadCleaners zelf)
+  await loadCleaners(existingChoice);
 
   // Setup event handlers
   setupEventHandlers();
@@ -43,42 +33,9 @@ export async function initDrSchoonmakerForm() {
 }
 
 /**
- * Haalt benodigde data uit de flow
- */
-function getFlowData() {
-  const flowKey = 'dieptereiniging-aanvraag';
-  const flowDataStr = sessionStorage.getItem(flowKey);
-  
-  if (!flowDataStr) {
-    console.error('[DR Schoonmaker Form] No flow data found in sessionStorage');
-    return null;
-  }
-
-  let flowData;
-  try {
-    flowData = JSON.parse(flowDataStr);
-  } catch (e) {
-    console.error('[DR Schoonmaker Form] Failed to parse flow data:', e);
-    return null;
-  }
-
-  // Valideer vereiste velden
-  const plaats = flowData.dr_plaats;
-  const datum = flowData.dr_datum;
-  const uren = flowData.dr_uren;
-
-  if (!plaats || !datum || !uren) {
-    console.error('[DR Schoonmaker Form] Missing required fields:', { plaats, datum, uren });
-    return null;
-  }
-
-  return { plaats, datum, uren };
-}
-
-/**
  * Laadt beschikbare schoonmakers van de API
  */
-async function loadCleaners(flowData, existingChoice) {
+async function loadCleaners(existingChoice) {
   const listContainer = document.querySelector('[data-element="schoonmakers-list"]');
   const loadingSpinner = document.querySelector('[data-loading-spinner="schoonmakers"]');
   const emptyState = document.querySelector('[data-element="schoonmakers-empty"]');
@@ -90,12 +47,26 @@ async function loadCleaners(flowData, existingChoice) {
   if (emptyState) emptyState.style.display = 'none';
 
   try {
-    console.log('[DR Schoonmaker Form] Fetching cleaners from API...');
+    // Haal flow data op
+    const flowKey = 'dieptereiniging-aanvraag';
+    const flowData = JSON.parse(sessionStorage.getItem(flowKey) || '{}');
+    
+    // Controleer vereiste velden
+    if (!flowData.dr_plaats || !flowData.dr_datum || !flowData.dr_uren) {
+      console.error('[DR Schoonmaker Form] Missing required flow data:', flowData);
+      throw new Error('Adres- of opdrachtgegevens ontbreken. Ga terug naar de vorige stap.');
+    }
+
+    console.log('[DR Schoonmaker Form] Fetching cleaners from API...', {
+      plaats: flowData.dr_plaats,
+      datum: flowData.dr_datum,
+      uren: flowData.dr_uren
+    });
     
     const response = await fetchAvailableCleaners({
-      plaats: flowData.plaats,
-      datum: flowData.datum,
-      minUren: flowData.uren,
+      plaats: flowData.dr_plaats,
+      datum: flowData.dr_datum,
+      minUren: flowData.dr_uren,
       type: 'dieptereiniging' // Signal to use dieptereiniging endpoint
     });
 
@@ -130,8 +101,10 @@ async function loadCleaners(flowData, existingChoice) {
     // Verberg loading
     if (loadingSpinner) loadingSpinner.style.display = 'none';
     
-    // Toon error
-    showError('Kon geen schoonmakers laden. Probeer het opnieuw.');
+    // Toon empty state (geen alert!)
+    if (emptyState) {
+      emptyState.style.display = 'block';
+    }
   }
 }
 
@@ -293,8 +266,7 @@ async function handleSubmit(e) {
   
   if (!selectedRadio) {
     console.error('[DR Schoonmaker Form] No schoonmaker selected');
-    showError('Selecteer een schoonmaker om door te gaan');
-    return;
+    return; // FormHandler zal validation tonen
   }
 
   const selectedValue = selectedRadio.value;
@@ -309,8 +281,7 @@ async function handleSubmit(e) {
 
   if (!schoonmakerId || schoonmakerId === 'geenVoorkeur') {
     console.error('[DR Schoonmaker Form] No valid schoonmaker ID found');
-    showError('Geen beschikbare schoonmaker gevonden');
-    return;
+    return; // FormHandler zal validation tonen
   }
 
   // Sla keuze op in formData
@@ -381,24 +352,4 @@ function navigateToNextStep() {
   // }
 }
 
-/**
- * Toon error bericht aan gebruiker
- */
-function showError(message) {
-  console.error('[DR Schoonmaker Form] Error:', message);
-  
-  // Zoek error display element
-  const errorElement = document.querySelector('[data-error="schoonmaker-form"]');
-  if (errorElement) {
-    errorElement.textContent = message;
-    errorElement.style.display = 'block';
-    
-    // Auto-hide na 5 seconden
-    setTimeout(() => {
-      errorElement.style.display = 'none';
-    }, 5000);
-  } else {
-    // Fallback: gebruik alert
-    alert(message);
-  }
-}
+
