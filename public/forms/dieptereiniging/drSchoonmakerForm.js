@@ -211,7 +211,7 @@ async function loadCleaners(existingChoice) {
   // Toon loading state
   updateLoadingState(true);
   
-  if (formStatus.schoonmakersWrapper) formStatus.schoonmakersWrapper.style.display = 'none';
+  // Verberg empty state (volgt abonnement patroon: laat wrapper intact)
   if (formStatus.emptyElement) formStatus.emptyElement.style.display = 'none';
 
   try {
@@ -266,14 +266,9 @@ async function loadCleaners(existingChoice) {
       return;
     }
 
-    // Render schoonmakers
+    // Render schoonmakers (wrapper styling blijft intact - volgt abonnement patroon)
     console.log('[DR Schoonmaker Form] Start rendering schoonmakers...');
     renderCleaners(cleaners, existingChoice);
-
-    // Toon lijst
-    if (formStatus.schoonmakersWrapper) {
-      formStatus.schoonmakersWrapper.style.display = 'block';
-    }
 
   } catch (error) {
     console.error('❌ [DR Schoonmaker Form] ERROR in loadCleaners:', error);
@@ -398,6 +393,46 @@ function renderCleaners(cleaners, existingChoice) {
   
   console.log('[DR Schoonmaker Form] Wrapper geleegd, start rendering...');
 
+  // Update totaal met mooie tekst (VOLGT ABONNEMENT PATROON)
+  formStatus.totaalSchoonmakers = cleaners.length;
+  try {
+    if (formStatus.totaalElement) {
+      if (cleaners.length > 0) {
+        formStatus.totaalElement.style.display = '';
+        const schoonmakerText = cleaners.length === 1 ? 'schoonmaker' : 'schoonmakers';
+        formStatus.totaalElement.textContent = `${cleaners.length} ${schoonmakerText} beschikbaar`;
+      } else {
+        formStatus.totaalElement.style.display = 'none';
+        formStatus.totaalElement.textContent = '';
+      }
+    }
+  } catch (e) {
+    console.error('[DR Schoonmaker Form] Error updating totaalElement:', e);
+  }
+
+  // Geen voorkeur element tonen/verbergen (VOLGT ABONNEMENT PATROON)
+  try {
+    if (formStatus.geenVoorkeurElement) {
+      formStatus.geenVoorkeurElement.style.display = cleaners.length > 0 ? '' : 'none';
+    }
+  } catch (e) {
+    console.error('[DR Schoonmaker Form] Error updating geenVoorkeurElement:', e);
+  }
+
+  // Empty element tonen/verbergen (VOLGT ABONNEMENT PATROON)
+  try {
+    if (formStatus.emptyElement) {
+      formStatus.emptyElement.style.display = cleaners.length === 0 ? '' : 'none';
+    }
+  } catch (e) {
+    console.error('[DR Schoonmaker Form] Error updating emptyElement:', e);
+  }
+
+  if (cleaners.length === 0) {
+    console.warn('[DR Schoonmaker Form] Geen schoonmakers om te renderen');
+    return;
+  }
+
   // Render elke schoonmaker
   cleaners.forEach((cleaner, index) => {
     console.log(`[DR Schoonmaker Form] Rendering cleaner ${index + 1}/${cleaners.length}:`, {
@@ -412,13 +447,6 @@ function renderCleaners(cleaners, existingChoice) {
       console.log(`[DR Schoonmaker Form] ✅ Card ${index + 1} toegevoegd`);
     }
   });
-
-  // Update totaal met mooie tekst (zoals abonnement)
-  formStatus.totaalSchoonmakers = cleaners.length;
-  if (formStatus.totaalElement) {
-    const schoonmakerText = cleaners.length === 1 ? 'schoonmaker' : 'schoonmakers';
-    formStatus.totaalElement.textContent = `${cleaners.length} ${schoonmakerText} beschikbaar`;
-  }
 
   // Voeg "Geen voorkeur" optie toe (met auto-assign)
   addNoPreferenceOption(cleaners);
