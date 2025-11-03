@@ -244,10 +244,19 @@ async function loadCleaners(existingChoice) {
       type: 'dieptereiniging' // Signal to use dieptereiniging endpoint
     });
 
-    console.log('📨 [DR Schoonmaker Form] API response:', response);
+    console.log('📨 [DR Schoonmaker Form] API response:', { 
+      type: typeof response,
+      hasCleaners: 'cleaners' in response,
+      data: response
+    });
 
-    const cleaners = response.cleaners || [];
-    console.log(`👥 [DR Schoonmaker Form] Cleaners count: ${cleaners.length}`);
+    // Extract cleaners array from response object (fix voor object vs array issue)
+    const cleaners = response.cleaners || response;
+    console.log('👥 [DR Schoonmaker Form] Extracted cleaners array:', {
+      isArray: Array.isArray(cleaners),
+      length: cleaners?.length,
+      data: cleaners
+    });
 
     if (cleaners.length === 0) {
       console.warn('⚠️ [DR Schoonmaker Form] Geen schoonmakers gevonden');
@@ -404,10 +413,11 @@ function renderCleaners(cleaners, existingChoice) {
     }
   });
 
-  // Update totaal
+  // Update totaal met mooie tekst (zoals abonnement)
   formStatus.totaalSchoonmakers = cleaners.length;
   if (formStatus.totaalElement) {
-    formStatus.totaalElement.textContent = cleaners.length;
+    const schoonmakerText = cleaners.length === 1 ? 'schoonmaker' : 'schoonmakers';
+    formStatus.totaalElement.textContent = `${cleaners.length} ${schoonmakerText} beschikbaar`;
   }
 
   // Voeg "Geen voorkeur" optie toe (met auto-assign)
@@ -523,8 +533,8 @@ function bindSchoonmakerRadioEvents() {
 }
 
 /**
- * Rendert beschikbaarheid grid visueel (geen interactie)
- * Toont welke uren beschikbaar zijn op de gekozen dag
+ * Rendert beschikbaarheid grid visueel (volgt abonnement patroon)
+ * Toont welke dagdelen beschikbaar zijn op basis van uren/dagdeel analyse
  */
 function renderBeschikbaarheidGrid(card, beschikbaarheid) {
   if (!beschikbaarheid || !Array.isArray(beschikbaarheid)) {
@@ -534,22 +544,137 @@ function renderBeschikbaarheidGrid(card, beschikbaarheid) {
 
   console.log('[DR Schoonmaker Form] Rendering beschikbaarheid grid:', beschikbaarheid);
 
-  // Beschikbaarheid is array van { dag, dagdeel, start_tijd, eind_tijd }
-  // Voor dieptereiniging: toon alleen relevante tijdslots
-  beschikbaarheid.forEach(slot => {
-    const dag = slot.dag; // bijv. 'maandag'
-    const dagdeel = slot.dagdeel; // bijv. 'ochtend'
+  try {
+    // Haal benodigde uren op uit flow data
+    const flowData = loadFlowData('dieptereiniging-aanvraag') || {};
+    const requiredHours = parseFloat(flowData.dr_uren) || 0;
     
-    // Zoek het grid element voor deze combinatie
-    const gridElement = card.querySelector(`[data-schoonmaker-dagdeel="${dag}-${dagdeel}"]`);
-    if (gridElement) {
-      // Markeer als beschikbaar (bijv. via class)
-      gridElement.classList.add('beschikbaar');
+    // Bereken dagdeel beschikbaarheid (volgt abonnement logica)
+    const daypartAvailability = berekenDagdeelBeschikbaarheid(beschikbaarheid, requiredHours);
+    
+    // Update alle dagdeel elementen
+    const daypartElems = card.querySelectorAll('[data-field-name="schoonmaker-dagdeel"]');
+    daypartElems.forEach(el => {
+      const key = el.getAttribute('data-schoonmaker-dagdeel'); // bv ma-ochtend
+      const isAvailable = !!daypartAvailability[key];
       
-      // Optioneel: toon tijden
-      gridElement.setAttribute('title', `${slot.start_tijd} - ${slot.eind_tijd}`);
-    }
+      // Vind child wrappers (vinkje en kruisje)
+      const availEl = el.querySelector('.beschikbaarheid_item_check-wrp.is-available');
+      const unavailEl = el.querySelector('.beschikbaarheid_item_check-wrp.is-unavalable, .beschikbaarheid_item_check-wrp.is-unavailable');
+      
+      // Toon vinkje of kruisje (nooit beide)
+      if (availEl) availEl.style.display = isAvailable ? 'flex' : 'none';
+      if (unavailEl) unavailEl.style.display = isAvailable ? 'none' : 'flex';
+    });
+  } catch (e) {
+    console.warn('[DR Schoonmaker Form] Kon dagdeel beschikbaarheid niet renderen:', e);
+  }
+}
+
+/**
+ * Berekent dagdeel beschikbaarheid op basis van ruwe beschikbaarheidsuren
+ * (Identiek aan abonnement logica voor consistentie)
+ * @param {Array} slots - Array van { dag, uur, status } objecten
+ * @param {number} requiredHours - Aantal benodigde uren
+ * @returns {Object} mapping 'ma-ochtend' => boolean
+ */
+function berekenDagdeelBeschikbaarheid(slots, requiredHours) {
+  const result = {};
+  if (!Array.isArray(slots) || slots.length === 0) return result;
+  
+  // Dag mapping (Nederlands → afkorting)
+  const dayMap = { 
+    maandag: 'ma', 
+    dinsdag: 'di', 
+    woensdag: 'wo', 
+    donderdag: 'do', 
+    vrijdag: 'vr', 
+    zaterdag: 'za', 
+    zondag: 'zo' 
+  };
+  
+  // Dagdeel tijdsvakken (start inclusive, end exclusive)
+  const dayparts = [
+    { code: 'ochtend', start: 7, end: 12 },
+    { code: 'middag', start: 12, end: 17 },
+    { code: 'avond', start: 17, end: 22 }
+  ];
+  
+  // Groepeer beschikbare uren per dag
+  const byDay = {};
+  slots.forEach(s => {
+    if (s.status !== 'beschikbaar') return;
+    const h = parseInt(String(s.uur).split(':')[0], 10);
+    if (isNaN(h)) return;
+    if (!byDay[s.dag]) byDay[s.dag] = new Set();
+    byDay[s.dag].add(h);
   });
+  
+  // Helper: vind aaneengesloten uurblokken
+  function contiguousBlocks(hourSet) {
+    const hours = Array.from(hourSet).sort((a,b) => a - b);
+    const blocks = [];
+    let start = null, prev = null;
+    
+    hours.forEach(h => {
+      if (start === null) { 
+        start = h; 
+        prev = h; 
+        return; 
+      }
+      if (h === prev + 1) { 
+        prev = h; 
+        return; 
+      }
+      // Block eindigt
+      blocks.push({ start, end: prev + 1, length: (prev + 1) - start });
+      start = h; 
+      prev = h;
+    });
+    
+    if (start !== null) {
+      blocks.push({ start, end: prev + 1, length: (prev + 1) - start });
+    }
+    
+    return blocks;
+  }
+  
+  // Analyseer elk dagdeel per dag
+  Object.entries(byDay).forEach(([dag, hourSet]) => {
+    const blocks = contiguousBlocks(hourSet);
+    
+    dayparts.forEach(dp => {
+      const key = `${dayMap[dag] || ''}-${dp.code}`;
+      let available = false;
+      
+      if (requiredHours <= 0) {
+        // Geen specifieke uren vereist: minimaal 1 uur in dagdeel = beschikbaar
+        available = blocks.some(b => Math.max(b.start, dp.start) < Math.min(b.end, dp.end));
+      } else {
+        // Check of er een blok is met genoeg uren binnen het dagdeel
+        available = blocks.some(b => {
+          const overlap = Math.max(0, Math.min(b.end, dp.end) - Math.max(b.start, dp.start));
+          return overlap >= requiredHours;
+        });
+        
+        // Of: check of dagdeel + volgend dagdeel samen genoeg uren hebben
+        if (!available) {
+          const nextDp = dayparts[dayparts.indexOf(dp) + 1];
+          if (nextDp) {
+            available = blocks.some(b => {
+              const overlapCurrent = Math.max(0, Math.min(b.end, dp.end) - Math.max(b.start, dp.start));
+              const overlapNext = Math.max(0, Math.min(b.end, nextDp.end) - Math.max(b.start, nextDp.start));
+              return (overlapCurrent + overlapNext) >= requiredHours;
+            });
+          }
+        }
+      }
+      
+      result[key] = available;
+    });
+  });
+  
+  return result;
 }
 
 /**
