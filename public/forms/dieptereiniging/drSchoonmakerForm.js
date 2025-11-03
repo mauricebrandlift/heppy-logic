@@ -675,28 +675,16 @@ function berekenDagdeelBeschikbaarheid(slots, requiredHours) {
       const key = `${dayMap[dag] || ''}-${dp.code}`;
       let available = false;
       
-      if (requiredHours <= 0) {
-        // Geen specifieke uren vereist: minimaal 1 uur in dagdeel = beschikbaar
-        available = blocks.some(b => Math.max(b.start, dp.start) < Math.min(b.end, dp.end));
-      } else {
-        // Check of er een blok is met genoeg uren binnen het dagdeel
-        available = blocks.some(b => {
-          const overlap = Math.max(0, Math.min(b.end, dp.end) - Math.max(b.start, dp.start));
-          return overlap >= requiredHours;
-        });
-        
-        // Of: check of dagdeel + volgend dagdeel samen genoeg uren hebben
-        if (!available) {
-          const nextDp = dayparts[dayparts.indexOf(dp) + 1];
-          if (nextDp) {
-            available = blocks.some(b => {
-              const overlapCurrent = Math.max(0, Math.min(b.end, dp.end) - Math.max(b.start, dp.start));
-              const overlapNext = Math.max(0, Math.min(b.end, nextDp.end) - Math.max(b.start, nextDp.start));
-              return (overlapCurrent + overlapNext) >= requiredHours;
-            });
-          }
-        }
-      }
+      // BELANGRIJKE WIJZIGING: Toon dagdeel als beschikbaar als er ENIGE overlap is
+      // Dit is logischer voor eenmalige diensten: als ze om 10:00 starten met 6 uur werk,
+      // kunnen ze in principe ook in de avond werken (vanaf 17:00) als ze dat willen
+      
+      // Check of er minimaal 1 uur overlap is tussen blokken en dagdeel
+      available = blocks.some(b => {
+        const overlapStart = Math.max(b.start, dp.start);
+        const overlapEnd = Math.min(b.end, dp.end);
+        return overlapStart < overlapEnd; // Er is overlap als start < end
+      });
       
       result[key] = available;
     });
