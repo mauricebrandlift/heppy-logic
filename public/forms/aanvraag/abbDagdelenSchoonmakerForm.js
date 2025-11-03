@@ -440,13 +440,27 @@ function berekenDagdeelBeschikbaarheid(slots, requiredHours) {
  * @param {Object} filterDagdelen - Optioneel filter voor dagdelen
  */
 function renderSchoonmakers(schoonmakers, filterDagdelen = null) {
+  console.log('🎨 [SchoonmakerForm] renderSchoonmakers() START', {
+    count: schoonmakers?.length || 0,
+    wrapper: !!formStatus.schoonmakersWrapper,
+    template: !!formStatus.schoonmakerTemplate,
+    prototype: !!formStatus.schoonmakerPrototype
+  });
+  
   if (!formStatus.schoonmakersWrapper) {
     console.error('❌ [SchoonmakerForm] Geen schoonmakers list container gevonden');
     return;
   }
 
-  // Reset list
-  formStatus.schoonmakersWrapper.innerHTML = '';
+  // Reset list - BELANGRIJK: behoud template!
+  console.log('[SchoonmakerForm] Leegmaken wrapper, children voor clear:', formStatus.schoonmakersWrapper.children.length);
+  Array.from(formStatus.schoonmakersWrapper.children).forEach(child => {
+    if (child !== formStatus.schoonmakerTemplate) {
+      child.remove();
+    }
+  });
+  console.log('[SchoonmakerForm] Wrapper geleegd, children na clear:', formStatus.schoonmakersWrapper.children.length);
+  
   formStatus.totaalSchoonmakers = schoonmakers.length;
 
   // Update total element (buiten de lijst)
@@ -474,16 +488,25 @@ function renderSchoonmakers(schoonmakers, filterDagdelen = null) {
     }
   }
 
-  if (schoonmakers.length === 0) return; // niets verder renderen
+  if (schoonmakers.length === 0) {
+    console.warn('[SchoonmakerForm] Geen schoonmakers om te renderen');
+    return;
+  }
 
   // Render schoonmakers
-  schoonmakers.forEach(schoonmaker => {
+  console.log(`[SchoonmakerForm] Start rendering ${schoonmakers.length} schoonmakers...`);
+  schoonmakers.forEach((schoonmaker, index) => {
+    console.log(`[SchoonmakerForm] Rendering schoonmaker ${index + 1}/${schoonmakers.length}:`, schoonmaker.voornaam);
     const schoonmakerEl = renderSchoonmaker(schoonmaker, filterDagdelen);
     if (schoonmakerEl) {
       formStatus.schoonmakersWrapper.appendChild(schoonmakerEl);
       initBeschikbaarheidsToggle(schoonmakerEl);
+      console.log(`[SchoonmakerForm] ✅ Schoonmaker ${index + 1} toegevoegd aan DOM`);
+    } else {
+      console.error(`[SchoonmakerForm] ❌ renderSchoonmaker returned null voor ${schoonmaker.voornaam}`);
     }
   });
+  console.log('✅ [SchoonmakerForm] renderSchoonmakers() COMPLEET');
 }
 
 /**
