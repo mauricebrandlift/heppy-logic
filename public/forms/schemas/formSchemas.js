@@ -555,7 +555,7 @@ export function getFormSchema(name) {
         }
       },
       submit: {
-        // De submit logica wordt gedefinieerd in drSchoonmakerForm.js
+        // Submit action wordt toegevoegd in drSchoonmakerForm.js via schema.submit.action = ...
       },
       globalMessages: combineMessages(
         commonMessages.general,

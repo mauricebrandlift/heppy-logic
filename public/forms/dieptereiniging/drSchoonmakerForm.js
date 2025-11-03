@@ -9,13 +9,91 @@ import { getFormSchema } from '../schemas/formSchemas.js';
 import { loadFlowData, saveFlowData } from '../logic/formStorage.js';
 import { fetchAvailableCleaners } from '../../utils/api/cleaners.js';
 
+const FORM_NAME = 'dr_schoonmaker-form';
+const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
+const NEXT_FORM_NAME = 'dr_persoonsgegevens-form';
+
+/**
+ * Navigatie helper (volgt abonnement patroon)
+ */
+function goToFormStep(nextFormName) {
+  console.log('[DR Schoonmaker Form] goToFormStep →', nextFormName);
+  
+  if (window.navigateToFormStep) {
+    const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
+    if (navigated) {
+      console.log('[DR Schoonmaker Form] navigateToFormStep succesvol', nextFormName);
+      return true;
+    }
+    console.warn('[DR Schoonmaker Form] navigateToFormStep kon niet navigeren, probeer fallback.');
+  }
+
+  if (window.jumpToSlideByFormName) {
+    console.log('[DR Schoonmaker Form] Fallback jumpToSlideByFormName', nextFormName);
+    window.jumpToSlideByFormName(nextFormName);
+    return true;
+  }
+
+  if (window.moveToNextSlide) {
+    console.log('[DR Schoonmaker Form] Fallback moveToNextSlide');
+    window.moveToNextSlide();
+    return true;
+  }
+
+  console.error('[DR Schoonmaker Form] Geen slider navigatie functie gevonden.');
+  return false;
+}
+
+// Status object voor dit formulier (volgt abonnement patroon)
+const formStatus = {
+  isLoading: false,
+  schoonmakersWrapper: null,    // [data-element="schoonmakers-list"]
+  schoonmakerTemplate: null,    // [data-render-element="schoonmaker"]
+  schoonmakerPrototype: null,   // Clean clone van template
+  totaalSchoonmakers: 0,
+  totaalElement: null,          // [data-element="schoonmakers-total"]
+  geenVoorkeurElement: null,    // [data-element="schoonmakers-geen-voorkeur"]
+  emptyElement: null            // [data-element="schoonmakers-empty"]
+};
+
+/**
+ * Reset radio button state (volgt abonnement patroon)
+ */
+function resetRadioState(container, contextLabel = '') {
+  if (!container) return;
+
+  const radio = container.querySelector('input[type="radio"]');
+  const label = radio ? radio.closest('label, .w-radio') : null;
+  
+  if (radio) {
+    radio.checked = false;
+    radio.removeAttribute('checked');
+    radio.removeAttribute('aria-checked');
+  }
+  
+  if (label) {
+    label.removeAttribute('aria-checked');
+    label.classList.remove('w--redirected-checked');
+  }
+  
+  // Remove Webflow redirected classes
+  const redirectedTargets = container.querySelectorAll('.w--redirected-checked, .w--redirected-focus');
+  redirectedTargets.forEach(el => {
+    el.classList.remove('w--redirected-checked', 'w--redirected-focus');
+  });
+  
+  // Remove custom is-checked classes
+  const isCheckedTargets = container.querySelectorAll('.is-checked');
+  isCheckedTargets.forEach(el => el.classList.remove('is-checked'));
+}
+
 /**
  * Initialiseert het schoonmaker selectie formulier voor dieptereiniging
  */
 export async function initDrSchoonmakerForm() {
   console.log('🚀 [DR Schoonmaker Form] ===== INITIALISATIE START =====');
 
-  const formElement = document.querySelector('[data-form-name="dr_schoonmaker-form"]');
+  const formElement = document.querySelector(FORM_SELECTOR);
   console.log('[DR Schoonmaker Form] Form element gevonden:', !!formElement);
   
   if (!formElement) {
@@ -24,31 +102,94 @@ export async function initDrSchoonmakerForm() {
   }
 
   // Initialiseer formHandler met schema
-  const schema = getFormSchema('dr_schoonmaker-form');
+  const schema = getFormSchema(FORM_NAME);
   console.log('[DR Schoonmaker Form] Schema geladen:', schema);
   
   if (schema) {
+    // Voeg submit handler toe aan schema (volgt abonnement patroon)
+    schema.submit.action = async (formData) => {
+      console.log('[DR Schoonmaker Form] Submit action:', formData);
+      
+      const selectedValue = formData.schoonmakerKeuze;
+      
+      // Bij "Geen voorkeur": gebruik auto-assign ID
+      let schoonmakerId = selectedValue;
+      if (selectedValue === 'geenVoorkeur') {
+        const geenVoorkeurRadio = formStatus.geenVoorkeurElement?.querySelector('input[type="radio"]');
+        const autoAssignId = geenVoorkeurRadio?.getAttribute('data-auto-assign-id');
+        
+        if (autoAssignId) {
+          schoonmakerId = autoAssignId;
+          console.log('[DR Schoonmaker Form] Geen voorkeur: auto-assign ID =', schoonmakerId);
+        } else {
+          console.error('[DR Schoonmaker Form] Geen auto-assign ID gevonden');
+          throw new Error('Geen schoonmaker beschikbaar');
+        }
+      }
+      
+      // Sla op in flow storage
+      const flowData = loadFlowData('dieptereiniging-aanvraag') || {};
+      flowData.schoonmakerKeuze = selectedValue;
+      flowData.schoonmaker_id = schoonmakerId;
+      saveFlowData('dieptereiniging-aanvraag', flowData);
+      
+      console.log('[DR Schoonmaker Form] Saved choice:', {
+        schoonmakerKeuze: selectedValue,
+        schoonmaker_id: schoonmakerId
+      });
+    };
+    
+    // Voeg onSuccess handler toe (navigatie naar volgende stap)
+    schema.submit.onSuccess = () => {
+      console.log('[DR Schoonmaker Form] Submit success, navigeer naar stap 4...');
+      
+      // Initialiseer stap 4 (persoonsgegevens)
+      import('./drPersoonsgegevensForm.js').then(module => {
+        console.log('[DR Schoonmaker Form] Stap 4 (drPersoonsgegevensForm) wordt geïnitialiseerd...');
+        if (typeof module.initDrPersoonsgegevensForm === 'function') {
+          module.initDrPersoonsgegevensForm();
+        }
+        
+        // Navigeer naar volgende slide
+        goToFormStep('dr_persoonsgegevens-form');
+      });
+    };
+    
     formHandler.init(schema);
-    console.log('[DR Schoonmaker Form] FormHandler geïnitialiseerd');
+    console.log('[DR Schoonmaker Form] FormHandler geïnitialiseerd met submit handlers');
+  }
+
+  // Vind en sla UI containers op (volgt abonnement patroon)
+  formStatus.schoonmakersWrapper = document.querySelector('[data-element="schoonmakers-list"]');
+  formStatus.totaalElement = document.querySelector('[data-element="schoonmakers-total"]');
+  formStatus.geenVoorkeurElement = document.querySelector('[data-element="schoonmakers-geen-voorkeur"]');
+  formStatus.emptyElement = document.querySelector('[data-element="schoonmakers-empty"]');
+  
+  // Vind template en maak prototype clone (BELANGRIJK!)
+  formStatus.schoonmakerTemplate = document.querySelector('[data-render-element="schoonmaker"]');
+  
+  if (formStatus.schoonmakerTemplate) {
+    if (!formStatus.schoonmakerPrototype) {
+      formStatus.schoonmakerPrototype = formStatus.schoonmakerTemplate.cloneNode(true);
+      resetRadioState(formStatus.schoonmakerPrototype, 'prototype');
+      console.log('[DR Schoonmaker Form] Prototype clone gemaakt');
+    }
+    formStatus.schoonmakerTemplate.style.display = 'none';
+  } else if (!formStatus.schoonmakerPrototype) {
+    console.error('❌ [DR Schoonmaker Form] Geen schoonmaker template gevonden');
   }
 
   // Haal bestaande keuze op (bij terugkomen)
   const existingChoice = formHandler.formData.schoonmakerKeuze || null;
   console.log('[DR Schoonmaker Form] Bestaande keuze:', existingChoice);
 
-  // Check of alle UI elementen aanwezig zijn
-  const listContainer = document.querySelector('[data-element="schoonmakers-list"]');
-  const loadingSpinner = document.querySelector('[data-loading-spinner="schoonmakers"]');
-  const emptyState = document.querySelector('[data-element="schoonmakers-empty"]');
-  const totalElement = document.querySelector('[data-element="schoonmakers-total"]');
-  const template = document.querySelector('[data-render-element="schoonmaker"]');
-  
   console.log('[DR Schoonmaker Form] UI elementen check:', {
-    listContainer: !!listContainer,
-    loadingSpinner: !!loadingSpinner,
-    emptyState: !!emptyState,
-    totalElement: !!totalElement,
-    template: !!template
+    schoonmakersWrapper: !!formStatus.schoonmakersWrapper,
+    totaalElement: !!formStatus.totaalElement,
+    geenVoorkeurElement: !!formStatus.geenVoorkeurElement,
+    emptyElement: !!formStatus.emptyElement,
+    template: !!formStatus.schoonmakerTemplate,
+    prototype: !!formStatus.schoonmakerPrototype
   });
 
   // Laad schoonmakers (error handling gebeurt in loadCleaners zelf)
@@ -66,25 +207,12 @@ export async function initDrSchoonmakerForm() {
  */
 async function loadCleaners(existingChoice) {
   console.log('📦 [DR Schoonmaker Form] loadCleaners() START');
+
+  // Toon loading state
+  updateLoadingState(true);
   
-  const listContainer = document.querySelector('[data-element="schoonmakers-list"]');
-  const loadingSpinner = document.querySelector('[data-loading-spinner="schoonmakers"]');
-  const emptyState = document.querySelector('[data-element="schoonmakers-empty"]');
-  const totalElement = document.querySelector('[data-element="schoonmakers-total"]');
-
-  console.log('[DR Schoonmaker Form] UI elementen voor loading:', {
-    listContainer: !!listContainer,
-    loadingSpinner: !!loadingSpinner,
-    emptyState: !!emptyState
-  });
-
-  // Toon loading
-  if (loadingSpinner) {
-    loadingSpinner.style.display = 'flex';
-    console.log('[DR Schoonmaker Form] Loading spinner getoond');
-  }
-  if (listContainer) listContainer.style.display = 'none';
-  if (emptyState) emptyState.style.display = 'none';
+  if (formStatus.schoonmakersWrapper) formStatus.schoonmakersWrapper.style.display = 'none';
+  if (formStatus.emptyElement) formStatus.emptyElement.style.display = 'none';
 
   try {
     // Haal flow data op via loadFlowData helper
@@ -121,18 +249,10 @@ async function loadCleaners(existingChoice) {
     const cleaners = response.cleaners || [];
     console.log(`👥 [DR Schoonmaker Form] Cleaners count: ${cleaners.length}`);
 
-    // Verberg loading
-    if (loadingSpinner) {
-      loadingSpinner.style.display = 'none';
-      console.log('[DR Schoonmaker Form] Loading spinner verborgen');
-    }
-
     if (cleaners.length === 0) {
       console.warn('⚠️ [DR Schoonmaker Form] Geen schoonmakers gevonden');
-      // Toon empty state
-      if (emptyState) {
-        emptyState.style.display = 'block';
-        console.log('[DR Schoonmaker Form] Empty state getoond');
+      if (formStatus.emptyElement) {
+        formStatus.emptyElement.style.display = 'block';
       }
       return;
     }
@@ -141,146 +261,265 @@ async function loadCleaners(existingChoice) {
     console.log('[DR Schoonmaker Form] Start rendering schoonmakers...');
     renderCleaners(cleaners, existingChoice);
 
-    // Update totaal
-    if (totalElement) {
-      totalElement.textContent = cleaners.length;
-      console.log(`[DR Schoonmaker Form] Totaal element updated: ${cleaners.length}`);
-    }
-
     // Toon lijst
-    if (listContainer) {
-      listContainer.style.display = 'block';
-      console.log('[DR Schoonmaker Form] Lijst container getoond');
+    if (formStatus.schoonmakersWrapper) {
+      formStatus.schoonmakersWrapper.style.display = 'block';
     }
 
   } catch (error) {
     console.error('❌ [DR Schoonmaker Form] ERROR in loadCleaners:', error);
     console.error('[DR Schoonmaker Form] Error stack:', error.stack);
     
-    // Verberg loading
-    if (loadingSpinner) loadingSpinner.style.display = 'none';
-    
-    // Toon empty state (geen alert!)
-    if (emptyState) {
-      emptyState.style.display = 'block';
-      console.log('[DR Schoonmaker Form] Empty state getoond na error');
+    // Toon empty state
+    if (formStatus.emptyElement) {
+      formStatus.emptyElement.style.display = 'block';
     }
+  } finally {
+    updateLoadingState(false);
   }
   
   console.log('✅ [DR Schoonmaker Form] loadCleaners() COMPLEET');
 }
 
 /**
- * Rendert schoonmaker kaarten in de lijst
+ * Update loading state (volgt abonnement patroon)
+ */
+function updateLoadingState(isLoading) {
+  formStatus.isLoading = isLoading;
+  
+  const loadingSpinner = document.querySelector('[data-loading-spinner="schoonmakers"]');
+  const contentContainer = document.querySelector('[data-schoonmakers-container]');
+  
+  if (loadingSpinner) {
+    if (isLoading) {
+      loadingSpinner.classList.remove('hide');
+    } else {
+      loadingSpinner.classList.add('hide');
+    }
+  }
+  
+  if (contentContainer) {
+    contentContainer.style.opacity = isLoading ? '0.6' : '1';
+    contentContainer.style.pointerEvents = isLoading ? 'none' : 'auto';
+  }
+}
+
+/**
+ * Rendert een enkele schoonmaker (volgt abonnement patroon)
+ */
+function renderSchoonmaker(schoonmaker) {
+  const sourceTemplate = formStatus.schoonmakerPrototype || formStatus.schoonmakerTemplate;
+  if (!sourceTemplate) {
+    console.error('❌ [DR Schoonmaker Form] Geen schoonmaker template beschikbaar om te klonen');
+    return null;
+  }
+  
+  // Kloon vanaf PROTOTYPE (niet vanaf DOM template!)
+  const schoonmakerEl = sourceTemplate.cloneNode(true);
+  schoonmakerEl.style.display = 'block'; // Maak zichtbaar
+  
+  // Reset radio state (belangrijk voor Webflow!)
+  resetRadioState(schoonmakerEl, 'clone');
+  
+  // Setup radio button
+  const radioEl = schoonmakerEl.querySelector('input[type="radio"]');
+  if (radioEl) {
+    radioEl.value = schoonmaker.id;
+    radioEl.setAttribute('data-field-name', 'schoonmakerKeuze');
+    radioEl.name = 'schoonmakerKeuze';
+    radioEl.checked = false;
+    radioEl.removeAttribute('checked');
+  }
+  
+  // Vul data in met data-schoonmaker attributen
+  const naamEl = schoonmakerEl.querySelector('[data-schoonmaker="naam"]');
+  if (naamEl) {
+    naamEl.textContent = schoonmaker.voornaam; // Alleen voornaam zoals abonnement
+  }
+  
+  const plaatsEl = schoonmakerEl.querySelector('[data-schoonmaker="plaats"]');
+  if (plaatsEl) {
+    plaatsEl.textContent = schoonmaker.plaats;
+  }
+  
+  const fotoEl = schoonmakerEl.querySelector('[data-schoonmaker="schoonmaker-foto"]');
+  if (fotoEl && schoonmaker.profielfoto) {
+    fotoEl.src = schoonmaker.profielfoto;
+    fotoEl.alt = `Foto van ${schoonmaker.voornaam}`;
+  }
+  
+  // Rating
+  const starsEl = schoonmakerEl.querySelector('[data-field-profile="stars"]');
+  if (starsEl && schoonmaker.rating) {
+    starsEl.textContent = parseFloat(schoonmaker.rating).toFixed(1);
+  }
+  
+  // Aantal reviews
+  const reviewsEl = schoonmakerEl.querySelector('[data-schoonmaker="total-reviews"]');
+  if (reviewsEl && schoonmaker.aantal_beoordelingen) {
+    reviewsEl.textContent = schoonmaker.aantal_beoordelingen;
+  }
+  
+  // Render beschikbaarheid (indien aanwezig)
+  if (schoonmaker.beschikbaarheid) {
+    renderBeschikbaarheidGrid(schoonmakerEl, schoonmaker.beschikbaarheid);
+  }
+  
+  return schoonmakerEl;
+}
+
+/**
+ * Rendert alle schoonmakers in de lijst (volgt abonnement patroon)
  */
 function renderCleaners(cleaners, existingChoice) {
   console.log('🎨 [DR Schoonmaker Form] renderCleaners() START');
-  
-  const template = document.querySelector('[data-render-element="schoonmaker"]');
-  const listContainer = document.querySelector('[data-element="schoonmakers-list"]');
+  console.log(`[DR Schoonmaker Form] Rendering ${cleaners.length} cleaners`);
 
-  console.log('[DR Schoonmaker Form] Template & container check:', {
-    template: !!template,
-    listContainer: !!listContainer
-  });
-
-  if (!template || !listContainer) {
-    console.error('❌ [DR Schoonmaker Form] Missing template or list container');
+  if (!formStatus.schoonmakersWrapper) {
+    console.error('❌ [DR Schoonmaker Form] Geen schoonmakers wrapper gevonden');
     return;
   }
 
-  console.log(`[DR Schoonmaker Form] Rendering ${cleaners.length} cleaners`);
-
-  // Clear bestaande items (behalve template)
-  const existingCards = listContainer.querySelectorAll('[data-render-element="schoonmaker"]:not([data-render-element="schoonmaker"]:first-child)');
-  console.log(`[DR Schoonmaker Form] Removing ${existingCards.length} existing cards`);
-  existingCards.forEach(card => card.remove());
+  // Leeg de wrapper (maar laat template intact) - VOLGT ABONNEMENT PATROON
+  Array.from(formStatus.schoonmakersWrapper.children).forEach(child => {
+    if (child !== formStatus.schoonmakerTemplate) {
+      child.remove();
+    }
+  });
+  
+  console.log('[DR Schoonmaker Form] Wrapper geleegd, start rendering...');
 
   // Render elke schoonmaker
   cleaners.forEach((cleaner, index) => {
     console.log(`[DR Schoonmaker Form] Rendering cleaner ${index + 1}/${cleaners.length}:`, {
       id: cleaner.id,
-      naam: `${cleaner.voornaam} ${cleaner.achternaam}`,
+      naam: cleaner.voornaam,
       plaats: cleaner.plaats
     });
     
-    const card = template.cloneNode(true);
-    card.style.display = 'block'; // Template is meestal hidden
-    
-    // Vul schoonmaker data
-    fillCleanerCard(card, cleaner);
-
-    // Voeg toe aan lijst
-    listContainer.appendChild(card);
-    console.log(`[DR Schoonmaker Form] ✅ Card ${index + 1} toegevoegd aan lijst`);
+    const schoonmakerEl = renderSchoonmaker(cleaner);
+    if (schoonmakerEl) {
+      formStatus.schoonmakersWrapper.appendChild(schoonmakerEl);
+      console.log(`[DR Schoonmaker Form] ✅ Card ${index + 1} toegevoegd`);
+    }
   });
 
-  // Pre-select bestaande keuze indien aanwezig
-  if (existingChoice) {
-    const radioToSelect = listContainer.querySelector(`input[name="schoonmakerKeuze"][value="${existingChoice}"]`);
-    if (radioToSelect) {
-      radioToSelect.checked = true;
-      console.log('[DR Schoonmaker Form] Pre-selected existing choice:', existingChoice);
-    }
-  } else {
-    // Anders: selecteer "Geen voorkeur" (eerste optie)
-    const geenVoorkeurRadio = document.querySelector('input[name="schoonmakerKeuze"][value="geenVoorkeur"]');
-    if (geenVoorkeurRadio) {
-      geenVoorkeurRadio.checked = true;
-      console.log('[DR Schoonmaker Form] Pre-selected "Geen voorkeur"');
-    } else {
-      console.warn('⚠️ [DR Schoonmaker Form] "Geen voorkeur" radio niet gevonden');
-    }
+  // Update totaal
+  formStatus.totaalSchoonmakers = cleaners.length;
+  if (formStatus.totaalElement) {
+    formStatus.totaalElement.textContent = cleaners.length;
   }
+
+  // Voeg "Geen voorkeur" optie toe (met auto-assign)
+  addNoPreferenceOption(cleaners);
+
+  // Clear selectie (submit button disabled tot keuze gemaakt)
+  clearSchoonmakerKeuze();
+
+  // Bind events op nieuwe radio's
+  bindSchoonmakerRadioEvents();
   
   console.log('✅ [DR Schoonmaker Form] renderCleaners() COMPLEET');
 }
 
 /**
- * Vult een schoonmaker kaart met data
+ * Voeg "Geen voorkeur" optie toe (volgt abonnement patroon)
  */
-function fillCleanerCard(card, cleaner) {
-  // Foto
-  const foto = card.querySelector('[data-schoonmaker="schoonmaker-foto"]');
-  if (foto && cleaner.profielfoto) {
-    foto.src = cleaner.profielfoto;
-    foto.alt = `${cleaner.voornaam} ${cleaner.achternaam}`;
+function addNoPreferenceOption(schoonmakersList = []) {
+  if (!formStatus.geenVoorkeurElement) {
+    console.warn('⚠️ [DR Schoonmaker Form] Geen voorkeur element niet gevonden');
+    return;
   }
 
-  // Naam
-  const naam = card.querySelector('[data-schoonmaker="naam"]');
-  if (naam) {
-    naam.textContent = `${cleaner.voornaam} ${cleaner.achternaam}`;
-  }
-
-  // Plaats
-  const plaats = card.querySelector('[data-schoonmaker="plaats"]');
-  if (plaats && cleaner.plaats) {
-    plaats.textContent = cleaner.plaats;
-  }
-
-  // Rating (sterren)
-  const stars = card.querySelector('[data-field-profile="stars"]');
-  if (stars && cleaner.rating) {
-    const rating = parseFloat(cleaner.rating);
-    stars.textContent = rating.toFixed(1);
-    // Optioneel: voeg visuele sterren toe via CSS/classes
-  }
-
-  // Aantal reviews
-  const reviews = card.querySelector('[data-schoonmaker="total-reviews"]');
-  if (reviews && cleaner.aantal_beoordelingen) {
-    reviews.textContent = cleaner.aantal_beoordelingen;
-  }
-
-  // Beschikbaarheid grid (visueel, niet selecteerbaar)
-  renderBeschikbaarheidGrid(card, cleaner.beschikbaarheid);
-
-  // Radio button value - gebruik 'id' van database functie
-  const radio = card.querySelector('input[type="radio"][name="schoonmakerKeuze"]');
+  const radio = formStatus.geenVoorkeurElement.querySelector('input[type="radio"]');
   if (radio) {
-    radio.value = cleaner.id;
+    radio.name = 'schoonmakerKeuze';
+    radio.setAttribute('data-field-name', 'schoonmakerKeuze');
+    if (!radio.value) radio.value = 'geenVoorkeur';
+    
+    // Auto-assign ID van eerste schoonmaker
+    if (schoonmakersList.length > 0 && schoonmakersList[0].id) {
+      radio.setAttribute('data-auto-assign-id', schoonmakersList[0].id);
+      console.log('✅ [DR Schoonmaker Form] Auto-assign ID gezet:', schoonmakersList[0].id);
+    } else {
+      radio.removeAttribute('data-auto-assign-id');
+    }
+    
+    // Default: niet geselecteerd
+    radio.checked = false;
+    radio.removeAttribute('checked');
   }
+  
+  resetRadioState(formStatus.geenVoorkeurElement, 'geen-voorkeur-init');
+}
+
+/**
+ * Leegt schoonmaker selectie (volgt abonnement patroon)
+ */
+function clearSchoonmakerKeuze() {
+  const formElement = document.querySelector(FORM_SELECTOR);
+  if (!formElement) return;
+
+  // Uncheck alle radio's
+  const radios = formElement.querySelectorAll('input[type="radio"][name="schoonmakerKeuze"]');
+  radios.forEach(r => {
+    r.checked = false;
+    r.removeAttribute('checked');
+  });
+
+  if (formStatus.geenVoorkeurElement) {
+    resetRadioState(formStatus.geenVoorkeurElement, 'clear');
+  }
+
+  // Reset formHandler state
+  try {
+    if (formHandler && typeof formHandler.runWithFormContext === 'function') {
+      formHandler.runWithFormContext(FORM_NAME, () => {
+        if (formHandler.formData) {
+          formHandler.formData.schoonmakerKeuze = '';
+        }
+        if (typeof formHandler.updateSubmitState === 'function') {
+          formHandler.updateSubmitState(FORM_NAME);
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('[DR Schoonmaker Form] Kon keuze reset niet volledig doorvoeren:', e);
+  }
+}
+
+/**
+ * Bind events op radio buttons (volgt abonnement patroon)
+ */
+function bindSchoonmakerRadioEvents() {
+  const formElement = document.querySelector(FORM_SELECTOR);
+  if (!formElement) return;
+
+  const radios = formElement.querySelectorAll('input[type="radio"][name="schoonmakerKeuze"]');
+  
+  radios.forEach(radio => {
+    // Skip als al gebonden
+    if (radio.dataset.bound === '1') return;
+    
+    radio.addEventListener('change', (e) => {
+      console.log('[DR Schoonmaker Form] Radio changed:', e.target.value);
+      
+      try {
+        if (formHandler && typeof formHandler.handleInput === 'function') {
+          formHandler.handleInput('schoonmakerKeuze', e, FORM_NAME);
+        }
+        if (formHandler && typeof formHandler.updateSubmitState === 'function') {
+          formHandler.updateSubmitState(FORM_NAME);
+        }
+      } catch (err) {
+        console.warn('[DR Schoonmaker Form] Kon radio change niet verwerken:', err);
+      }
+    });
+    
+    radio.dataset.bound = '1';
+  });
+  
+  console.log(`[DR Schoonmaker Form] Events gebonden op ${radios.length} radio buttons`);
 }
 
 /**
@@ -315,120 +554,12 @@ function renderBeschikbaarheidGrid(card, beschikbaarheid) {
 
 /**
  * Setup event handlers voor formulier
+ * Submit wordt afgehandeld door formHandler via schema
  */
 function setupEventHandlers() {
-  const formElement = document.querySelector('[data-form-name="dr_schoonmaker-form"]');
-  if (!formElement) return;
-
-  // Submit handler
-  formElement.addEventListener('submit', handleSubmit);
-
-  // Radio change handlers (optioneel, voor visuele feedback)
-  const radios = formElement.querySelectorAll('input[name="schoonmakerKeuze"]');
-  radios.forEach(radio => {
-    radio.addEventListener('change', (e) => {
-      console.log('[DR Schoonmaker Form] Selected:', e.target.value);
-    });
-  });
-
-  console.log('[DR Schoonmaker Form] Event handlers registered');
-}
-
-/**
- * Handle formulier submit
- */
-async function handleSubmit(e) {
-  e.preventDefault();
-  console.log('[DR Schoonmaker Form] Form submitted');
-
-  const selectedRadio = document.querySelector('input[name="schoonmakerKeuze"]:checked');
-  
-  if (!selectedRadio) {
-    console.error('[DR Schoonmaker Form] No schoonmaker selected');
-    return; // FormHandler zal validation tonen
-  }
-
-  const selectedValue = selectedRadio.value;
-  console.log('[DR Schoonmaker Form] Selected value:', selectedValue);
-
-  // Bij "Geen voorkeur": kies eerste beschikbare schoonmaker
-  let schoonmakerId = selectedValue;
-  if (selectedValue === 'geenVoorkeur') {
-    schoonmakerId = getFirstAvailableCleanerId();
-    console.log('[DR Schoonmaker Form] Geen voorkeur selected, using first cleaner:', schoonmakerId);
-  }
-
-  if (!schoonmakerId || schoonmakerId === 'geenVoorkeur') {
-    console.error('[DR Schoonmaker Form] No valid schoonmaker ID found');
-    return; // FormHandler zal validation tonen
-  }
-
-  // Sla keuze op in formData
-  formHandler.formData.schoonmakerKeuze = selectedValue;
-  formHandler.formData.schoonmaker_id = schoonmakerId;
-
-  // Sla ook op in flow storage
-  updateFlowData('schoonmaker_id', schoonmakerId);
-
-  console.log('[DR Schoonmaker Form] Saved choice:', { 
-    schoonmakerKeuze: selectedValue, 
-    schoonmaker_id: schoonmakerId 
-  });
-
-  // Navigeer naar volgende stap (stap 4: persoonsgegevens)
-  navigateToNextStep();
-}
-
-/**
- * Haalt ID van eerste beschikbare schoonmaker
- */
-function getFirstAvailableCleanerId() {
-  const listContainer = document.querySelector('[data-element="schoonmakers-list"]');
-  if (!listContainer) return null;
-
-  const firstRadio = listContainer.querySelector('input[type="radio"][name="schoonmakerKeuze"]:not([value="geenVoorkeur"])');
-  return firstRadio ? firstRadio.value : null;
-}
-
-/**
- * Update flow data in sessionStorage
- */
-function updateFlowData(key, value) {
-  const flowKey = 'dieptereiniging-aanvraag';
-  const flowDataStr = sessionStorage.getItem(flowKey);
-  
-  if (!flowDataStr) {
-    console.error('[DR Schoonmaker Form] No flow data to update');
-    return;
-  }
-
-  try {
-    const flowData = JSON.parse(flowDataStr);
-    flowData[key] = value;
-    sessionStorage.setItem(flowKey, JSON.stringify(flowData));
-    console.log('[DR Schoonmaker Form] Updated flow data:', key, value);
-  } catch (e) {
-    console.error('[DR Schoonmaker Form] Failed to update flow data:', e);
-  }
-}
-
-/**
- * Navigeer naar volgende stap
- */
-function navigateToNextStep() {
-  console.log('[DR Schoonmaker Form] Navigating to next step...');
-  
-  // Gebruik Webflow page navigation
-  // Pas aan naar jouw specifieke stap 4 page slug
-  const nextPageUrl = '/aanvraag-dieptereiniging/stap-4-persoonsgegevens'; // Pas aan indien nodig
-  
-  // Optie 1: Gebruik window.location
-  window.location.href = nextPageUrl;
-  
-  // Optie 2: Als je een custom navigator hebt, gebruik die
-  // if (window.flowNavigator) {
-  //   window.flowNavigator.goToStep(4);
-  // }
+  console.log('[DR Schoonmaker Form] Event handlers setup - radio events worden gebonden na render');
+  // Radio events worden gebonden in bindSchoonmakerRadioEvents() na rendering
+  // Submit wordt afgehandeld door formHandler via schema.submit.action
 }
 
 
