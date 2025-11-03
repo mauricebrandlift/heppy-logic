@@ -670,12 +670,23 @@ async function fetchEnToonSchoonmakers(formElement, gebruikDagdelenFilter = fals
     
     // Haal schoonmakers op
     const schoonmakers = await fetchAvailableCleaners(params);
-      // Sorteer en verrijk met extra informatie (afstanden)
+    console.log('🔍 [SchoonmakerForm] API retourneerde:', { 
+      type: Array.isArray(schoonmakers), 
+      length: schoonmakers?.length,
+      data: schoonmakers
+    });
+    
+    // Sorteer en verrijk met extra informatie (afstanden)
     const verwerkteLijst = verwerkSchoonmakers(
       schoonmakers, 
       parseFloat(latitude || 0), 
       parseFloat(longitude || 0)
     );
+    
+    console.log('🔍 [SchoonmakerForm] Na verwerkSchoonmakers:', {
+      length: verwerkteLijst?.length,
+      data: verwerkteLijst
+    });
     
     // Render schoonmakers
     renderSchoonmakers(verwerkteLijst, gebruikDagdelenFilter ? params.dagdelen : null);
