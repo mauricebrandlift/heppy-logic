@@ -462,36 +462,57 @@ function renderSchoonmakers(schoonmakers, filterDagdelen = null) {
   console.log('[SchoonmakerForm] Wrapper geleegd, children na clear:', formStatus.schoonmakersWrapper.children.length);
   
   formStatus.totaalSchoonmakers = schoonmakers.length;
+  console.log('[SchoonmakerForm] Totaal schoonmakers gezet:', formStatus.totaalSchoonmakers);
 
   // Update total element (buiten de lijst)
-  if (formStatus.totaalElement) {
-    if (schoonmakers.length > 0) {
-      formStatus.totaalElement.style.display = '';
-      formStatus.totaalElement.textContent = `${schoonmakers.length} ${schoonmakers.length === 1 ? 'schoonmaker' : 'schoonmakers'} beschikbaar`;
-    } else {
-      formStatus.totaalElement.style.display = 'none';
-      formStatus.totaalElement.textContent = '';
+  try {
+    if (formStatus.totaalElement) {
+      console.log('[SchoonmakerForm] Updating totaalElement...');
+      if (schoonmakers.length > 0) {
+        formStatus.totaalElement.style.display = '';
+        formStatus.totaalElement.textContent = `${schoonmakers.length} ${schoonmakers.length === 1 ? 'schoonmaker' : 'schoonmakers'} beschikbaar`;
+      } else {
+        formStatus.totaalElement.style.display = 'none';
+        formStatus.totaalElement.textContent = '';
+      }
+      console.log('[SchoonmakerForm] ✅ TotaalElement updated');
     }
+  } catch (e) {
+    console.error('[SchoonmakerForm] ❌ Error updating totaalElement:', e);
   }
 
   // Geen voorkeur element tonen / verbergen
-  if (formStatus.geenVoorkeurElement) {
-    formStatus.geenVoorkeurElement.style.display = schoonmakers.length > 0 ? '' : 'none';
+  try {
+    if (formStatus.geenVoorkeurElement) {
+      console.log('[SchoonmakerForm] Updating geenVoorkeurElement...');
+      formStatus.geenVoorkeurElement.style.display = schoonmakers.length > 0 ? '' : 'none';
+      console.log('[SchoonmakerForm] ✅ GeenVoorkeurElement updated');
+    }
+  } catch (e) {
+    console.error('[SchoonmakerForm] ❌ Error updating geenVoorkeurElement:', e);
   }
 
   // Leeg melding element
-  if (formStatus.emptyElement) {
-    if (schoonmakers.length === 0) {
-      formStatus.emptyElement.style.display = '';
-    } else {
-      formStatus.emptyElement.style.display = 'none';
+  try {
+    if (formStatus.emptyElement) {
+      console.log('[SchoonmakerForm] Updating emptyElement...');
+      if (schoonmakers.length === 0) {
+        formStatus.emptyElement.style.display = '';
+      } else {
+        formStatus.emptyElement.style.display = 'none';
+      }
+      console.log('[SchoonmakerForm] ✅ EmptyElement updated');
     }
+  } catch (e) {
+    console.error('[SchoonmakerForm] ❌ Error updating emptyElement:', e);
   }
 
   if (schoonmakers.length === 0) {
     console.warn('[SchoonmakerForm] Geen schoonmakers om te renderen');
     return;
   }
+  
+  console.log('[SchoonmakerForm] ✅ Alle UI elementen updated, ga nu renderen...');
 
   // Render schoonmakers
   console.log(`[SchoonmakerForm] Start rendering ${schoonmakers.length} schoonmakers...`);
