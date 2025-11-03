@@ -62,6 +62,7 @@ export default async function handler(req, res) {  // CORS headers voor veilighe
     );
 
     // Stuur het resultaat terug
+    console.log(schoonmakers);
     return res.status(200).json(schoonmakers);
   } catch (error) {    // Gebruik de centrale errorHandler voor consistente error verwerking
     return handleErrorResponse(res, error, 500, req.headers['x-correlation-id']);
