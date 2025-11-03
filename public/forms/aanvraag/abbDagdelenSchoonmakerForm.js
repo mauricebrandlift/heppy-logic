@@ -669,9 +669,17 @@ async function fetchEnToonSchoonmakers(formElement, gebruikDagdelenFilter = fals
     }
     
     // Haal schoonmakers op
-    const schoonmakers = await fetchAvailableCleaners(params);
-    console.log('🔍 [SchoonmakerForm] API retourneerde:', { 
-      type: Array.isArray(schoonmakers), 
+    const response = await fetchAvailableCleaners(params);
+    console.log('🔍 [SchoonmakerForm] API response:', { 
+      type: typeof response,
+      hasCleaners: 'cleaners' in response,
+      data: response
+    });
+    
+    // Extract array from response object
+    const schoonmakers = response.cleaners || response;
+    console.log('🔍 [SchoonmakerForm] Extracted schoonmakers array:', {
+      isArray: Array.isArray(schoonmakers),
       length: schoonmakers?.length,
       data: schoonmakers
     });
