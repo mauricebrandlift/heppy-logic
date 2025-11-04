@@ -275,8 +275,62 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       // Don't throw - this is not critical
     }
 
-    // Note: Schoonmaker notification email is sent when they accept (via opdrachtService.approve)
-    // This ensures consistent flow with abonnement where schoonmaker gets email after acceptance
+    // Delay tussen emails (rate limit protection: max 2 per second)
+    await new Promise(resolve => setTimeout(resolve, 600));
+
+    // 3. Send schoonmaker assignment email (if schoonmaker assigned)
+    const schoonmakerId = metadata.schoonmaker_id === 'geenVoorkeur' ? null : metadata.schoonmaker_id;
+    if (schoonmakerId) {
+      console.log(`📧 [ProcessDieptereiniging] Sending email to schoonmaker (opdracht toegewezen)...`);
+      try {
+        // Haal schoonmaker gegevens op
+        const { supabaseConfig } = await import('../../config/index.js');
+        const supabaseUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${schoonmakerId}&select=*`;
+        const response = await fetch(supabaseUrl, {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch schoonmaker: ${response.status}`);
+        }
+
+        const schoonmakerData = await response.json();
+        const schoonmakerResponse = schoonmakerData[0];
+        
+        if (schoonmakerResponse && schoonmakerResponse.email) {
+          const schoonmakerNaam = `${schoonmakerResponse.voornaam || ''} ${schoonmakerResponse.achternaam || ''}`.trim();
+          
+          await sendEmail({
+            to: schoonmakerResponse.email,
+            subject: `🧹 Nieuwe Dieptereiniging Opdracht - ${emailData.klantNaam}`,
+            html: dieptereinigingToegewezenSchoonmaker({
+              ...emailData,
+              schoonmakerNaam,
+              schoonmakerEmail: schoonmakerResponse.email
+            })
+          });
+          
+          console.log(`✅ [ProcessDieptereiniging] Schoonmaker email sent to ${schoonmakerResponse.email}`);
+        } else {
+          console.warn(`⚠️ [ProcessDieptereiniging] Schoonmaker email not found [${correlationId}]`, {
+            schoonmakerId
+          });
+        }
+      } catch (emailError) {
+        console.error(`⚠️ [ProcessDieptereiniging] Schoonmaker email failed (non-critical) [${correlationId}]`, {
+          error: emailError.message,
+          schoonmakerId
+        });
+        // Email failure mag flow niet breken
+      }
+    } else {
+      console.log(`ℹ️ [ProcessDieptereiniging] No schoonmaker assigned, skipping schoonmaker email`);
+    }
 
     console.log(`🎉 [ProcessDieptereiniging] ========== SUCCESS ========== [${correlationId}]`);
     return { handled: true, intent: paymentIntent.id, opdracht_id: opdracht.id };
