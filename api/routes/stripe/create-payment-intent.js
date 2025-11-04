@@ -62,6 +62,46 @@ export default async function handler(req, res) {
         calc_sessions_per_cycle: pricingDetails.sessionsPerCycle,
         calc_price_per_hour: pricingDetails.pricePerHour.toFixed(2),
       };
+    } else if (payload.flowContext?.flow === 'dieptereiniging') {
+      // Dieptereiniging: one-time payment, bereken uren × pricePerHour
+      const pricingRows = await fetchPricingConfiguration(correlationId, 'dieptereiniging');
+      if (!Array.isArray(pricingRows) || pricingRows.length === 0) {
+        const err = new Error('Geen prijsconfiguratie gevonden voor dieptereiniging.');
+        err.code = 500;
+        throw err;
+      }
+
+      const pricingConfig = formatPricingConfiguration(pricingRows);
+      
+      // Extract uren from flowContext
+      const uren = Number(payload.flowContext.dr_uren);
+      if (!uren || isNaN(uren) || uren <= 0) {
+        const err = new Error('Ongeldige uren voor dieptereiniging.');
+        err.code = 400;
+        throw err;
+      }
+
+      // Get pricePerHour from pricing config
+      const pricePerHour = pricingConfig.pricePerHour || 24.95;
+      const totalAmountEur = uren * pricePerHour;
+      finalAmount = Math.round(totalAmountEur * 100); // Convert to cents
+
+      flowContextDescription = `Heppy dieptereiniging (${uren}u)`;
+
+      pricingDetails = {
+        uren: uren,
+        pricePerHour: pricePerHour,
+        totalAmountEur: totalAmountEur,
+        totalAmountCents: finalAmount
+      };
+
+      metadata = {
+        ...metadata,
+        calc_source: 'server-validated',
+        calc_uren: uren.toString(),
+        calc_price_per_hour: pricePerHour.toFixed(2),
+        calc_total_amount_eur: totalAmountEur.toFixed(2),
+      };
     }
 
     if (!finalAmount) {
