@@ -414,7 +414,7 @@ export async function initAbbBetalingForm() {
 
 /**
  * Setup prev button handler voor terug navigatie
- * Re-initialiseert stap 5 (overzicht) voordat er terug wordt genavigeerd
+ * Re-initialiseert stap 5 (persoonsgegevens) voordat er terug wordt genavigeerd
  */
 function setupPrevButtonHandler() {
   const prevButton = document.querySelector('[data-form-button-prev="abb_betaling-form"]');
@@ -430,12 +430,12 @@ function setupPrevButtonHandler() {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('[AbbBetaling] 🔙 Prev button clicked - navigeer naar stap 5 (overzicht)');
+    console.log('[AbbBetaling] 🔙 Prev button clicked - navigeer naar stap 5 (persoonsgegevens)');
     
-    // Re-initialiseer de VORIGE stap (stap 5 = abbOverzicht) VOOR navigatie
-    import('./abbOverzicht.js').then(module => {
-      console.log('[AbbBetaling] ♻️ Re-init abbOverzicht voor terug navigatie...');
-      module.initAbbOverzicht();
+    // Re-initialiseer de VORIGE stap (stap 5 = abbPersoonsgegevensForm) VOOR navigatie
+    import('./abbPersoonsgegevensForm.js').then(module => {
+      console.log('[AbbBetaling] ♻️ Re-init abbPersoonsgegevensForm voor terug navigatie...');
+      module.initAbbPersoonsgegevensForm();
       
       // NA re-init, ga naar vorige slide
       if (typeof window.moveToPrevSlide === 'function') {
@@ -445,7 +445,7 @@ function setupPrevButtonHandler() {
         console.warn('[AbbBetaling] window.moveToPrevSlide() niet beschikbaar');
       }
     }).catch(err => {
-      console.error('[AbbBetaling] ❌ Fout bij re-init abbOverzicht:', err);
+      console.error('[AbbBetaling] ❌ Fout bij re-init abbPersoonsgegevensForm:', err);
       if (typeof window.moveToPrevSlide === 'function') {
         window.moveToPrevSlide();
       }

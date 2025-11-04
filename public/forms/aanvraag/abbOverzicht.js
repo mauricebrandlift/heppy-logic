@@ -170,7 +170,7 @@ export function initAbbOverzicht() {
 
 /**
  * Setup prev button handler voor terug navigatie
- * Re-initialiseert stap 4 (persoonsgegevens) voordat er terug wordt genavigeerd
+ * Re-initialiseert stap 3 (dagdelen/schoonmaker) voordat er terug wordt genavigeerd
  */
 function setupPrevButtonHandler() {
   const prevButton = document.querySelector('[data-form-button-prev="abb_overzicht-form"]');
@@ -186,12 +186,12 @@ function setupPrevButtonHandler() {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('[AbbOverzicht] 🔙 Prev button clicked - navigeer naar stap 4 (persoonsgegevens)');
+    console.log('[AbbOverzicht] 🔙 Prev button clicked - navigeer naar stap 3 (dagdelen/schoonmaker)');
     
-    // Re-initialiseer de VORIGE stap (stap 4 = abbPersoonsgegevensForm) VOOR navigatie
-    import('./abbPersoonsgegevensForm.js').then(module => {
-      console.log('[AbbOverzicht] ♻️ Re-init abbPersoonsgegevensForm voor terug navigatie...');
-      module.initAbbPersoonsgegevensForm();
+    // Re-initialiseer de VORIGE stap (stap 3 = abbDagdelenSchoonmakerForm) VOOR navigatie
+    import('./abbDagdelenSchoonmakerForm.js').then(module => {
+      console.log('[AbbOverzicht] ♻️ Re-init abbDagdelenSchoonmakerForm voor terug navigatie...');
+      module.initAbbDagdelenSchoonmakerForm();
       
       // NA re-init, ga naar vorige slide
       if (typeof window.moveToPrevSlide === 'function') {
@@ -201,7 +201,7 @@ function setupPrevButtonHandler() {
         console.warn('[AbbOverzicht] window.moveToPrevSlide() niet beschikbaar');
       }
     }).catch(err => {
-      console.error('[AbbOverzicht] ❌ Fout bij re-init abbPersoonsgegevensForm:', err);
+      console.error('[AbbOverzicht] ❌ Fout bij re-init abbDagdelenSchoonmakerForm:', err);
       if (typeof window.moveToPrevSlide === 'function') {
         window.moveToPrevSlide();
       }
