@@ -198,6 +198,9 @@ export async function initDrSchoonmakerForm() {
 
   // Setup event handlers
   setupEventHandlers();
+  
+  // 🔙 Setup prev button handler voor terug navigatie
+  setupPrevButtonHandler();
 
   console.log('✅ [DR Schoonmaker Form] ===== INITIALISATIE COMPLEET =====');
 }
@@ -701,6 +704,55 @@ function setupEventHandlers() {
   console.log('[DR Schoonmaker Form] Event handlers setup - radio events worden gebonden na render');
   // Radio events worden gebonden in bindSchoonmakerRadioEvents() na rendering
   // Submit wordt afgehandeld door formHandler via schema.submit.action
+}
+
+/**
+ * Setup prev button handler voor terug navigatie
+ * Re-initialiseert stap 2 (opdracht) voordat er terug wordt genavigeerd
+ */
+function setupPrevButtonHandler() {
+  const prevButton = document.querySelector('[data-form-button-prev="dr_schoonmaker-form"]');
+  
+  if (!prevButton) {
+    console.log('[DR Schoonmaker Form] Geen prev button gevonden met [data-form-button-prev="dr_schoonmaker-form"]');
+    return;
+  }
+  
+  console.log('[DR Schoonmaker Form] Prev button gevonden, event handler toevoegen...');
+  
+  prevButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[DR Schoonmaker Form] 🔙 Prev button clicked - navigeer naar stap 2 (opdracht)');
+    
+    // Re-initialiseer de VORIGE stap (stap 2 = drOpdrachtForm) VOOR navigatie
+    import('./drOpdrachtForm.js').then(module => {
+      console.log('[DR Schoonmaker Form] ♻️ Re-init drOpdrachtForm voor terug navigatie...');
+      module.initDrOpdrachtForm();
+      
+      // NA re-init, ga naar vorige slide via Webflow functie
+      if (typeof window.moveToPrevSlide === 'function') {
+        console.log('[DR Schoonmaker Form] Roep window.moveToPrevSlide() aan');
+        window.moveToPrevSlide();
+      } else {
+        console.warn('[DR Schoonmaker Form] window.moveToPrevSlide() niet beschikbaar, probeer fallback');
+        // Fallback: probeer directe Splide navigatie
+        const splideEl = document.querySelector('.splide');
+        if (splideEl && splideEl.splide) {
+          splideEl.splide.go('-1');
+        }
+      }
+    }).catch(err => {
+      console.error('[DR Schoonmaker Form] ❌ Fout bij re-init drOpdrachtForm:', err);
+      // Navigeer alsnog terug bij fout
+      if (typeof window.moveToPrevSlide === 'function') {
+        window.moveToPrevSlide();
+      }
+    });
+  });
+  
+  console.log('[DR Schoonmaker Form] ✅ Prev button handler toegevoegd');
 }
 
 

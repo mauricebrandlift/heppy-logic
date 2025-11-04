@@ -648,4 +648,56 @@ export async function initDrOpdrachtForm() {
   }
   
   console.log(`✅ [drOpdrachtForm] Formulier '${FORM_NAME}' is succesvol geïnitialiseerd.`);
+  
+  // 🔙 PREV BUTTON HANDLER - Re-initialiseer vorige stap bij terug navigeren
+  setupPrevButtonHandler();
+}
+
+/**
+ * Setup prev button handler voor terug navigatie
+ * Re-initialiseert stap 1 (adres) voordat er terug wordt genavigeerd
+ */
+function setupPrevButtonHandler() {
+  const prevButton = document.querySelector('[data-form-button-prev="dr_opdracht-form"]');
+  
+  if (!prevButton) {
+    console.log('[drOpdrachtForm] Geen prev button gevonden met [data-form-button-prev="dr_opdracht-form"]');
+    return;
+  }
+  
+  console.log('[drOpdrachtForm] Prev button gevonden, event handler toevoegen...');
+  
+  prevButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[drOpdrachtForm] 🔙 Prev button clicked - navigeer naar stap 1 (adres)');
+    
+    // Re-initialiseer de VORIGE stap (stap 1 = drAdresForm) VOOR navigatie
+    import('./drAdresForm.js').then(module => {
+      console.log('[drOpdrachtForm] ♻️ Re-init drAdresForm voor terug navigatie...');
+      module.initDrAdresForm();
+      
+      // NA re-init, ga naar vorige slide via Webflow functie
+      if (typeof window.moveToPrevSlide === 'function') {
+        console.log('[drOpdrachtForm] Roep window.moveToPrevSlide() aan');
+        window.moveToPrevSlide();
+      } else {
+        console.warn('[drOpdrachtForm] window.moveToPrevSlide() niet beschikbaar, probeer fallback');
+        // Fallback: probeer directe Splide navigatie
+        const splideEl = document.querySelector('.splide');
+        if (splideEl && splideEl.splide) {
+          splideEl.splide.go('-1');
+        }
+      }
+    }).catch(err => {
+      console.error('[drOpdrachtForm] ❌ Fout bij re-init drAdresForm:', err);
+      // Navigeer alsnog terug bij fout
+      if (typeof window.moveToPrevSlide === 'function') {
+        window.moveToPrevSlide();
+      }
+    });
+  });
+  
+  console.log('[drOpdrachtForm] ✅ Prev button handler toegevoegd');
 }
