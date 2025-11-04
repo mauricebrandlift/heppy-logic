@@ -118,7 +118,7 @@ export const opdrachtService = {
       },
       body: JSON.stringify({
         schoonmaker_id: schoonmakerId,
-        status: 'geaccepteerd'
+        status: 'gepland'
       })
     }, correlationId);
 
@@ -129,7 +129,7 @@ export const opdrachtService = {
     console.log(`[opdrachtService.approve] Opdracht updated [${correlationId}]`, {
       opdracht_id: opdrachtId,
       schoonmaker_id: schoonmakerId,
-      status: 'geaccepteerd'
+      status: 'gepland'
     });
 
     // STAP 6: Audit log
@@ -681,7 +681,7 @@ export const opdrachtService = {
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify({
-          status: 'afgewezen'
+          status: 'geannuleerd'
         })
       }, correlationId);
 
@@ -689,7 +689,7 @@ export const opdrachtService = {
         throw new Error(`Failed to update opdracht: ${await updateOpdrachtResp.text()}`);
       }
 
-      console.log(`[opdrachtService.reject] Opdracht status updated to 'afgewezen' [${correlationId}]`);
+      console.log(`[opdrachtService.reject] Opdracht status updated to 'geannuleerd' [${correlationId}]`);
     }
 
     // STAP 8: Audit log

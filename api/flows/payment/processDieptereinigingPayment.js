@@ -107,7 +107,7 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       
       const opdrachtPayload = {
         gebruiker_id: user.id,
-        schoonmaker_id: metadata.schoonmaker_id || null,  // Selected or auto-assigned schoonmaker
+        schoonmaker_id: null,  // Only set after schoonmaker accepts (via approve endpoint)
         // Note: opdrachten table has no adres_id column; adres linked via user_profiles.adres_id
         type: 'dieptereiniging',
         status: 'aangevraagd',
@@ -212,40 +212,10 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       throw new Error(`Match creation failed: ${error.message}`);
     }
 
-    // Fetch schoonmaker details if assigned
+    // Prepare email data for admin and client notifications
+    // Note: Schoonmaker email is sent later when they accept the opdracht (via approve endpoint)
     console.log(`📧 [ProcessDieptereiniging] Sending email notifications...`);
-    let schoonmakerNaam = null;
-    let schoonmakerEmail = null;
-    const schoonmakerId = metadata.schoonmaker_id === 'geenVoorkeur' ? null : metadata.schoonmaker_id;
-    const autoAssigned = metadata.auto_assigned === 'true';
     
-    if (schoonmakerId) {
-      try {
-        const { supabaseConfig } = await import('../../config/index.js');
-        const supabaseUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${schoonmakerId}&select=voornaam,achternaam,email`;
-        
-        const response = await fetch(supabaseUrl, {
-          headers: {
-            'apikey': supabaseConfig.anonKey,
-            'Authorization': `Bearer ${supabaseConfig.anonKey}`
-          }
-        });
-        
-        if (response.ok) {
-          const [schoonmaker] = await response.json();
-          if (schoonmaker) {
-            schoonmakerNaam = `${schoonmaker.voornaam} ${schoonmaker.achternaam}`;
-            schoonmakerEmail = schoonmaker.email;
-            console.log(`✅ [ProcessDieptereiniging] Schoonmaker details fetched: ${schoonmakerNaam}`);
-          }
-        }
-      } catch (error) {
-        console.error(`⚠️ [ProcessDieptereiniging] Failed to fetch schoonmaker details:`, error.message);
-        // Continue without schoonmaker details
-      }
-    }
-
-    // Prepare email data
     const emailData = {
       klantNaam: `${metadata.voornaam} ${metadata.achternaam}`,
       klantEmail: metadata.email,
@@ -257,8 +227,8 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       toiletten: metadata.dr_toiletten ? parseInt(metadata.dr_toiletten) : null,
       badkamers: metadata.dr_badkamers ? parseInt(metadata.dr_badkamers) : null,
       gewensteDatum: metadata.dr_datum,
-      schoonmakerNaam: schoonmakerNaam,
-      autoAssigned: autoAssigned,
+      schoonmakerNaam: null,  // Not assigned yet
+      autoAssigned: false,
       bedrag: paymentIntent.amount / 100, // Convert cents to euros
       betalingId: paymentIntent.id,
       opdrachtId: opdracht.id,
@@ -294,25 +264,8 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       // Don't throw - this is not critical
     }
 
-    // Delay tussen emails (rate limit protection: max 2 per second)
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    // 3. Send schoonmaker assignment email (if schoonmaker assigned)
-    if (schoonmakerEmail) {
-      try {
-        await sendEmail({
-          to: schoonmakerEmail,
-          subject: '🧹 Nieuwe Dieptereiniging Opdracht Toegewezen',
-          html: dieptereinigingToegewezenSchoonmaker(emailData)
-        });
-        console.log(`✅ [ProcessDieptereiniging] Schoonmaker assignment email sent to ${schoonmakerEmail}`);
-      } catch (error) {
-        console.error(`⚠️ [ProcessDieptereiniging] Failed to send schoonmaker email:`, error.message);
-        // Don't throw - this is not critical
-      }
-    } else {
-      console.log(`ℹ️ [ProcessDieptereiniging] No schoonmaker assigned, skipping assignment email`);
-    }
+    // Note: Schoonmaker notification email is sent when they accept (via opdrachtService.approve)
+    // This ensures consistent flow with abonnement where schoonmaker gets email after acceptance
 
     console.log(`🎉 [ProcessDieptereiniging] ========== SUCCESS ========== [${correlationId}]`);
     return { handled: true, intent: paymentIntent.id, opdracht_id: opdracht.id };

@@ -144,6 +144,6 @@ export default async function handler(req, res) {
     console.error(`[opdracht/reject] Stack:`, error.stack);
 
     // Gebruik error handler voor consistent error format
-    return handleErrorResponse(res, error, correlationId);
+    return handleErrorResponse(res, error, 500, correlationId);
   }
 }
