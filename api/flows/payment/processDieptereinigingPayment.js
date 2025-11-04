@@ -90,15 +90,26 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       // Bereken totaalbedrag in euros
       const totaalbedrag = (paymentIntent.amount / 100).toFixed(2);
       
-      // Prepare gegevens JSON (inclusief adres_id voor referentie)
+      // Prepare gegevens JSON (inclusief adres_id EN klant gegevens voor emails later)
       const gegevens = {
+        // Klant gegevens (voor emails bij approve/reject)
+        email: metadata.email,
+        voornaam: metadata.voornaam,
+        achternaam: metadata.achternaam,
+        telefoon: metadata.telefoon || null,
+        // Adres gegevens
+        straat: metadata.straat,
+        huisnummer: metadata.huisnummer,
+        postcode: metadata.postcode,
+        plaats: metadata.plaats,
+        adres_id: address.id,  // Store for reference (user_profiles.adres_id has the actual FK)
+        // Dieptereiniging specifieke data
         dr_uren: drUren,
         dr_m2: drM2,
         dr_toiletten: drToiletten,
         dr_badkamers: drBadkamers,
         calc_price_per_hour: parseFloat(metadata.calc_price_per_hour) || null,
-        calc_total_amount_eur: parseFloat(metadata.calc_total_amount_eur) || null,
-        adres_id: address.id  // Store for reference (user_profiles.adres_id has the actual FK)
+        calc_total_amount_eur: parseFloat(metadata.calc_total_amount_eur) || null
       };
 
       // Insert into opdrachten table
