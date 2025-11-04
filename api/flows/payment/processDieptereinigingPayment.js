@@ -9,6 +9,11 @@ import { auditService } from '../../services/auditService.js';
 import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
 import { sendEmail } from '../../services/emailService.js';
 import { emailConfig } from '../../config/index.js';
+import { 
+  nieuweDieptereinigingAdmin, 
+  dieptereinigingBevestigingKlant, 
+  dieptereinigingToegewezenSchoonmaker 
+} from '../../templates/emails/index.js';
 
 export async function processDieptereinigingPayment({ paymentIntent, metadata, correlationId, event }) {
   console.log(`💰 [ProcessDieptereiniging] ========== START ========== [${correlationId}]`);
@@ -207,8 +212,101 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       throw new Error(`Match creation failed: ${error.message}`);
     }
 
-    // TODO: Email templates for dieptereiniging (Stap 4)
-    console.log(`📧 [ProcessDieptereiniging] Email templates coming in Stap 4...`);
+    // Fetch schoonmaker details if assigned
+    console.log(`📧 [ProcessDieptereiniging] Sending email notifications...`);
+    let schoonmakerNaam = null;
+    let schoonmakerEmail = null;
+    const schoonmakerId = metadata.schoonmaker_id === 'geenVoorkeur' ? null : metadata.schoonmaker_id;
+    const autoAssigned = metadata.auto_assigned === 'true';
+    
+    if (schoonmakerId) {
+      try {
+        const { supabaseConfig } = await import('../../config/index.js');
+        const supabaseUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${schoonmakerId}&select=voornaam,achternaam,email`;
+        
+        const response = await fetch(supabaseUrl, {
+          headers: {
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${supabaseConfig.anonKey}`
+          }
+        });
+        
+        if (response.ok) {
+          const [schoonmaker] = await response.json();
+          if (schoonmaker) {
+            schoonmakerNaam = `${schoonmaker.voornaam} ${schoonmaker.achternaam}`;
+            schoonmakerEmail = schoonmaker.email;
+            console.log(`✅ [ProcessDieptereiniging] Schoonmaker details fetched: ${schoonmakerNaam}`);
+          }
+        }
+      } catch (error) {
+        console.error(`⚠️ [ProcessDieptereiniging] Failed to fetch schoonmaker details:`, error.message);
+        // Continue without schoonmaker details
+      }
+    }
+
+    // Prepare email data
+    const emailData = {
+      klantNaam: `${metadata.voornaam} ${metadata.achternaam}`,
+      klantEmail: metadata.email,
+      plaats: metadata.plaats,
+      adres: `${metadata.straat} ${metadata.huisnummer}`,
+      postcode: metadata.postcode,
+      uren: parseFloat(metadata.dr_uren),
+      m2: metadata.dr_m2 ? parseInt(metadata.dr_m2) : null,
+      toiletten: metadata.dr_toiletten ? parseInt(metadata.dr_toiletten) : null,
+      badkamers: metadata.dr_badkamers ? parseInt(metadata.dr_badkamers) : null,
+      gewensteDatum: metadata.dr_datum,
+      schoonmakerNaam: schoonmakerNaam,
+      autoAssigned: autoAssigned,
+      bedrag: paymentIntent.amount / 100, // Convert cents to euros
+      betalingId: paymentIntent.id,
+      opdrachtId: opdracht.id,
+      matchId: schoonmaakMatch.id
+    };
+
+    // 1. Send admin notification email
+    try {
+      await sendEmail({
+        to: emailConfig.notificationsEmail,
+        subject: '🆕 Nieuwe Dieptereiniging Opdracht Ontvangen',
+        html: nieuweDieptereinigingAdmin(emailData)
+      });
+      console.log(`✅ [ProcessDieptereiniging] Admin notification email sent`);
+    } catch (error) {
+      console.error(`⚠️ [ProcessDieptereiniging] Failed to send admin email:`, error.message);
+      // Don't throw - continue with other emails
+    }
+
+    // 2. Send client confirmation email
+    try {
+      await sendEmail({
+        to: metadata.email,
+        subject: '✅ Betaling Ontvangen - Dieptereiniging',
+        html: dieptereinigingBevestigingKlant(emailData)
+      });
+      console.log(`✅ [ProcessDieptereiniging] Client confirmation email sent to ${metadata.email}`);
+    } catch (error) {
+      console.error(`⚠️ [ProcessDieptereiniging] Failed to send client email:`, error.message);
+      // Don't throw - this is not critical
+    }
+
+    // 3. Send schoonmaker assignment email (if schoonmaker assigned)
+    if (schoonmakerEmail) {
+      try {
+        await sendEmail({
+          to: schoonmakerEmail,
+          subject: '🧹 Nieuwe Dieptereiniging Opdracht Toegewezen',
+          html: dieptereinigingToegewezenSchoonmaker(emailData)
+        });
+        console.log(`✅ [ProcessDieptereiniging] Schoonmaker assignment email sent to ${schoonmakerEmail}`);
+      } catch (error) {
+        console.error(`⚠️ [ProcessDieptereiniging] Failed to send schoonmaker email:`, error.message);
+        // Don't throw - this is not critical
+      }
+    } else {
+      console.log(`ℹ️ [ProcessDieptereiniging] No schoonmaker assigned, skipping assignment email`);
+    }
 
     console.log(`🎉 [ProcessDieptereiniging] ========== SUCCESS ========== [${correlationId}]`);
     return { handled: true, intent: paymentIntent.id, opdracht_id: opdracht.id };

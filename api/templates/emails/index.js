@@ -9,10 +9,15 @@
  * const html = templates.nieuweAanvraagAdmin(data);
  */
 
-// Payment Flow Templates
+// Payment Flow Templates - Abonnement
 export { nieuweAanvraagAdmin } from './nieuweAanvraagAdmin.js';
 export { betalingBevestigingKlant } from './betalingBevestigingKlant.js';
 export { matchToegewezenSchoonmaker } from './matchToegewezenSchoonmaker.js';
+
+// Payment Flow Templates - Dieptereiniging
+export { nieuweDieptereinigingAdmin } from './nieuweDieptereinigingAdmin.js';
+export { dieptereinigingBevestigingKlant } from './dieptereinigingBevestigingKlant.js';
+export { dieptereinigingToegewezenSchoonmaker } from './dieptereinigingToegewezenSchoonmaker.js';
 
 // Approve/Reject Flow Templates
 export { matchGoedgekeurdKlant } from './matchGoedgekeurdKlant.js';
@@ -31,10 +36,15 @@ export {
  * Template registry object voor dynamische template selectie
  */
 export const templates = {
-  // Payment Flow
+  // Payment Flow - Abonnement
   nieuweAanvraagAdmin: (await import('./nieuweAanvraagAdmin.js')).nieuweAanvraagAdmin,
   betalingBevestigingKlant: (await import('./betalingBevestigingKlant.js')).betalingBevestigingKlant,
   matchToegewezenSchoonmaker: (await import('./matchToegewezenSchoonmaker.js')).matchToegewezenSchoonmaker,
+  
+  // Payment Flow - Dieptereiniging
+  nieuweDieptereinigingAdmin: (await import('./nieuweDieptereinigingAdmin.js')).nieuweDieptereinigingAdmin,
+  dieptereinigingBevestigingKlant: (await import('./dieptereinigingBevestigingKlant.js')).dieptereinigingBevestigingKlant,
+  dieptereinigingToegewezenSchoonmaker: (await import('./dieptereinigingToegewezenSchoonmaker.js')).dieptereinigingToegewezenSchoonmaker,
   
   // Approve/Reject Flow
   matchGoedgekeurdKlant: (await import('./matchGoedgekeurdKlant.js')).matchGoedgekeurdKlant,
