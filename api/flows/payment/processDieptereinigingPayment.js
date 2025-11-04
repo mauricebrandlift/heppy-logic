@@ -278,6 +278,9 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       // Don't throw - continue with other emails
     }
 
+    // Delay tussen emails (rate limit protection: max 2 per second)
+    await new Promise(resolve => setTimeout(resolve, 600));
+
     // 2. Send client confirmation email
     try {
       await sendEmail({
@@ -290,6 +293,9 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       console.error(`⚠️ [ProcessDieptereiniging] Failed to send client email:`, error.message);
       // Don't throw - this is not critical
     }
+
+    // Delay tussen emails (rate limit protection: max 2 per second)
+    await new Promise(resolve => setTimeout(resolve, 600));
 
     // 3. Send schoonmaker assignment email (if schoonmaker assigned)
     if (schoonmakerEmail) {

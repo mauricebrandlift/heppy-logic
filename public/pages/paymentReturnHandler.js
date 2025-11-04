@@ -1,5 +1,6 @@
 // public/pages/paymentReturnHandler.js
 // Vroege redirect-afhandeling vóór individuele form init zodat we niet onnodig op stap 1 blijven.
+// Ondersteunt zowel abonnement als dieptereiniging flows.
 import { loadFlowData, saveFlowData } from '../forms/logic/formStorage.js';
 import { apiClient } from '../utils/api/client.js';
 import { safeTrack, logStepCompleted } from '../utils/tracking/simpleFunnelTracker.js';
@@ -12,34 +13,75 @@ import { safeTrack, logStepCompleted } from '../utils/tracking/simpleFunnelTrack
     const marker = params.get('afterPayment');
     if (!intentId && !marker && !redirectStatus) return; // geen redirect context
 
-    const flow = loadFlowData('abonnement-aanvraag') || {};
-    if (!flow.paymentIntentId && intentId) {
-      flow.paymentIntentId = intentId;
-      saveFlowData('abonnement-aanvraag', flow);
+    // Detecteer flow type: probeer beide flows te laden
+    const abonnementFlow = loadFlowData('abonnement-aanvraag');
+    const dieptereinigingFlow = loadFlowData('dieptereiniging-aanvraag');
+    
+    // Bepaal actieve flow op basis van welke data aanwezig is
+    let activeFlow = null;
+    let flowType = null;
+    let flowKey = null;
+    
+    if (dieptereinigingFlow && Object.keys(dieptereinigingFlow).length > 1) {
+      activeFlow = dieptereinigingFlow;
+      flowType = 'dieptereiniging';
+      flowKey = 'dieptereiniging-aanvraag';
+      console.log('[PaymentReturnEarly] Detected flow: dieptereiniging');
+    } else if (abonnementFlow && Object.keys(abonnementFlow).length > 1) {
+      activeFlow = abonnementFlow;
+      flowType = 'abonnement';
+      flowKey = 'abonnement-aanvraag';
+      console.log('[PaymentReturnEarly] Detected flow: abonnement');
+    } else {
+      // Geen flow data, skip
+      console.warn('[PaymentReturnEarly] No flow data found');
+      return;
+    }
+
+    // Sla payment intent ID op in actieve flow
+    if (!activeFlow.paymentIntentId && intentId) {
+      activeFlow.paymentIntentId = intentId;
+      saveFlowData(flowKey, activeFlow);
     }
 
     if (!intentId) return; // zonder intent geen status
 
     const res = await apiClient(`/routes/stripe/retrieve-payment-intent?id=${encodeURIComponent(intentId)}`, { method: 'GET' });
     const status = res?.status;
-    console.log('[PaymentReturnEarly] Status:', status);
+    console.log('[PaymentReturnEarly] Status:', status, 'for flow:', flowType);
     const cleanUrl = window.location.origin + window.location.pathname; // alleen path
 
 
     if (status === 'succeeded') {
       // 🎯 TRACK COMPLETION - Step 6 with is_completion = true
-      await safeTrack(() => logStepCompleted('abonnement', 'success', 6, {
+      await safeTrack(() => logStepCompleted(flowType, 'success', 6, {
         is_completion: true,
         payment_intent_id: intentId
       }));
       
-      // Redirect naar dedicated succes pagina
+      // Redirect naar dedicated succes pagina met flow-specifieke parameters
       const base = window.location.origin;
-      const flow = loadFlowData('abonnement-aanvraag') || {};
       const intentParam = encodeURIComponent(intentId);
-      // Meegeven van eventueel minimale info voor client-side bevestiging
-      const extra = flow.frequentie ? `&freq=${encodeURIComponent(flow.frequentie)}` : '';
-      window.location.replace(`${base}/aanvragen/succes/abonnement?pi=${intentParam}${extra}`);
+      
+      let successUrl;
+      if (flowType === 'abonnement') {
+        // Abonnement: meegeven van frequentie
+        const extra = activeFlow.frequentie ? `&freq=${encodeURIComponent(activeFlow.frequentie)}` : '';
+        successUrl = `${base}/aanvragen/succes/abonnement?pi=${intentParam}${extra}`;
+      } else if (flowType === 'dieptereiniging') {
+        // Dieptereiniging: meegeven van datum, uren, m2, etc.
+        const params = [];
+        if (activeFlow.dr_datum) params.push(`datum=${encodeURIComponent(activeFlow.dr_datum)}`);
+        if (activeFlow.dr_uren) params.push(`uren=${encodeURIComponent(activeFlow.dr_uren)}`);
+        if (activeFlow.dr_m2) params.push(`m2=${encodeURIComponent(activeFlow.dr_m2)}`);
+        if (activeFlow.dr_toiletten) params.push(`toiletten=${encodeURIComponent(activeFlow.dr_toiletten)}`);
+        if (activeFlow.dr_badkamers) params.push(`badkamers=${encodeURIComponent(activeFlow.dr_badkamers)}`);
+        const extra = params.length > 0 ? '&' + params.join('&') : '';
+        successUrl = `${base}/aanvragen/succes/dieptereiniging?pi=${intentParam}${extra}`;
+      }
+      
+      console.log('[PaymentReturnEarly] Redirecting to:', successUrl);
+      window.location.replace(successUrl);
       return; // Stop verdere verwerking
     }
     if (status === 'processing') {
