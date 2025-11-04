@@ -106,6 +106,9 @@ export async function initDrSchoonmakerForm() {
   console.log('[DR Schoonmaker Form] Schema geladen:', schema);
   
   if (schema) {
+    // Zorg dat schema.name is gezet (fix voor formHandler)
+    schema.name = FORM_NAME;
+    
     // Voeg submit handler toe aan schema (volgt abonnement patroon)
     schema.submit.action = async (formData) => {
       console.log('[DR Schoonmaker Form] Submit action:', formData);
