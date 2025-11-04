@@ -134,11 +134,34 @@ export async function initDrSchoonmakerForm() {
       const flowData = loadFlowData('dieptereiniging-aanvraag') || {};
       flowData.schoonmakerKeuze = selectedValue;
       flowData.schoonmaker_id = schoonmakerId;
+      
+      // Sla voornaam van geselecteerde schoonmaker op voor overzicht (indien van toepassing)
+      try {
+        const formElement = document.querySelector(FORM_SELECTOR);
+        if (formElement && selectedValue && selectedValue !== 'geenVoorkeur') {
+          const selectedRadio = formElement.querySelector(`input[type="radio"][name="schoonmakerKeuze"][value="${selectedValue}"]`);
+          if (selectedRadio) {
+            const card = selectedRadio.closest('[data-render-element="schoonmaker"]');
+            const naamEl = card ? card.querySelector('[data-schoonmaker="naam"]') : null;
+            const voornaam = naamEl ? (naamEl.textContent || '').trim() : '';
+            if (voornaam) {
+              flowData.schoonmakerVoornaam = voornaam;
+            }
+          }
+        } else {
+          // Geen voorkeur of niets gekozen: geen naam tonen in overzicht
+          if (flowData.schoonmakerVoornaam) delete flowData.schoonmakerVoornaam;
+        }
+      } catch (e) {
+        console.warn('[DR Schoonmaker Form] Kon voornaam niet opslaan voor overzicht:', e);
+      }
+      
       saveFlowData('dieptereiniging-aanvraag', flowData);
       
       console.log('[DR Schoonmaker Form] Saved choice:', {
         schoonmakerKeuze: selectedValue,
-        schoonmaker_id: schoonmakerId
+        schoonmaker_id: schoonmakerId,
+        schoonmakerVoornaam: flowData.schoonmakerVoornaam || null
       });
     };
     
