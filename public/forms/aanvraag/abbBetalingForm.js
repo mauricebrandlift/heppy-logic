@@ -416,6 +416,9 @@ export async function initAbbBetalingForm() {
  * Setup prev button handler voor terug navigatie
  * Re-initialiseert stap 5 (persoonsgegevens) voordat er terug wordt genavigeerd
  */
+// Store handler reference om duplicate listeners te voorkomen
+let prevButtonHandler = null;
+
 function setupPrevButtonHandler() {
   const prevButton = document.querySelector('[data-form-button-prev="abb_betaling-form"]');
   
@@ -426,7 +429,14 @@ function setupPrevButtonHandler() {
   
   console.log('[AbbBetaling] Prev button gevonden, event handler toevoegen...');
   
-  prevButton.addEventListener('click', (e) => {
+  // Verwijder oude handler indien aanwezig
+  if (prevButtonHandler) {
+    prevButton.removeEventListener('click', prevButtonHandler);
+    console.log('[AbbBetaling] ♻️ Oude prev button handler verwijderd');
+  }
+  
+  // Definieer nieuwe handler
+  prevButtonHandler = (e) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -450,7 +460,10 @@ function setupPrevButtonHandler() {
         window.moveToPrevSlide();
       }
     });
-  });
+  };
+  
+  // Voeg nieuwe handler toe
+  prevButton.addEventListener('click', prevButtonHandler);
   
   console.log('[AbbBetaling] ✅ Prev button handler toegevoegd');
 }

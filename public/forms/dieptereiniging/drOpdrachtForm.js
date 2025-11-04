@@ -657,6 +657,9 @@ export async function initDrOpdrachtForm() {
  * Setup prev button handler voor terug navigatie
  * Re-initialiseert stap 1 (adres) voordat er terug wordt genavigeerd
  */
+// Store handler reference om duplicate listeners te voorkomen
+let prevButtonHandler = null;
+
 function setupPrevButtonHandler() {
   const prevButton = document.querySelector('[data-form-button-prev="dr_opdracht-form"]');
   
@@ -667,7 +670,14 @@ function setupPrevButtonHandler() {
   
   console.log('[drOpdrachtForm] Prev button gevonden, event handler toevoegen...');
   
-  prevButton.addEventListener('click', (e) => {
+  // Verwijder oude handler indien aanwezig
+  if (prevButtonHandler) {
+    prevButton.removeEventListener('click', prevButtonHandler);
+    console.log('[drOpdrachtForm] ♻️ Oude prev button handler verwijderd');
+  }
+  
+  // Definieer nieuwe handler
+  prevButtonHandler = (e) => {
     e.preventDefault();
     e.stopPropagation();
     
@@ -697,7 +707,10 @@ function setupPrevButtonHandler() {
         window.moveToPrevSlide();
       }
     });
-  });
+  };
+  
+  // Voeg nieuwe handler toe
+  prevButton.addEventListener('click', prevButtonHandler);
   
   console.log('[drOpdrachtForm] ✅ Prev button handler toegevoegd');
 }
