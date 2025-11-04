@@ -278,10 +278,10 @@ function setupPrevButtonHandler() {
     
     console.log('[DrPersoonsgegevens] 🔙 Prev button clicked - navigeer naar stap 4 (overzicht)');
     
-    // Re-initialiseer de VORIGE stap (stap 4 = drOverzicht) VOOR navigatie
-    import('./drOverzicht.js').then(module => {
-      console.log('[DrPersoonsgegevens] ♻️ Re-init drOverzicht voor terug navigatie...');
-      module.initDrOverzicht();
+    // Re-initialiseer de VORIGE stap (stap 4 = drOverzichtForm) VOOR navigatie
+    import('./drOverzichtForm.js').then(module => {
+      console.log('[DrPersoonsgegevens] ♻️ Re-init drOverzichtForm voor terug navigatie...');
+      module.initDrOverzichtForm();
       
       // NA re-init, ga naar vorige slide
       if (typeof window.moveToPrevSlide === 'function') {

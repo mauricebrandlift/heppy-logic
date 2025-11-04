@@ -170,10 +170,10 @@ export async function initDrSchoonmakerForm() {
       console.log('[DR Schoonmaker Form] Submit success, navigeer naar stap 4 (overzicht)...');
       
       // Initialiseer stap 4 (overzicht)
-      import('./drOverzicht.js').then(module => {
-        console.log('[DR Schoonmaker Form] Stap 4 (drOverzicht) wordt geïnitialiseerd...');
-        if (typeof module.initDrOverzicht === 'function') {
-          module.initDrOverzicht();
+      import('./drOverzichtForm.js').then(module => {
+        console.log('[DR Schoonmaker Form] Stap 4 (drOverzichtForm) wordt geïnitialiseerd...');
+        if (typeof module.initDrOverzichtForm === 'function') {
+          module.initDrOverzichtForm();
         }
         
         // Navigeer naar volgende slide

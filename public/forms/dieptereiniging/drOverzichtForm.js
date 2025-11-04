@@ -1,4 +1,4 @@
-// public/forms/dieptereiniging/drOverzicht.js
+// public/forms/dieptereiniging/drOverzichtForm.js
 // Overzicht-stap dieptereiniging: toont samenvatting van alle ingevulde gegevens
 
 import { loadFlowData } from '../logic/formStorage.js';
@@ -9,29 +9,29 @@ const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
 const NEXT_FORM_NAME = 'dr_persoonsgegevens-form';
 
 function goToFormStep(nextFormName) {
-  console.log('[DrOverzicht] goToFormStep →', nextFormName);
+  console.log('[DrOverzichtForm] goToFormStep →', nextFormName);
   if (window.navigateToFormStep) {
     const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
     if (navigated) {
-      console.log('[DrOverzicht] navigateToFormStep succesvol', nextFormName);
+      console.log('[DrOverzichtForm] navigateToFormStep succesvol', nextFormName);
       return true;
     }
-    console.warn('[DrOverzicht] navigateToFormStep kon niet navigeren, probeer fallback.');
+    console.warn('[DrOverzichtForm] navigateToFormStep kon niet navigeren, probeer fallback.');
   }
 
   if (window.jumpToSlideByFormName) {
-    console.log('[DrOverzicht] Fallback jumpToSlideByFormName', nextFormName);
+    console.log('[DrOverzichtForm] Fallback jumpToSlideByFormName', nextFormName);
     window.jumpToSlideByFormName(nextFormName);
     return true;
   }
 
   if (window.moveToNextSlide) {
-    console.log('[DrOverzicht] Fallback moveToNextSlide (geen target match)');
+    console.log('[DrOverzichtForm] Fallback moveToNextSlide (geen target match)');
     window.moveToNextSlide();
     return true;
   }
 
-  console.error('[DrOverzicht] Geen slider navigatie functie gevonden.');
+  console.error('[DrOverzichtForm] Geen slider navigatie functie gevonden.');
   return false;
 }
 
@@ -66,13 +66,13 @@ function formatDate(dateString) {
       year: 'numeric' 
     });
   } catch (e) {
-    console.warn('[DrOverzicht] Datum parse error:', e);
+    console.warn('[DrOverzichtForm] Datum parse error:', e);
     return '—';
   }
 }
 
-export function initDrOverzicht() {
-  console.log('🧾 [DrOverzicht] Initialiseren overzicht…');
+export function initDrOverzichtForm() {
+  console.log('🧾 [DrOverzichtForm] Initialiseren overzicht…');
   const flow = loadFlowData('dieptereiniging-aanvraag') || {};
 
   // Adres en plaats
@@ -111,7 +111,7 @@ export function initDrOverzicht() {
   const kosten = flow.dr_prijs != null ? String(Number(flow.dr_prijs).toFixed(2)).replace('.', ',') : '';
   setText('[data-overview="kosten"]', kosten);
 
-  console.log('✅ [DrOverzicht] Overzicht gevuld.');
+  console.log('✅ [DrOverzichtForm] Overzicht gevuld.');
 
   // Initialiseer deze stap als "formulier" zodat de Webflow-knop via formHandler werkt
   const schema = {
@@ -121,22 +121,22 @@ export function initDrOverzicht() {
     submit: {
       action: async () => {
         // Geen extra actie; alle data is al in de flow bewaard door eerdere stappen
-        console.log('[DrOverzicht] Submit action - geen extra validatie nodig');
+        console.log('[DrOverzichtForm] Submit action - geen extra validatie nodig');
       },
       onSuccess: () => {
-        console.log('[DrOverzicht] Submit success, navigeer naar stap 4 (persoonsgegevens)...');
+        console.log('[DrOverzichtForm] Submit success, navigeer naar stap 4 (persoonsgegevens)...');
         
         // Volg hetzelfde patroon als andere stappen: eerst module laden + init, daarna navigeren
         import('./drPersoonsgegevensForm.js')
           .then((m) => {
-            console.log('[DrOverzicht] drPersoonsgegevensForm module geladen');
+            console.log('[DrOverzichtForm] drPersoonsgegevensForm module geladen');
             if (m && typeof m.initDrPersoonsgegevensForm === 'function') {
               m.initDrPersoonsgegevensForm();
             }
             goToFormStep(NEXT_FORM_NAME);
           })
           .catch((err) => {
-            console.error('[DrOverzicht] Kon persoonsgegevens stap niet laden:', err);
+            console.error('[DrOverzichtForm] Kon persoonsgegevens stap niet laden:', err);
             goToFormStep(NEXT_FORM_NAME);
           });
       }
@@ -145,9 +145,9 @@ export function initDrOverzicht() {
   
   try {
     formHandler.init(schema);
-    console.log('[DrOverzicht] FormHandler geïnitialiseerd');
+    console.log('[DrOverzichtForm] FormHandler geïnitialiseerd');
   } catch (e) {
-    console.warn('[DrOverzicht] Kon formHandler niet initialiseren voor overzicht:', e);
+    console.warn('[DrOverzichtForm] Kon formHandler niet initialiseren voor overzicht:', e);
   }
   
   // 🔙 PREV BUTTON HANDLER - Re-initialiseer vorige stap bij terug navigeren
@@ -165,16 +165,16 @@ function setupPrevButtonHandler() {
   const prevButton = document.querySelector('[data-form-button-prev="dr_overzicht-form"]');
   
   if (!prevButton) {
-    console.log('[DrOverzicht] Geen prev button gevonden met [data-form-button-prev="dr_overzicht-form"]');
+    console.log('[DrOverzichtForm] Geen prev button gevonden met [data-form-button-prev="dr_overzicht-form"]');
     return;
   }
   
-  console.log('[DrOverzicht] Prev button gevonden, event handler toevoegen...');
+  console.log('[DrOverzichtForm] Prev button gevonden, event handler toevoegen...');
   
   // Verwijder oude handler indien aanwezig
   if (prevButtonHandler) {
     prevButton.removeEventListener('click', prevButtonHandler);
-    console.log('[DrOverzicht] ♻️ Oude prev button handler verwijderd');
+    console.log('[DrOverzichtForm] ♻️ Oude prev button handler verwijderd');
   }
   
   // Definieer nieuwe handler
@@ -182,22 +182,22 @@ function setupPrevButtonHandler() {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('[DrOverzicht] 🔙 Prev button clicked - navigeer naar stap 3 (schoonmaker)');
+    console.log('[DrOverzichtForm] 🔙 Prev button clicked - navigeer naar stap 3 (schoonmaker)');
     
     // Re-initialiseer de VORIGE stap (stap 3 = drSchoonmakerForm) VOOR navigatie
     import('./drSchoonmakerForm.js').then(module => {
-      console.log('[DrOverzicht] ♻️ Re-init drSchoonmakerForm voor terug navigatie...');
+      console.log('[DrOverzichtForm] ♻️ Re-init drSchoonmakerForm voor terug navigatie...');
       module.initDrSchoonmakerForm();
       
       // NA re-init, ga naar vorige slide
       if (typeof window.moveToPrevSlide === 'function') {
-        console.log('[DrOverzicht] Roep window.moveToPrevSlide() aan');
+        console.log('[DrOverzichtForm] Roep window.moveToPrevSlide() aan');
         window.moveToPrevSlide();
       } else {
-        console.warn('[DrOverzicht] window.moveToPrevSlide() niet beschikbaar');
+        console.warn('[DrOverzichtForm] window.moveToPrevSlide() niet beschikbaar');
       }
     }).catch(err => {
-      console.error('[DrOverzicht] ❌ Fout bij re-init drSchoonmakerForm:', err);
+      console.error('[DrOverzichtForm] ❌ Fout bij re-init drSchoonmakerForm:', err);
       if (typeof window.moveToPrevSlide === 'function') {
         window.moveToPrevSlide();
       }
@@ -207,5 +207,6 @@ function setupPrevButtonHandler() {
   // Voeg nieuwe handler toe
   prevButton.addEventListener('click', prevButtonHandler);
   
-  console.log('[DrOverzicht] ✅ Prev button handler toegevoegd');
+  console.log('[DrOverzichtForm] ✅ Prev button handler toegevoegd');
 }
+

@@ -306,6 +306,48 @@ export function getFormSchema(name) {
       // Submit logica wordt toegevoegd in abbPersoonsgegevensForm.js
     },
 
+    // Formulier voor stap 5: persoonsgegevens (DIEPTEREINIGING)
+    'dr_persoonsgegevens-form': {
+      name: 'dr_persoonsgegevens-form',
+      selector: '[data-form-name="dr_persoonsgegevens-form"]',
+      fields: {
+        // Hergebruik commonFields met minimale overrides waar nodig
+        voornaam: {
+          ...commonFields.voornaam,
+        },
+        achternaam: {
+          ...commonFields.achternaam,
+        },
+        telefoonnummer: {
+          ...commonFields.telefoon,
+          label: 'Telefoonnummer',
+          validators: ['required', 'numeric', 'minLength'],
+          minLength: 8,
+          inputFilter: 'digitsOnly',
+          messages: {
+            ...(commonFields.telefoon.messages || {}),
+            required: 'Telefoonnummer is verplicht',
+            minLength: 'Voer een geldig telefoonnummer in'
+          }
+        },
+        emailadres: {
+          ...commonFields.email,
+          label: 'E-mailadres'
+        },
+        wachtwoord: {
+          ...commonFields.wachtwoord,
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Persoonsgegevens zijn opgeslagen.'
+        }
+      ),
+      // Submit logica wordt toegevoegd in drPersoonsgegevensForm.js
+    },
+
     // Formulier voor stap 6: betaling
     'abb_betaling-form': {
       name: 'abb_betaling-form',
