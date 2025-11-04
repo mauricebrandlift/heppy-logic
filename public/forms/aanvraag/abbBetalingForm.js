@@ -407,4 +407,50 @@ export async function initAbbBetalingForm() {
       }
     });
   }
+  
+  // 🔙 PREV BUTTON HANDLER - Re-initialiseer vorige stap bij terug navigeren
+  setupPrevButtonHandler();
+}
+
+/**
+ * Setup prev button handler voor terug navigatie
+ * Re-initialiseert stap 5 (overzicht) voordat er terug wordt genavigeerd
+ */
+function setupPrevButtonHandler() {
+  const prevButton = document.querySelector('[data-form-button-prev="abb_betaling-form"]');
+  
+  if (!prevButton) {
+    console.log('[AbbBetaling] Geen prev button gevonden met [data-form-button-prev="abb_betaling-form"]');
+    return;
+  }
+  
+  console.log('[AbbBetaling] Prev button gevonden, event handler toevoegen...');
+  
+  prevButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[AbbBetaling] 🔙 Prev button clicked - navigeer naar stap 5 (overzicht)');
+    
+    // Re-initialiseer de VORIGE stap (stap 5 = abbOverzicht) VOOR navigatie
+    import('./abbOverzicht.js').then(module => {
+      console.log('[AbbBetaling] ♻️ Re-init abbOverzicht voor terug navigatie...');
+      module.initAbbOverzicht();
+      
+      // NA re-init, ga naar vorige slide
+      if (typeof window.moveToPrevSlide === 'function') {
+        console.log('[AbbBetaling] Roep window.moveToPrevSlide() aan');
+        window.moveToPrevSlide();
+      } else {
+        console.warn('[AbbBetaling] window.moveToPrevSlide() niet beschikbaar');
+      }
+    }).catch(err => {
+      console.error('[AbbBetaling] ❌ Fout bij re-init abbOverzicht:', err);
+      if (typeof window.moveToPrevSlide === 'function') {
+        window.moveToPrevSlide();
+      }
+    });
+  });
+  
+  console.log('[AbbBetaling] ✅ Prev button handler toegevoegd');
 }

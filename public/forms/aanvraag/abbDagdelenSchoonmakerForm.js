@@ -954,4 +954,50 @@ export async function initAbbDagdelenSchoonmakerForm() {
   }
 
   console.log('✅ [AbbDagdelenSchoonmakerForm] Initialisatie voltooid');
+  
+  // 🔙 PREV BUTTON HANDLER - Re-initialiseer vorige stap bij terug navigeren
+  setupPrevButtonHandler();
+}
+
+/**
+ * Setup prev button handler voor terug navigatie
+ * Re-initialiseert stap 2 (opdracht) voordat er terug wordt genavigeerd
+ */
+function setupPrevButtonHandler() {
+  const prevButton = document.querySelector('[data-form-button-prev="abb_dagdelen-schoonmaker-form"]');
+  
+  if (!prevButton) {
+    console.log('[AbbDagdelenSchoonmakerForm] Geen prev button gevonden met [data-form-button-prev="abb_dagdelen-schoonmaker-form"]');
+    return;
+  }
+  
+  console.log('[AbbDagdelenSchoonmakerForm] Prev button gevonden, event handler toevoegen...');
+  
+  prevButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[AbbDagdelenSchoonmakerForm] 🔙 Prev button clicked - navigeer naar stap 2 (opdracht)');
+    
+    // Re-initialiseer de VORIGE stap (stap 2 = abbOpdrachtForm) VOOR navigatie
+    import('./abbOpdrachtForm.js').then(module => {
+      console.log('[AbbDagdelenSchoonmakerForm] ♻️ Re-init abbOpdrachtForm voor terug navigatie...');
+      module.initAbbOpdrachtForm();
+      
+      // NA re-init, ga naar vorige slide
+      if (typeof window.moveToPrevSlide === 'function') {
+        console.log('[AbbDagdelenSchoonmakerForm] Roep window.moveToPrevSlide() aan');
+        window.moveToPrevSlide();
+      } else {
+        console.warn('[AbbDagdelenSchoonmakerForm] window.moveToPrevSlide() niet beschikbaar');
+      }
+    }).catch(err => {
+      console.error('[AbbDagdelenSchoonmakerForm] ❌ Fout bij re-init abbOpdrachtForm:', err);
+      if (typeof window.moveToPrevSlide === 'function') {
+        window.moveToPrevSlide();
+      }
+    });
+  });
+  
+  console.log('[AbbDagdelenSchoonmakerForm] ✅ Prev button handler toegevoegd');
 }

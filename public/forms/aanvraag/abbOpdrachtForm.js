@@ -546,7 +546,53 @@ export async function initAbbOpdrachtForm() {  console.log('🚀 [AbbOpdrachtFor
   }
 
   formHandler.updateSubmitState('abb_opdracht-form');
-    console.log('✅ [AbbOpdrachtForm] Initialisatie voltooid');
+  console.log('✅ [AbbOpdrachtForm] Initialisatie voltooid');
+  
+  // 🔙 PREV BUTTON HANDLER - Re-initialiseer vorige stap bij terug navigeren
+  setupPrevButtonHandler();
+}
+
+/**
+ * Setup prev button handler voor terug navigatie
+ * Re-initialiseert stap 1 (adres) voordat er terug wordt genavigeerd
+ */
+function setupPrevButtonHandler() {
+  const prevButton = document.querySelector('[data-form-button-prev="abb_opdracht-form"]');
+  
+  if (!prevButton) {
+    console.log('[AbbOpdrachtForm] Geen prev button gevonden met [data-form-button-prev="abb_opdracht-form"]');
+    return;
+  }
+  
+  console.log('[AbbOpdrachtForm] Prev button gevonden, event handler toevoegen...');
+  
+  prevButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[AbbOpdrachtForm] 🔙 Prev button clicked - navigeer naar stap 1 (adres)');
+    
+    // Re-initialiseer de VORIGE stap (stap 1 = abbAdresForm) VOOR navigatie
+    import('./abbAdresForm.js').then(module => {
+      console.log('[AbbOpdrachtForm] ♻️ Re-init abbAdresForm voor terug navigatie...');
+      module.initAbbAdresForm();
+      
+      // NA re-init, ga naar vorige slide
+      if (typeof window.moveToPrevSlide === 'function') {
+        console.log('[AbbOpdrachtForm] Roep window.moveToPrevSlide() aan');
+        window.moveToPrevSlide();
+      } else {
+        console.warn('[AbbOpdrachtForm] window.moveToPrevSlide() niet beschikbaar');
+      }
+    }).catch(err => {
+      console.error('[AbbOpdrachtForm] ❌ Fout bij re-init abbAdresForm:', err);
+      if (typeof window.moveToPrevSlide === 'function') {
+        window.moveToPrevSlide();
+      }
+    });
+  });
+  
+  console.log('[AbbOpdrachtForm] ✅ Prev button handler toegevoegd');
 }
 
 // Exporteer eventuele helper functies die publiekelijk gebruikt kunnen worden

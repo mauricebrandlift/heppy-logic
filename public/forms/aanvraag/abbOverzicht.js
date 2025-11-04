@@ -163,4 +163,50 @@ export function initAbbOverzicht() {
   } catch (e) {
     console.warn('[AbbOverzicht] Kon formHandler niet initialiseren voor overzicht:', e);
   }
+  
+  // 🔙 PREV BUTTON HANDLER - Re-initialiseer vorige stap bij terug navigeren
+  setupPrevButtonHandler();
+}
+
+/**
+ * Setup prev button handler voor terug navigatie
+ * Re-initialiseert stap 4 (persoonsgegevens) voordat er terug wordt genavigeerd
+ */
+function setupPrevButtonHandler() {
+  const prevButton = document.querySelector('[data-form-button-prev="abb_overzicht-form"]');
+  
+  if (!prevButton) {
+    console.log('[AbbOverzicht] Geen prev button gevonden met [data-form-button-prev="abb_overzicht-form"]');
+    return;
+  }
+  
+  console.log('[AbbOverzicht] Prev button gevonden, event handler toevoegen...');
+  
+  prevButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[AbbOverzicht] 🔙 Prev button clicked - navigeer naar stap 4 (persoonsgegevens)');
+    
+    // Re-initialiseer de VORIGE stap (stap 4 = abbPersoonsgegevensForm) VOOR navigatie
+    import('./abbPersoonsgegevensForm.js').then(module => {
+      console.log('[AbbOverzicht] ♻️ Re-init abbPersoonsgegevensForm voor terug navigatie...');
+      module.initAbbPersoonsgegevensForm();
+      
+      // NA re-init, ga naar vorige slide
+      if (typeof window.moveToPrevSlide === 'function') {
+        console.log('[AbbOverzicht] Roep window.moveToPrevSlide() aan');
+        window.moveToPrevSlide();
+      } else {
+        console.warn('[AbbOverzicht] window.moveToPrevSlide() niet beschikbaar');
+      }
+    }).catch(err => {
+      console.error('[AbbOverzicht] ❌ Fout bij re-init abbPersoonsgegevensForm:', err);
+      if (typeof window.moveToPrevSlide === 'function') {
+        window.moveToPrevSlide();
+      }
+    });
+  });
+  
+  console.log('[AbbOverzicht] ✅ Prev button handler toegevoegd');
 }

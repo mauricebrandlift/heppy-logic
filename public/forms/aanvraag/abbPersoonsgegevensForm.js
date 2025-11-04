@@ -245,6 +245,52 @@ export async function initAbbPersoonsgegevensForm() {
       formHandler.updateSubmitState('abb_persoonsgegevens-form');
     }
   }
+  
+  // 🔙 PREV BUTTON HANDLER - Re-initialiseer vorige stap bij terug navigeren
+  setupPrevButtonHandler();
+}
+
+/**
+ * Setup prev button handler voor terug navigatie
+ * Re-initialiseert stap 3 (dagdelen/schoonmaker) voordat er terug wordt genavigeerd
+ */
+function setupPrevButtonHandler() {
+  const prevButton = document.querySelector('[data-form-button-prev="abb_persoonsgegevens-form"]');
+  
+  if (!prevButton) {
+    console.log('[AbbPersoonsgegevens] Geen prev button gevonden met [data-form-button-prev="abb_persoonsgegevens-form"]');
+    return;
+  }
+  
+  console.log('[AbbPersoonsgegevens] Prev button gevonden, event handler toevoegen...');
+  
+  prevButton.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[AbbPersoonsgegevens] 🔙 Prev button clicked - navigeer naar stap 3 (dagdelen/schoonmaker)');
+    
+    // Re-initialiseer de VORIGE stap (stap 3 = abbDagdelenSchoonmakerForm) VOOR navigatie
+    import('./abbDagdelenSchoonmakerForm.js').then(module => {
+      console.log('[AbbPersoonsgegevens] ♻️ Re-init abbDagdelenSchoonmakerForm voor terug navigatie...');
+      module.initAbbDagdelenSchoonmakerForm();
+      
+      // NA re-init, ga naar vorige slide
+      if (typeof window.moveToPrevSlide === 'function') {
+        console.log('[AbbPersoonsgegevens] Roep window.moveToPrevSlide() aan');
+        window.moveToPrevSlide();
+      } else {
+        console.warn('[AbbPersoonsgegevens] window.moveToPrevSlide() niet beschikbaar');
+      }
+    }).catch(err => {
+      console.error('[AbbPersoonsgegevens] ❌ Fout bij re-init abbDagdelenSchoonmakerForm:', err);
+      if (typeof window.moveToPrevSlide === 'function') {
+        window.moveToPrevSlide();
+      }
+    });
+  });
+  
+  console.log('[AbbPersoonsgegevens] ✅ Prev button handler toegevoegd');
 }
 
 // ========== AUTH HELPER FUNCTIONS ==========
