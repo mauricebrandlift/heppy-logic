@@ -367,6 +367,25 @@ export function getFormSchema(name) {
       // Submit logica in abbBetalingForm.js
     },
 
+    // Formulier voor stap 6: betaling (DIEPTEREINIGING)
+    'dr_betaling-form': {
+      name: 'dr_betaling-form',
+      selector: '[data-form-name="dr_betaling-form"]',
+      fields: {
+        akkoord_voorwaarden: {
+          ...commonFields.akkoordVoorwaarden,
+        },
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Betaling gestart.',
+        }
+      ),
+      // Submit logica in drBetalingForm.js
+    },
+
   // Login formulier
     'inloggen-form': {
       name: 'inloggen-form',

@@ -28,6 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Stap 3 (schoonmaker) wordt geïnitialiseerd door drOpdrachtForm.js onSuccess handler
   // Stap 4 (overzicht) wordt geïnitialiseerd door drSchoonmakerForm.js onSuccess handler
   // Stap 5 (persoonsgegevens) wordt geïnitialiseerd door drOverzichtForm.js onSuccess handler
+  // Stap 6 (betaling) wordt geïnitialiseerd door drPersoonsgegevensForm.js onSuccess handler
   // etc.
 
   // ℹ️ RE-INITIALISATIE BIJ TERUG NAVIGEREN
