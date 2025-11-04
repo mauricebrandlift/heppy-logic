@@ -21,17 +21,18 @@ function uuid(){
  * @param {string} [correlationId] - Voor logging/tracing
  * @returns {Promise<Object>} De aangemaakte match record
  */
-export async function create({ aanvraagId, schoonmakerId, abonnementId, autoAssigned = false }, correlationId = '') {
+export async function create({ aanvraagId, opdrachtId, schoonmakerId, abonnementId, autoAssigned = false }, correlationId = '') {
   console.log(`🤝 [SchoonmaakMatchService] Creating match [${correlationId}]`, {
-    aanvraagId,
+    aanvraagId: aanvraagId || 'none',
+    opdrachtId: opdrachtId || 'none',
     schoonmakerId: schoonmakerId || 'geen voorkeur',
     abonnementId: abonnementId || 'none',
     autoAssigned
   });
 
-  // Validatie
-  if (!aanvraagId) {
-    throw new Error('aanvraagId is verplicht voor match');
+  // Validatie: moet aanvraagId OF opdrachtId hebben
+  if (!aanvraagId && !opdrachtId) {
+    throw new Error('aanvraagId of opdrachtId is verplicht voor match');
   }
 
   const id = uuid();
@@ -40,7 +41,8 @@ export async function create({ aanvraagId, schoonmakerId, abonnementId, autoAssi
   // schoonmakerId mag null zijn (geen voorkeur)
   const body = {
     id,
-    schoonmaak_aanvraag_id: aanvraagId,
+    schoonmaak_aanvraag_id: aanvraagId || null,
+    opdracht_id: opdrachtId || null,
     schoonmaker_id: schoonmakerId || null,
     abonnement_id: abonnementId || null,
     status: 'open', // Status start als 'open'
