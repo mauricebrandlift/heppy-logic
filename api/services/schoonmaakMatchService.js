@@ -109,6 +109,37 @@ export async function findByAanvraagId(aanvraagId, correlationId = '') {
 }
 
 /**
+ * Zoek matches voor een specifieke opdracht (dieptereiniging)
+ * 
+ * @param {string} opdrachtId - UUID van opdracht
+ * @param {string} [correlationId] - Voor logging/tracing
+ * @returns {Promise<Array>} Array van match records, gesorteerd op aangemaakt_op DESC
+ */
+export async function findByOpdrachtId(opdrachtId, correlationId = '') {
+  console.log(`🔍 [SchoonmaakMatchService] Finding matches for opdracht ${opdrachtId} [${correlationId}]`);
+
+  const url = `${supabaseConfig.url}/rest/v1/schoonmaak_match?opdracht_id=eq.${opdrachtId}&order=aangemaakt_op.desc`;
+  
+  const resp = await httpClient(url, {
+    method: 'GET',
+    headers: {
+      'apikey': supabaseConfig.anonKey,
+      'Authorization': `Bearer ${supabaseConfig.anonKey}`
+    }
+  }, correlationId);
+
+  if (!resp.ok) {
+    const errorText = await resp.text();
+    console.error(`❌ [SchoonmaakMatchService] Query failed [${correlationId}]`, errorText);
+    throw new Error(`Fout bij ophalen matches: ${errorText}`);
+  }
+
+  const data = await resp.json();
+  console.log(`✅ [SchoonmaakMatchService] Found ${data?.length || 0} match(es) [${correlationId}]`);
+  return data || [];
+}
+
+/**
  * Update match status (bijvoorbeeld van 'pending' naar 'confirmed')
  * 
  * @param {string} matchId - UUID van match record
