@@ -169,6 +169,12 @@ export async function initDrBetalingForm() {
   const errorEl = formEl.querySelector('[data-error-for="global"]');
   const amountDisplay = formEl.querySelector('[data-element="payment-amount"]');
 
+  // Force reset checkbox (mag nooit prefilled zijn)
+  if (akkoordCb) {
+    akkoordCb.checked = false;
+    console.log('[DrBetaling] Checkbox gereset naar unchecked');
+  }
+
   // Disable pay button until ready
   if (payBtn) payBtn.disabled = true;
 
