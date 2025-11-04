@@ -26,11 +26,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Stap 2 (opdracht) wordt geïnitialiseerd door drAdresForm.js onSuccess handler
   // Stap 3 (schoonmaker) wordt geïnitialiseerd door drOpdrachtForm.js onSuccess handler
-  // Stap 4 (persoonsgegevens) wordt geïnitialiseerd door drSchoonmakerForm.js onSuccess handler
+  // Stap 4 (overzicht) wordt geïnitialiseerd door drSchoonmakerForm.js onSuccess handler
+  // Stap 5 (persoonsgegevens) wordt geïnitialiseerd door drOverzicht.js onSuccess handler
   // etc.
 
   // ℹ️ RE-INITIALISATIE BIJ TERUG NAVIGEREN
   // Terug navigatie wordt nu afgehandeld door prev button handlers in elk formulier
-  // Zie setupPrevButtonHandler() in drOpdrachtForm.js en drSchoonmakerForm.js
-  // Deze handlers re-initialiseren de vorige stap VOOR de slide change
+  // Zie setupPrevButtonHandler() in alle form bestanden (drOpdrachtForm, drSchoonmakerForm, drOverzicht, etc.)
+  // Deze handlers re-initialiseren de vorige stap VOOR de slide change om stale handlers te voorkomen
 });

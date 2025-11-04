@@ -11,7 +11,7 @@ import { fetchAvailableCleaners } from '../../utils/api/cleaners.js';
 
 const FORM_NAME = 'dr_schoonmaker-form';
 const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
-const NEXT_FORM_NAME = 'dr_persoonsgegevens-form';
+const NEXT_FORM_NAME = 'dr_overzicht-form';
 
 /**
  * Navigatie helper (volgt abonnement patroon)
@@ -141,17 +141,17 @@ export async function initDrSchoonmakerForm() {
     
     // Voeg onSuccess handler toe (navigatie naar volgende stap)
     schema.submit.onSuccess = () => {
-      console.log('[DR Schoonmaker Form] Submit success, navigeer naar stap 4...');
+      console.log('[DR Schoonmaker Form] Submit success, navigeer naar stap 4 (overzicht)...');
       
-      // Initialiseer stap 4 (persoonsgegevens)
-      import('./drPersoonsgegevensForm.js').then(module => {
-        console.log('[DR Schoonmaker Form] Stap 4 (drPersoonsgegevensForm) wordt geïnitialiseerd...');
-        if (typeof module.initDrPersoonsgegevensForm === 'function') {
-          module.initDrPersoonsgegevensForm();
+      // Initialiseer stap 4 (overzicht)
+      import('./drOverzicht.js').then(module => {
+        console.log('[DR Schoonmaker Form] Stap 4 (drOverzicht) wordt geïnitialiseerd...');
+        if (typeof module.initDrOverzicht === 'function') {
+          module.initDrOverzicht();
         }
         
         // Navigeer naar volgende slide
-        goToFormStep('dr_persoonsgegevens-form');
+        goToFormStep(NEXT_FORM_NAME);
       });
     };
     
