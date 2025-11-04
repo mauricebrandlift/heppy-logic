@@ -82,14 +82,18 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       const drBadkamers = parseInt(metadata.dr_badkamers) || 0;
       const drDatum = metadata.dr_datum || null;
       
-      // Prepare gegevens JSON
+      // Bereken totaalbedrag in euros
+      const totaalbedrag = (paymentIntent.amount / 100).toFixed(2);
+      
+      // Prepare gegevens JSON (inclusief adres_id voor referentie)
       const gegevens = {
         dr_uren: drUren,
         dr_m2: drM2,
         dr_toiletten: drToiletten,
         dr_badkamers: drBadkamers,
         calc_price_per_hour: parseFloat(metadata.calc_price_per_hour) || null,
-        calc_total_amount_eur: parseFloat(metadata.calc_total_amount_eur) || null
+        calc_total_amount_eur: parseFloat(metadata.calc_total_amount_eur) || null,
+        adres_id: address.id  // Store for reference (user_profiles.adres_id has the actual FK)
       };
 
       // Insert into opdrachten table
@@ -98,10 +102,13 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       
       const opdrachtPayload = {
         gebruiker_id: user.id,
-        adres_id: address.id,
+        schoonmaker_id: metadata.schoonmaker_id || null,  // Selected or auto-assigned schoonmaker
+        // Note: opdrachten table has no adres_id column; adres linked via user_profiles.adres_id
         type: 'dieptereiniging',
         status: 'aangevraagd',
         gewenste_datum: drDatum,
+        totaalbedrag: totaalbedrag,
+        betaalstatus: 'betaald',  // Payment already succeeded
         gegevens: gegevens
       };
       
