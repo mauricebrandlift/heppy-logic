@@ -313,6 +313,7 @@ export async function initVerhuisBetalingForm() {
       console.log('[VerhBetaling] Metadata voor PaymentIntent:', metadata);
 
       const intent = await createPaymentIntent({
+        amount: totalAmountCents, // Bedrag in centen (verplicht!)
         currency: publicCfg.currency,
         description: `Heppy verhuis/opleverschoonmaak (${uren}u)`,
         customerEmail: flow.emailadres || undefined,
