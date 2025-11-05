@@ -319,6 +319,13 @@ export async function initDrBetalingForm() {
 
       console.log('[DrBetaling] Intent response:', intent);
 
+      // Toon spinner tijdens laden van payment methods
+      const paymentSpinner = document.querySelector('[data-loading-spinner="payment-methods"]');
+      if (paymentSpinner) {
+        paymentSpinner.classList.remove('hide');
+        console.log('[DrBetaling] 🔄 Payment spinner getoond');
+      }
+
       elementsInstance = stripeInstance.elements({ 
         clientSecret: intent.clientSecret, 
         appearance: { theme: 'stripe' } 
@@ -328,10 +335,19 @@ export async function initDrBetalingForm() {
       const mountEl = document.querySelector('[data-element="stripe-payment-element"]');
       if (!mountEl) throw new Error('Payment element container niet gevonden');
       
-      paymentElement.on('ready', () => console.log('[DrBetaling] Payment Element ready'));
+      paymentElement.on('ready', () => {
+        console.log('[DrBetaling] Payment Element ready');
+        // Verberg spinner zodra payment element klaar is
+        if (paymentSpinner) {
+          paymentSpinner.classList.add('hide');
+          console.log('[DrBetaling] ✅ Payment spinner verborgen');
+        }
+      });
       paymentElement.on('loaderror', (e) => {
         console.error('[DrBetaling] Payment Element loaderror event:', e);
         if (errorEl) errorEl.textContent = 'Laden van betaalcomponent mislukt.';
+        // Verberg spinner ook bij error
+        if (paymentSpinner) paymentSpinner.classList.add('hide');
       });
       
       paymentElement.mount(mountEl);

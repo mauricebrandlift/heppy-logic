@@ -313,14 +313,30 @@ export async function initAbbBetalingForm() {
         sessionsPer4W: sessionsPer4W
       }));
 
+      // Toon spinner tijdens laden van payment methods
+      const paymentSpinner = document.querySelector('[data-loading-spinner="payment-methods"]');
+      if (paymentSpinner) {
+        paymentSpinner.classList.remove('hide');
+        console.log('[AbbBetaling] 🔄 Payment spinner getoond');
+      }
+
       elementsInstance = stripeInstance.elements({ clientSecret: intent.clientSecret, appearance: { theme: 'stripe' } });
       paymentElement = elementsInstance.create('payment');
       const mountEl = document.querySelector('[data-element="stripe-payment-element"]');
       if (!mountEl) throw new Error('Payment element container niet gevonden');
-      paymentElement.on('ready', () => console.log('[AbbBetaling] Payment Element ready'));
+      paymentElement.on('ready', () => {
+        console.log('[AbbBetaling] Payment Element ready');
+        // Verberg spinner zodra payment element klaar is
+        if (paymentSpinner) {
+          paymentSpinner.classList.add('hide');
+          console.log('[AbbBetaling] ✅ Payment spinner verborgen');
+        }
+      });
       paymentElement.on('loaderror', (e) => {
         console.error('[AbbBetaling] Payment Element loaderror event:', e);
         if (errorEl) errorEl.textContent = 'Laden van betaalcomponent mislukt.';
+        // Verberg spinner ook bij error
+        if (paymentSpinner) paymentSpinner.classList.add('hide');
       });
       paymentElement.mount(mountEl);
       paymentReady = true;
