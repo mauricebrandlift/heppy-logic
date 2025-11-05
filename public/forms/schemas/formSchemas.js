@@ -629,6 +629,231 @@ export function getFormSchema(name) {
       ),
     },
 
+    // ============================================================
+    // VERHUIS/OPLEVERSCHOONMAAK FLOW
+    // ============================================================
+    
+    // Formulier voor stap 1 van verhuis/opleverschoonmaak aanvraag - adresgegevens
+    'vh_adres-form': {
+      name: 'vh_adres-form',
+      selector: '[data-form-name="vh_adres-form"]',
+      fields: {
+        postcode: commonFields.postcode,
+        huisnummer: commonFields.huisnummer,
+        toevoeging: commonFields.toevoeging,
+        straatnaam: {
+          ...commonFields.straatnaam,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+        plaats: {
+          ...commonFields.plaats,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in vhAdresForm.js
+      },
+      triggers: [
+        {
+          type: 'addressLookup',
+        }
+      ],
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.address,
+        commonMessages.coverage,
+        commonMessages.server,
+        {
+          // Formulier-specifieke berichten voor adres
+          CUSTOM_SUCCESS: 'Je adresgegevens zijn succesvol gecontroleerd.',
+          LOCAL_ONLY: 'Deze actie is alleen beschikbaar voor lokale adressen.'
+        }
+      ),
+    },
+
+    // Formulier voor stap 2 van verhuis/opleverschoonmaak aanvraag - opdracht details
+    'vh_opdracht-form': {
+      name: 'vh_opdracht-form',
+      selector: '[data-form-name="vh_opdracht-form"]',
+      fields: {
+        vh_m2: {
+          label: 'Aantal vierkante meters',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:20', 'max:500'],
+          persist: 'form',
+          messages: {
+            required: 'Vul het aantal vierkante meters in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 20m² voor verhuis/opleverschoonmaak',
+            max: 'Maximaal 500m² per opdracht'
+          }
+        },
+        vh_toiletten: {
+          label: 'Aantal toiletten',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:0', 'max:10'],
+          persist: 'form',
+          messages: {
+            required: 'Vul het aantal toiletten in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 0 toiletten',
+            max: 'Maximaal 10 toiletten'
+          }
+        },
+        vh_badkamers: {
+          label: 'Aantal badkamers',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:0', 'max:10'],
+          persist: 'form',
+          messages: {
+            required: 'Vul het aantal badkamers in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 0 badkamers',
+            max: 'Maximaal 10 badkamers'
+          }
+        },
+        vh_datum: {
+          label: 'Gewenste datum',
+          inputType: 'date',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'form',
+          messages: {
+            required: 'Kies een datum voor de verhuis/opleverschoonmaak',
+            INVALID_DATE: 'Deze datum is niet beschikbaar'
+          }
+        }
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in verhuisOpdrachtForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          INVALID_DATE: 'Kies een geldige datum binnen het toegestane bereik',
+          INCOMPLETE_FORM: 'Vul alle velden in om door te gaan',
+          CUSTOM_SUCCESS: 'Opdracht details succesvol opgeslagen'
+        }
+      ),
+    },
+
+    // Verhuis/opleverschoonmaak stap 3: Schoonmaker keuze
+    'vh_schoonmaker-form': {
+      name: 'vh_schoonmaker-form',
+      selector: '[data-form-name="vh_schoonmaker-form"]',
+      fields: {
+        schoonmakerKeuze: {
+          label: 'Schoonmaker keuze',
+          inputType: 'radio',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'form',
+          messages: {
+            required: 'Kies een schoonmaker of selecteer "Geen voorkeur"'
+          }
+        }
+      },
+      submit: {
+        // Submit action wordt toegevoegd in verhuisSchoonmakerForm.js via schema.submit.action = ...
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          NO_CLEANERS_FOUND: 'Geen beschikbare schoonmakers gevonden voor de gekozen datum',
+          CLEANER_SELECTION_REQUIRED: 'Selecteer een schoonmaker om door te gaan',
+          CUSTOM_SUCCESS: 'Schoonmaker gekozen, ga door naar de volgende stap'
+        }
+      ),
+    },
+
+    // Verhuis/opleverschoonmaak stap 4: Overzicht
+    'vh_overzicht-form': {
+      name: 'vh_overzicht-form',
+      selector: '[data-form-name="vh_overzicht-form"]',
+      fields: {
+        // Overzicht heeft geen input velden, alleen weergave en bevestiging
+        // Submit button triggert navigatie naar volgende stap
+      },
+      submit: {
+        // Submit action wordt toegevoegd in verhuisOverzichtForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Overzicht gecontroleerd, ga door naar persoonsgegevens'
+        }
+      ),
+    },
+
+    // Formulier voor stap 5: persoonsgegevens (VERHUIS/OPLEVERSCHOONMAAK)
+    'vh_persoonsgegevens-form': {
+      name: 'vh_persoonsgegevens-form',
+      selector: '[data-form-name="vh_persoonsgegevens-form"]',
+      fields: {
+        // Hergebruik commonFields met minimale overrides waar nodig
+        voornaam: {
+          ...commonFields.voornaam,
+        },
+        achternaam: {
+          ...commonFields.achternaam,
+        },
+        telefoonnummer: {
+          ...commonFields.telefoon,
+          label: 'Telefoonnummer',
+          validators: ['required', 'numeric', 'minLength'],
+          minLength: 8,
+          inputFilter: 'digitsOnly',
+          messages: {
+            ...(commonFields.telefoon.messages || {}),
+            required: 'Telefoonnummer is verplicht',
+            minLength: 'Voer een geldig telefoonnummer in'
+          }
+        },
+        emailadres: {
+          ...commonFields.email,
+          label: 'E-mailadres'
+        },
+        wachtwoord: {
+          ...commonFields.wachtwoord,
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Persoonsgegevens zijn opgeslagen.'
+        }
+      ),
+      // Submit logica wordt toegevoegd in vhPersoonsgegevensForm.js
+    },
+
+    // Formulier voor stap 6: betaling (VERHUIS/OPLEVERSCHOONMAAK)
+    'vh_betaling-form': {
+      name: 'vh_betaling-form',
+      selector: '[data-form-name="vh_betaling-form"]',
+      fields: {
+        akkoord_voorwaarden: {
+          ...commonFields.akkoordVoorwaarden,
+        },
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Betaling gestart.',
+        }
+      ),
+      // Submit logica in verhuisBetalingForm.js
+    },
+
     // Andere formulieren...
   };
 
