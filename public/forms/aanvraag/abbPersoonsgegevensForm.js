@@ -126,29 +126,18 @@ export async function initAbbPersoonsgegevensForm() {
           if (checkData.exists === true) {
             console.warn('⚠️ [AbbPersoonsgegevens] Email bestaat al:', formData.emailadres);
             
-            // Toon error in het globale error element
-            const formEl = document.querySelector(`[data-form-name="${FORM_NAME}"]`);
-            const errorEl = formEl?.querySelector('[data-error-for="global"]');
-            if (errorEl) {
-              errorEl.textContent = 'Dit e-mailadres is al in gebruik. Log in of gebruik een ander e-mailadres.';
-              errorEl.classList.remove('hide');
-              errorEl.style.display = 'block';
-              console.log('🚨 [AbbPersoonsgegevens] Error message displayed');
-            } else {
-              console.error('❌ [AbbPersoonsgegevens] Error element not found!');
-            }
-            
-            // Gooi error om submit te stoppen
-            throw new Error('Email bestaat al');
+            // Gooi error met user-friendly message die formHandler kan tonen
+            throw new Error('Dit e-mailadres is al in gebruik. Log in of gebruik een ander e-mailadres.');
           }
           
           console.log('✅ [AbbPersoonsgegevens] Email is beschikbaar, continuing...');
         } catch (error) {
           console.error('🔥 [AbbPersoonsgegevens] Catch block:', error.message);
           
-          if (error.message === 'Email bestaat al') {
+          // Als het een user-facing error is (email bestaat), gooi door naar formHandler
+          if (error.message.includes('e-mailadres is al in gebruik')) {
             console.log('🛑 [AbbPersoonsgegevens] Blocking submit - email exists');
-            throw error; // Re-throw om submit te stoppen
+            throw error; // formHandler zal deze message tonen in [data-error-for="global"]
           }
           
           // Netwerk error: log maar block niet
