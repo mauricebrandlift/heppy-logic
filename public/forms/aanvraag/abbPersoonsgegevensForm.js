@@ -100,7 +100,7 @@ export async function initAbbPersoonsgegevensForm() {
         console.log('📧 [AbbPersoonsgegevens] Email to check:', formData.emailadres);
         
         try {
-          const checkUrl = `/api/auth/check-email?email=${encodeURIComponent(formData.emailadres)}`;
+          const checkUrl = `/api/routes/auth/check-email?email=${encodeURIComponent(formData.emailadres)}`;
           console.log('🌐 [AbbPersoonsgegevens] Fetching:', checkUrl);
           
           const checkResponse = await fetch(checkUrl, {
