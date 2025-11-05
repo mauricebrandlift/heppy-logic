@@ -19,6 +19,11 @@ export { nieuweDieptereinigingAdmin } from './nieuweDieptereinigingAdmin.js';
 export { dieptereinigingBevestigingKlant } from './dieptereinigingBevestigingKlant.js';
 export { dieptereinigingToegewezenSchoonmaker } from './dieptereinigingToegewezenSchoonmaker.js';
 
+// Payment Flow Templates - Verhuis-/Opleverschoonmaak
+export { nieuweVerhuisAdmin } from './nieuweVerhuisAdmin.js';
+export { verhuisBevestigingKlant } from './verhuisBevestigingKlant.js';
+export { verhuisToegewezenSchoonmaker } from './verhuisToegewezenSchoonmaker.js';
+
 // Approve/Reject Flow Templates
 export { matchGoedgekeurdKlant } from './matchGoedgekeurdKlant.js';
 export { matchAfgewezenAdmin } from './matchAfgewezenAdmin.js';
@@ -45,6 +50,11 @@ export const templates = {
   nieuweDieptereinigingAdmin: (await import('./nieuweDieptereinigingAdmin.js')).nieuweDieptereinigingAdmin,
   dieptereinigingBevestigingKlant: (await import('./dieptereinigingBevestigingKlant.js')).dieptereinigingBevestigingKlant,
   dieptereinigingToegewezenSchoonmaker: (await import('./dieptereinigingToegewezenSchoonmaker.js')).dieptereinigingToegewezenSchoonmaker,
+  
+  // Payment Flow - Verhuis-/Opleverschoonmaak
+  nieuweVerhuisAdmin: (await import('./nieuweVerhuisAdmin.js')).nieuweVerhuisAdmin,
+  verhuisBevestigingKlant: (await import('./verhuisBevestigingKlant.js')).verhuisBevestigingKlant,
+  verhuisToegewezenSchoonmaker: (await import('./verhuisToegewezenSchoonmaker.js')).verhuisToegewezenSchoonmaker,
   
   // Approve/Reject Flow
   matchGoedgekeurdKlant: (await import('./matchGoedgekeurdKlant.js')).matchGoedgekeurdKlant,
