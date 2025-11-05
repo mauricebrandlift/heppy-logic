@@ -142,7 +142,7 @@ async function handleLogin(e, modal, modalWrapper) {
   const emailField = modal.querySelector('[data-modal-field="emailadres"]');
   const passwordField = modal.querySelector('[data-modal-field="wachtwoord"]');
   const submitButton = modal.querySelector('[data-modal-submit]');
-  const generalError = modal.querySelector('[data-modal-error="general"]');
+  const globalError = modal.querySelector('[data-modal-error="global"]');
 
   // Clear previous errors
   clearModalErrors(modal);
@@ -239,7 +239,7 @@ async function handleLogin(e, modal, modalWrapper) {
       // Show error - shouldn't reach here normally
       console.error('❌ [LoginModal] Login gefaald: Ongeldige response');
       hideLoader(submitButton);
-      showError(generalError, 'Inloggen mislukt. Probeer het opnieuw.');
+      showError(globalError, 'Inloggen mislukt. Probeer het opnieuw.');
     }
   } catch (error) {
     console.error('❌ [LoginModal] Login error:', error);
@@ -253,7 +253,7 @@ async function handleLogin(e, modal, modalWrapper) {
     
     // Show user-friendly error
     const errorMessage = error.message || 'Er ging iets mis. Probeer het opnieuw.';
-    showError(generalError, errorMessage);
+    showError(globalError, errorMessage);
   }
 }
 
@@ -377,8 +377,12 @@ function updateSubmitButton(modal) {
   const email = emailField?.value?.trim();
   const password = passwordField?.value?.trim();
   
-  // Enable button only if both fields have values
-  const isValid = email && password;
+  // Validate both fields
+  const emailValidation = email ? validateEmail(email) : { valid: false };
+  const passwordValidation = password ? validatePassword(password) : { valid: false };
+  
+  // Enable button only if both fields are VALID (not just filled)
+  const isValid = emailValidation.valid && passwordValidation.valid;
   
   if (isValid) {
     submitButton.disabled = false;
