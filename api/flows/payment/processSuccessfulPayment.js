@@ -323,40 +323,78 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
     // Schoonmaak match opslaan (schoonmaker koppeling)
     console.log(`🤝 [ProcessSuccessfulPayment] Creating schoonmaak match...`);
     let schoonmaakMatch;
+    let finalSchoonmakerId = null;
+    let finalAutoAssigned = false;
+    
     try {
       // Handle schoonmaker_id: can be undefined, 'geenVoorkeur', 'undefined' (string), or valid UUID
       const rawSchoonmakerId = metadata.schoonmaker_id;
-      const schoonmakerId = (!rawSchoonmakerId || rawSchoonmakerId === 'geenVoorkeur' || rawSchoonmakerId === 'undefined') 
-        ? null 
-        : rawSchoonmakerId;
-      const autoAssigned = metadata.auto_assigned === 'true'; // String naar boolean
+      const isGeenVoorkeur = (!rawSchoonmakerId || rawSchoonmakerId === 'geenVoorkeur' || rawSchoonmakerId === 'undefined');
+      
+      if (isGeenVoorkeur) {
+        // Auto-assign eerste beschikbare schoonmaker
+        console.log(`🤖 [ProcessSuccessfulPayment] Geen voorkeur - auto-assigning eerste beschikbare schoonmaker...`);
+        
+        try {
+          const { supabaseConfig } = await import('../../config/index.js');
+          const supabaseUrl = `${supabaseConfig.url}/rest/v1/user_profiles?rol=eq.schoonmaker&select=id,voornaam,achternaam,email&limit=1`;
+          const response = await fetch(supabaseUrl, {
+            method: 'GET',
+            headers: {
+              'apikey': supabaseConfig.anonKey,
+              'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const schoonmakers = await response.json();
+            if (schoonmakers && schoonmakers.length > 0) {
+              finalSchoonmakerId = schoonmakers[0].id;
+              finalAutoAssigned = true;
+              console.log(`✅ [ProcessSuccessfulPayment] Auto-assigned schoonmaker: ${schoonmakers[0].voornaam} ${schoonmakers[0].achternaam} (${finalSchoonmakerId})`);
+            } else {
+              console.warn(`⚠️ [ProcessSuccessfulPayment] No schoonmaker found for auto-assignment`);
+            }
+          } else {
+            console.error(`❌ [ProcessSuccessfulPayment] Failed to fetch schoonmaker for auto-assignment: ${response.status}`);
+          }
+        } catch (autoAssignError) {
+          console.error(`❌ [ProcessSuccessfulPayment] Auto-assignment failed:`, autoAssignError.message);
+          // Continue without schoonmaker - admin kan later toewijzen
+        }
+      } else {
+        // Klant heeft specifieke schoonmaker gekozen
+        finalSchoonmakerId = rawSchoonmakerId;
+        finalAutoAssigned = metadata.auto_assigned === 'true';
+      }
       
       schoonmaakMatch = await schoonmaakMatchService.create({
         aanvraagId: aanvraag.id,
-        schoonmakerId: schoonmakerId,
+        schoonmakerId: finalSchoonmakerId,
         abonnementId: abonnement.id,
-        autoAssigned: autoAssigned  // ✨ Track "geen voorkeur" selectie
+        autoAssigned: finalAutoAssigned
       }, correlationId);
       
       console.log(`✅ [ProcessSuccessfulPayment] Schoonmaak match created`, {
         match_id: schoonmaakMatch.id,
-        schoonmaker_id: schoonmakerId || 'none',
-        auto_assigned: autoAssigned
+        schoonmaker_id: finalSchoonmakerId || 'none',
+        auto_assigned: finalAutoAssigned
       });
       
       await auditService.log('schoonmaak_match', aanvraag.id, 'created', user.id, { 
-        schoonmaker_id: schoonmakerId || 'geen voorkeur',
+        schoonmaker_id: finalSchoonmakerId || 'geen voorkeur',
         abonnement_id: abonnement.id,
-        auto_assigned: autoAssigned
+        auto_assigned: finalAutoAssigned
       }, correlationId);
       
-      // 📧 EMAIL TRIGGER 3: Match toegewezen → Schoonmaker (alleen als schoonmaker bekend is)
-      if (schoonmakerId) {
-        console.log(`📧 [ProcessSuccessfulPayment] Sending email to schoonmaker (match toegewezen)...`);
+      // 📧 EMAIL TRIGGER 3: Match toegewezen → Schoonmaker (als schoonmaker assigned OR auto-assigned)
+      if (finalSchoonmakerId) {
+        console.log(`📧 [ProcessSuccessfulPayment] Sending email to schoonmaker${finalAutoAssigned ? ' (auto-assigned)' : ''}: ${finalSchoonmakerId}`);
         try {
           // Haal schoonmaker gegevens op via directe Supabase query
           const { supabaseConfig } = await import('../../config/index.js');
-          const supabaseUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${schoonmakerId}&select=*`;
+          const supabaseUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${finalSchoonmakerId}&select=*`;
           const response = await fetch(supabaseUrl, {
             method: 'GET',
             headers: {
@@ -400,18 +438,18 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
             console.log(`✅ [ProcessSuccessfulPayment] Schoonmaker email verzonden naar ${schoonmakerResponse.email}`);
           } else {
             console.warn(`⚠️ [ProcessSuccessfulPayment] Schoonmaker email niet gevonden [${correlationId}]`, {
-              schoonmakerId
+              schoonmakerId: finalSchoonmakerId
             });
           }
         } catch (emailError) {
           console.error(`⚠️ [ProcessSuccessfulPayment] Schoonmaker email failed (non-critical) [${correlationId}]`, {
             error: emailError.message,
-            schoonmakerId
+            schoonmakerId: finalSchoonmakerId
           });
           // Email failure mag flow niet breken
         }
       } else {
-        console.log(`ℹ️ [ProcessSuccessfulPayment] Geen schoonmaker geselecteerd, skip email naar schoonmaker`);
+        console.log(`ℹ️ [ProcessSuccessfulPayment] No schoonmaker assigned (auto-assignment failed), skipping schoonmaker email`);
       }
       
     } catch (error) {
