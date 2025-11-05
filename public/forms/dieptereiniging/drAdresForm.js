@@ -219,6 +219,11 @@ export function initDrAdresForm() {
       if (flowData.straatnaam) formHandler.formData.straatnaam = flowData.straatnaam;
       if (flowData.plaats) formHandler.formData.plaats = flowData.plaats;
       if (typeof flowData.heeftDekking === 'boolean') formHandler.formData.heeftDekking = flowData.heeftDekking;
+      
+      // Update submit button state na prefill
+      if (typeof formHandler.updateSubmitState === 'function') {
+        formHandler.updateSubmitState(FORM_NAME);
+      }
     }
   }
   

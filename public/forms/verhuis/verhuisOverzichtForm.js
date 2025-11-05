@@ -124,20 +124,20 @@ export function initVerhuisOverzichtForm() {
         console.log('[VerhuisOverzichtForm] Submit action - geen extra validatie nodig');
       },
       onSuccess: () => {
-        console.log('[VerhuisOverzichtForm] Submit success, navigeer naar stap 5 (betaling)...');
+        console.log('[VerhuisOverzichtForm] Submit success, navigeer naar stap 5 (persoonsgegevens)...');
         
         // Volg hetzelfde patroon als andere stappen: eerst module laden + init, daarna navigeren
-        import('./verhuisBetalingForm.js')
+        import('./vhPersoonsgegevensForm.js')
           .then((m) => {
-            console.log('[VerhuisOverzichtForm] verhuisBetalingForm module geladen');
-            if (m && typeof m.initVerhuisBetalingForm === 'function') {
-              m.initVerhuisBetalingForm();
+            console.log('[VerhuisOverzichtForm] vhPersoonsgegevensForm module geladen');
+            if (m && typeof m.initVhPersoonsgegevensForm === 'function') {
+              m.initVhPersoonsgegevensForm();
             }
-            goToFormStep(NEXT_FORM_NAME);
+            goToFormStep('vh_persoonsgegevens-form');
           })
           .catch((err) => {
-            console.error('[VerhuisOverzichtForm] Kon betaling stap niet laden:', err);
-            goToFormStep(NEXT_FORM_NAME);
+            console.error('[VerhuisOverzichtForm] Kon persoonsgegevens stap niet laden:', err);
+            goToFormStep('vh_persoonsgegevens-form');
           });
       }
     }

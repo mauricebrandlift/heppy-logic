@@ -121,12 +121,25 @@ export async function initVerhuisSchoonmakerForm() {
         const geenVoorkeurRadio = formStatus.geenVoorkeurElement?.querySelector('input[type="radio"]');
         const autoAssignId = geenVoorkeurRadio?.getAttribute('data-auto-assign-id');
         
+        console.log('[Verhuis Schoonmaker Form] Geen voorkeur check:', {
+          geenVoorkeurElement: !!formStatus.geenVoorkeurElement,
+          geenVoorkeurRadio: !!geenVoorkeurRadio,
+          autoAssignId: autoAssignId
+        });
+        
         if (autoAssignId) {
           schoonmakerId = autoAssignId;
           console.log('[Verhuis Schoonmaker Form] Geen voorkeur: auto-assign ID =', schoonmakerId);
         } else {
-          console.error('[Verhuis Schoonmaker Form] Geen auto-assign ID gevonden');
-          throw new Error('Geen schoonmaker beschikbaar');
+          console.error('[Verhuis Schoonmaker Form] Geen auto-assign ID gevonden - gebruik eerste beschikbare schoonmaker');
+          // Fallback: zoek eerste schoonmaker in de lijst
+          const firstSchoonmakerRadio = document.querySelector('[data-render-element="schoonmaker"] input[type="radio"]');
+          if (firstSchoonmakerRadio && firstSchoonmakerRadio.value) {
+            schoonmakerId = firstSchoonmakerRadio.value;
+            console.log('[Verhuis Schoonmaker Form] Fallback: eerste schoonmaker ID =', schoonmakerId);
+          } else {
+            throw new Error('Geen schoonmaker beschikbaar');
+          }
         }
       }
       
