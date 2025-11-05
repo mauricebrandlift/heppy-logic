@@ -7,13 +7,14 @@ import { addressService } from '../../services/addressService.js';
 import { betalingService } from '../../services/betalingService.js';
 import { auditService } from '../../services/auditService.js';
 import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
-import { sendEmail } from '../../services/emailService.js';
-import { emailConfig } from '../../config/index.js';
-import { 
-  nieuweVerhuisAdmin, 
-  verhuisBevestigingKlant, 
-  verhuisToegewezenSchoonmaker 
-} from '../../templates/emails/index.js';
+// TODO: Email imports - uncomment when templates are created
+// import { sendEmail } from '../../services/emailService.js';
+// import { emailConfig } from '../../config/index.js';
+// import { 
+//   nieuweVerhuisAdmin, 
+//   verhuisBevestigingKlant, 
+//   verhuisToegewezenSchoonmaker 
+// } from '../../templates/emails/index.js';
 
 export async function processVerhuisPayment({ paymentIntent, metadata, correlationId, event }) {
   console.log(`💰 [ProcessVerhuis] ========== START ========== [${correlationId}]`);
@@ -246,6 +247,16 @@ export async function processVerhuisPayment({ paymentIntent, metadata, correlati
       matchId: schoonmaakMatch.id
     };
 
+    // TODO: Email section - uncomment when email templates are created
+    console.log(`ℹ️ [ProcessVerhuis] Email sending disabled - templates not created yet`);
+    console.log(`ℹ️ [ProcessVerhuis] Email recipients would be:`, {
+      admin: 'info@heppy-schoonmaak.nl',
+      klant: metadata.email,
+      schoonmaker: metadata.schoonmaker_id !== 'geenVoorkeur' ? metadata.schoonmaker_id : 'geen voorkeur'
+    });
+
+    /* UNCOMMENT WHEN EMAIL TEMPLATES ARE READY:
+    
     // 1. Send admin notification email
     try {
       await sendEmail({
@@ -331,6 +342,8 @@ export async function processVerhuisPayment({ paymentIntent, metadata, correlati
     } else {
       console.log(`ℹ️ [ProcessVerhuis] No schoonmaker assigned, skipping schoonmaker email`);
     }
+    
+    END OF EMAIL SECTION */
 
     console.log(`🎉 [ProcessVerhuis] ========== SUCCESS ========== [${correlationId}]`);
     return { handled: true, intent: paymentIntent.id, opdracht_id: opdracht.id };
