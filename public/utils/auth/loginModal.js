@@ -183,6 +183,17 @@ async function handleLogin(e, modal, modalWrapper) {
     return;
   }
 
+  // Validate password format using validatePassword
+  const passwordValidation = validatePassword(password);
+
+  if (!passwordValidation.valid) {
+    const passwordError = modal.querySelector('[data-modal-error="wachtwoord"]');
+    showError(passwordError, passwordValidation.error);
+    passwordField?.focus();
+    console.warn('⚠️ [LoginModal] Validatie gefaald: wachtwoord voldoet niet aan eisen');
+    return;
+  }
+
   console.log('✅ [LoginModal] Client-side validatie geslaagd');
   console.log('🔄 [LoginModal] Aanroepen authClient.login()...');
 
@@ -295,6 +306,11 @@ function validateModalField(modal, field) {
     validation = validateEmail(value);
   }
   
+  // Password field validation
+  if (fieldName === 'wachtwoord') {
+    validation = validatePassword(value);
+  }
+  
   // Show/hide error based on validation
   const errorEl = modal.querySelector(`[data-modal-error="${fieldName}"]`);
   if (!validation.valid && errorEl) {
@@ -322,6 +338,24 @@ function validateEmail(email) {
   
   if (!emailRegex.test(email)) {
     return { valid: false, error: 'Voer een geldig e-mailadres in' };
+  }
+  
+  return { valid: true, error: null };
+}
+
+/**
+ * Simple password validation
+ * @param {string} password - Password to validate
+ * @returns {object} - { valid: boolean, error: string|null }
+ */
+function validatePassword(password) {
+  if (!password || password.trim() === '') {
+    return { valid: false, error: 'Vul je wachtwoord in' };
+  }
+  
+  // Minimum 8 characters (volgt commonFields.js pattern)
+  if (password.length < 8) {
+    return { valid: false, error: 'Wachtwoord moet minimaal 8 karakters zijn' };
   }
   
   return { valid: true, error: null };
