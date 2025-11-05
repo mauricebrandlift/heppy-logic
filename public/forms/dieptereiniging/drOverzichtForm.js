@@ -3,6 +3,7 @@
 
 import { loadFlowData } from '../logic/formStorage.js';
 import { formHandler } from '../logic/formHandler.js';
+import { safeTrack, logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 const FORM_NAME = 'dr_overzicht-form';
 const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
@@ -123,8 +124,11 @@ export function initDrOverzichtForm() {
         // Geen extra actie; alle data is al in de flow bewaard door eerdere stappen
         console.log('[DrOverzichtForm] Submit action - geen extra validatie nodig');
       },
-      onSuccess: () => {
+      onSuccess: async () => {
         console.log('[DrOverzichtForm] Submit success, navigeer naar stap 4 (persoonsgegevens)...');
+        
+        // Track step 4 completion
+        await safeTrack(() => logStepCompleted('dieptereiniging', 'overzicht', 4));
         
         // Volg hetzelfde patroon als andere stappen: eerst module laden + init, daarna navigeren
         import('./drPersoonsgegevensForm.js')

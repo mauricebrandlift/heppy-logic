@@ -261,11 +261,11 @@ export async function initAbbBetalingForm() {
         sessions_per_4w: sessionsPer4W.toString(),
         startdatum: flow.startdatum || '',
         
-        // Schoonmaker keuze met auto-assign voor "geen voorkeur"
-        schoonmaker_id: (() => {
+        // Schoonmaker keuze - only include if we have a valid ID
+        ...((() => {
           // Als specifieke schoonmaker gekozen: gebruik die ID
           if (flow.schoonmakerKeuze && flow.schoonmakerKeuze !== 'geenVoorkeur') {
-            return flow.schoonmakerKeuze;
+            return { schoonmaker_id: flow.schoonmakerKeuze };
           }
           
           // Als "geen voorkeur": haal auto-assign ID op uit radio element
@@ -275,15 +275,15 @@ export async function initAbbBetalingForm() {
             
             if (autoAssignId) {
               console.log('✅ [AbbBetaling] Geen voorkeur → Auto-assign ID:', autoAssignId);
-              return autoAssignId;
+              return { schoonmaker_id: autoAssignId };
             } else {
               console.warn('⚠️ [AbbBetaling] Geen voorkeur geselecteerd maar geen auto-assign ID gevonden');
             }
           }
           
-          // Fallback: lege string (NULL in database)
-          return '';
-        })(),
+          // Don't include schoonmaker_id at all if no valid value
+          return {};
+        })()),
         
         // ✨ Track of gebruiker "geen voorkeur" had aangeklikt (voor analytics & notificaties)
         auto_assigned: flow.schoonmakerKeuze === 'geenVoorkeur' ? 'true' : 'false',

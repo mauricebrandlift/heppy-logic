@@ -4,6 +4,7 @@ import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
 import { authClient } from '../../utils/auth/authClient.js';
+import { safeTrack, logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 const FORM_NAME = 'dr_persoonsgegevens-form';
 const NEXT_FORM_NAME = 'dr_betaling-form';
@@ -184,8 +185,12 @@ export async function initDrPersoonsgegevensForm() {
         isAuthenticated: currentAuthState?.role === 'klant'
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       console.log('✅ [DrPersoonsgegevens] Opgeslagen, init betaalstap en ga door…');
+      
+      // Track step 5 completion
+      await safeTrack(() => logStepCompleted('dieptereiniging', 'persoonsgegevens', 5));
+      
       import('./drBetalingForm.js')
         .then((m) => {
           if (m && typeof m.initDrBetalingForm === 'function') {

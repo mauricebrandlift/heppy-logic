@@ -8,6 +8,7 @@ import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { loadFlowData, saveFlowData } from '../logic/formStorage.js';
 import { fetchAvailableCleaners } from '../../utils/api/cleaners.js';
+import { safeTrack, logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 const FORM_NAME = 'dr_schoonmaker-form';
 const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
@@ -166,8 +167,11 @@ export async function initDrSchoonmakerForm() {
     };
     
     // Voeg onSuccess handler toe (navigatie naar volgende stap)
-    schema.submit.onSuccess = () => {
+    schema.submit.onSuccess = async () => {
       console.log('[DR Schoonmaker Form] Submit success, navigeer naar stap 4 (overzicht)...');
+      
+      // Track step 3 completion
+      await safeTrack(() => logStepCompleted('dieptereiniging', 'schoonmaker', 3));
       
       // Initialiseer stap 4 (overzicht)
       import('./drOverzichtForm.js').then(module => {

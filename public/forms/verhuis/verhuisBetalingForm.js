@@ -283,10 +283,10 @@ export async function initVerhuisBetalingForm() {
         total_amount_cents: totalAmountCents.toString(),
         price_per_hour: pricePerHour.toString(),
         
-        // Schoonmaker keuze
-        schoonmaker_id: (() => {
+        // Schoonmaker keuze - only include if we have a valid ID
+        ...((() => {
           if (flow.schoonmakerKeuze && flow.schoonmakerKeuze !== 'geenVoorkeur') {
-            return flow.schoonmakerKeuze;
+            return { schoonmaker_id: flow.schoonmakerKeuze };
           }
           
           if (flow.schoonmakerKeuze === 'geenVoorkeur') {
@@ -295,14 +295,15 @@ export async function initVerhuisBetalingForm() {
             
             if (autoAssignId) {
               console.log('✅ [VerhBetaling] Geen voorkeur → Auto-assign ID:', autoAssignId);
-              return autoAssignId;
+              return { schoonmaker_id: autoAssignId };
             } else {
               console.warn('⚠️ [VerhBetaling] Geen voorkeur geselecteerd maar geen auto-assign ID gevonden');
             }
           }
           
-          return '';
-        })(),
+          // Don't include schoonmaker_id at all if no valid value
+          return {};
+        })()),
         
         auto_assigned: flow.schoonmakerKeuze === 'geenVoorkeur' ? 'true' : 'false',
         

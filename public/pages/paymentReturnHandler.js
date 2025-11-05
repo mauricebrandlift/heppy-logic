@@ -13,16 +13,22 @@ import { safeTrack, logStepCompleted } from '../utils/tracking/simpleFunnelTrack
     const marker = params.get('afterPayment');
     if (!intentId && !marker && !redirectStatus) return; // geen redirect context
 
-    // Detecteer flow type: probeer beide flows te laden
+    // Detecteer flow type: probeer alle flows te laden
     const abonnementFlow = loadFlowData('abonnement-aanvraag');
     const dieptereinigingFlow = loadFlowData('dieptereiniging-aanvraag');
+    const verhuisFlow = loadFlowData('verhuis-aanvraag');
     
     // Bepaal actieve flow op basis van welke data aanwezig is
     let activeFlow = null;
     let flowType = null;
     let flowKey = null;
     
-    if (dieptereinigingFlow && Object.keys(dieptereinigingFlow).length > 1) {
+    if (verhuisFlow && Object.keys(verhuisFlow).length > 1) {
+      activeFlow = verhuisFlow;
+      flowType = 'verhuis_opleverschoonmaak';
+      flowKey = 'verhuis-aanvraag';
+      console.log('[PaymentReturnEarly] Detected flow: verhuis_opleverschoonmaak');
+    } else if (dieptereinigingFlow && Object.keys(dieptereinigingFlow).length > 1) {
       activeFlow = dieptereinigingFlow;
       flowType = 'dieptereiniging';
       flowKey = 'dieptereiniging-aanvraag';
@@ -78,6 +84,16 @@ import { safeTrack, logStepCompleted } from '../utils/tracking/simpleFunnelTrack
         if (activeFlow.dr_badkamers) params.push(`badkamers=${encodeURIComponent(activeFlow.dr_badkamers)}`);
         const extra = params.length > 0 ? '&' + params.join('&') : '';
         successUrl = `${base}/aanvragen/succes/dieptereiniging?pi=${intentParam}${extra}`;
+      } else if (flowType === 'verhuis_opleverschoonmaak') {
+        // Verhuis/Opleverschoonmaak: meegeven van datum, uren, m2, etc.
+        const params = [];
+        if (activeFlow.vh_datum) params.push(`datum=${encodeURIComponent(activeFlow.vh_datum)}`);
+        if (activeFlow.vh_uren) params.push(`uren=${encodeURIComponent(activeFlow.vh_uren)}`);
+        if (activeFlow.vh_m2) params.push(`m2=${encodeURIComponent(activeFlow.vh_m2)}`);
+        if (activeFlow.vh_toiletten) params.push(`toiletten=${encodeURIComponent(activeFlow.vh_toiletten)}`);
+        if (activeFlow.vh_badkamers) params.push(`badkamers=${encodeURIComponent(activeFlow.vh_badkamers)}`);
+        const extra = params.length > 0 ? '&' + params.join('&') : '';
+        successUrl = `${base}/aanvragen/succes/verhuis-opleveringsschoonmaak?pi=${intentParam}${extra}`;
       }
       
       console.log('[PaymentReturnEarly] Redirecting to:', successUrl);

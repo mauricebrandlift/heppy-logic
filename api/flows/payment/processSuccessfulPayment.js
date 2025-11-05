@@ -324,7 +324,11 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
     console.log(`🤝 [ProcessSuccessfulPayment] Creating schoonmaak match...`);
     let schoonmaakMatch;
     try {
-      const schoonmakerId = metadata.schoonmaker_id === 'geenVoorkeur' ? null : metadata.schoonmaker_id;
+      // Handle schoonmaker_id: can be undefined, 'geenVoorkeur', 'undefined' (string), or valid UUID
+      const rawSchoonmakerId = metadata.schoonmaker_id;
+      const schoonmakerId = (!rawSchoonmakerId || rawSchoonmakerId === 'geenVoorkeur' || rawSchoonmakerId === 'undefined') 
+        ? null 
+        : rawSchoonmakerId;
       const autoAssigned = metadata.auto_assigned === 'true'; // String naar boolean
       
       schoonmaakMatch = await schoonmaakMatchService.create({

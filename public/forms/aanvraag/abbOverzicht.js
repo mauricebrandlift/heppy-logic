@@ -3,6 +3,7 @@
 
 import { loadFlowData } from '../logic/formStorage.js';
 import { formHandler } from '../logic/formHandler.js';
+import { safeTrack, logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 const FORM_NAME = 'abb_overzicht-form';
 const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
@@ -142,7 +143,10 @@ export function initAbbOverzicht() {
       action: async () => {
         // Geen extra actie; alle data is al in de flow bewaard door eerdere stappen
       },
-      onSuccess: () => {
+      onSuccess: async () => {
+        // Track step completion (overzicht is stap 3.5, maar we loggen het als onderdeel van de flow)
+        await safeTrack(() => logStepCompleted('abonnement', 'overzicht', 3.5));
+        
         // Volg hetzelfde patroon als andere stappen: eerst module laden + init, daarna navigeren
         import('./abbPersoonsgegevensForm.js')
           .then((m) => {
