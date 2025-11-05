@@ -176,6 +176,13 @@ export async function initAbbBetalingForm() {
   if (payBtn) payBtn.disabled = true;
 
   async function initStripeAndElement() {
+    // Toon spinner direct bij start
+    const paymentSpinner = document.querySelector('[data-loading-spinner="payment-methods"]');
+    if (paymentSpinner) {
+      paymentSpinner.classList.remove('hide');
+      console.log('[AbbBetaling] 🔄 Payment spinner getoond');
+    }
+    
     try {
       // Indien we door early handler al expliciet in 'processing' of 'retry' zijn beland, blijven params aanwezig.
       if (processingMarker && returnedIntentId) {
@@ -312,13 +319,6 @@ export async function initAbbBetalingForm() {
         bundleAmount: intent?.amount ? intent.amount / 100 : bundleAmountEur,
         sessionsPer4W: sessionsPer4W
       }));
-
-      // Toon spinner tijdens laden van payment methods
-      const paymentSpinner = document.querySelector('[data-loading-spinner="payment-methods"]');
-      if (paymentSpinner) {
-        paymentSpinner.classList.remove('hide');
-        console.log('[AbbBetaling] 🔄 Payment spinner getoond');
-      }
 
       elementsInstance = stripeInstance.elements({ clientSecret: intent.clientSecret, appearance: { theme: 'stripe' } });
       paymentElement = elementsInstance.create('payment');

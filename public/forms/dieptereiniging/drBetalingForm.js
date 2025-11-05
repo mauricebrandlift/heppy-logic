@@ -179,6 +179,13 @@ export async function initDrBetalingForm() {
   if (payBtn) payBtn.disabled = true;
 
   async function initStripeAndElement() {
+    // Toon spinner direct bij start
+    const paymentSpinner = document.querySelector('[data-loading-spinner="payment-methods"]');
+    if (paymentSpinner) {
+      paymentSpinner.classList.remove('hide');
+      console.log('[DrBetaling] 🔄 Payment spinner getoond');
+    }
+    
     try {
       // Check redirect markers
       if (processingMarker && returnedIntentId) {
@@ -318,13 +325,6 @@ export async function initDrBetalingForm() {
       }, idem);
 
       console.log('[DrBetaling] Intent response:', intent);
-
-      // Toon spinner tijdens laden van payment methods
-      const paymentSpinner = document.querySelector('[data-loading-spinner="payment-methods"]');
-      if (paymentSpinner) {
-        paymentSpinner.classList.remove('hide');
-        console.log('[DrBetaling] 🔄 Payment spinner getoond');
-      }
 
       elementsInstance = stripeInstance.elements({ 
         clientSecret: intent.clientSecret, 
