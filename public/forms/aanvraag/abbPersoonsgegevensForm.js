@@ -5,6 +5,7 @@ import { getFormSchema } from '../schemas/formSchemas.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
 import { authClient } from '../../utils/auth/authClient.js';
 import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
+import { API_CONFIG } from '../../config/apiConfig.js';
 
 const FORM_NAME = 'abb_persoonsgegevens-form';
 const NEXT_FORM_NAME = 'abb_betaling-form';
@@ -100,7 +101,7 @@ export async function initAbbPersoonsgegevensForm() {
         console.log('📧 [AbbPersoonsgegevens] Email to check:', formData.emailadres);
         
         try {
-          const checkUrl = `/api/routes/auth/check-email?email=${encodeURIComponent(formData.emailadres)}`;
+          const checkUrl = `${API_CONFIG.BASE_URL}/routes/auth/check-email?email=${encodeURIComponent(formData.emailadres)}`;
           console.log('🌐 [AbbPersoonsgegevens] Fetching:', checkUrl);
           
           const checkResponse = await fetch(checkUrl, {

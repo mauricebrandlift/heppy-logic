@@ -16,6 +16,7 @@ export const API_CONFIG = {
       LOGIN: '/auth/login',
       LOGOUT: '/auth/logout',
       ME: '/auth/me',
+      CHECK_EMAIL: '/routes/auth/check-email',
     },
   },
   // Je kunt hier later andere API-gerelateerde configuraties toevoegen,
