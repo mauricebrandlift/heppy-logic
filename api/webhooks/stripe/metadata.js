@@ -6,6 +6,9 @@ export const abonnementRequiredFields = ['email','frequentie','prijs_per_sessie_
 // Dieptereiniging required fields
 export const dieptereinigingRequiredFields = ['email','dr_datum','dr_uren'];
 
+// Verhuis/Opleverschoonmaak required fields
+export const verhuisRequiredFields = ['email','vh_datum','vh_uren'];
+
 export const metadataContract = {
   required: abonnementRequiredFields, // Default for backwards compatibility
   optional: [
@@ -15,6 +18,9 @@ export const metadataContract = {
     'schoonmaker_id','dagdelen','aanvraagId','flow','auto_assigned',
     // Dieptereiniging specific
     'dr_datum','dr_uren','dr_m2','dr_toiletten','dr_badkamers',
+    // Verhuis/Opleverschoonmaak specific
+    'vh_datum','vh_uren','vh_m2','vh_toiletten','vh_badkamers',
+    // Calculation fields
     'calc_source','calc_uren','calc_price_per_hour','calc_total_amount_eur'
   ]
 };
@@ -23,7 +29,7 @@ export function mapAndNormalizeMetadata(raw={}){
   const result = {};
   
   // Map alle velden
-  for (const key of [...abonnementRequiredFields, ...dieptereinigingRequiredFields, ...metadataContract.optional]){
+  for (const key of [...abonnementRequiredFields, ...dieptereinigingRequiredFields, ...verhuisRequiredFields, ...metadataContract.optional]){
     if (raw[key] !== undefined && raw[key] !== '') {
       result[key] = raw[key];
     }
@@ -33,6 +39,7 @@ export function mapAndNormalizeMetadata(raw={}){
   [
     'prijs_per_sessie_cents','bundle_amount_cents','sessions_per_4w','uren',
     'dr_uren','dr_m2','dr_toiletten','dr_badkamers',
+    'vh_uren','vh_m2','vh_toiletten','vh_badkamers',
     'calc_uren','calc_price_per_hour','calc_total_amount_eur'
   ].forEach(k => { 
     if(result[k] != null) {
@@ -59,6 +66,8 @@ export function validateMetadata(meta, flow = 'abonnement'){
   
   if (flow === 'dieptereiniging') {
     requiredFields = dieptereinigingRequiredFields;
+  } else if (flow === 'verhuis_opleverschoonmaak') {
+    requiredFields = verhuisRequiredFields;
   } else {
     requiredFields = abonnementRequiredFields;
   }

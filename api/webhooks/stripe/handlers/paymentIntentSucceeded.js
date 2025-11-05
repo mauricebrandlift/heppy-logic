@@ -1,8 +1,9 @@
 // Handler: payment_intent.succeeded
-// Maps metadata and delegates to payment success flow (abonnement or dieptereiniging)
+// Maps metadata and delegates to payment success flow (abonnement, dieptereiniging, or verhuis_opleverschoonmaak)
 import { mapAndNormalizeMetadata, validateMetadata } from '../metadata.js';
 import { processSuccessfulPayment } from '../../../flows/payment/processSuccessfulPayment.js';
 import { processDieptereinigingPayment } from '../../../flows/payment/processDieptereinigingPayment.js';
+import { processVerhuisPayment } from '../../../flows/payment/processVerhuisPayment.js';
 
 export async function handlePaymentIntentSucceeded(event, correlationId){
   const pi = event.data.object;
@@ -27,6 +28,9 @@ export async function handlePaymentIntentSucceeded(event, correlationId){
   if (flow === 'dieptereiniging') {
     console.log(`🧹 [PaymentIntentSucceeded] Routing to dieptereiniging flow [${correlationId}]`);
     return await processDieptereinigingPayment({ paymentIntent: pi, metadata, correlationId, event });
+  } else if (flow === 'verhuis_opleverschoonmaak') {
+    console.log(`🚚 [PaymentIntentSucceeded] Routing to verhuis/opleverschoonmaak flow [${correlationId}]`);
+    return await processVerhuisPayment({ paymentIntent: pi, metadata, correlationId, event });
   } else {
     console.log(`📅 [PaymentIntentSucceeded] Routing to abonnement flow [${correlationId}]`);
     return await processSuccessfulPayment({ paymentIntent: pi, metadata, correlationId, event });
