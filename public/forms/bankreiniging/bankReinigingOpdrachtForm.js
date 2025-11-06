@@ -49,19 +49,11 @@ function validateMeubelAantallen(formData, formElement) {
   console.log(`[bankReinigingOpdrachtForm] Validatie meubels: ${banken} banken + ${stoelen} stoelen = ${totaal}`);
   
   if (totaal < 1) {
-    // Toon error in UI
-    console.log('[bankReinigingOpdrachtForm] ⚠️ Totaal < 1, toon error');
     if (formElement) {
       const errorContainer = formElement.querySelector('[data-error-for="global"]');
-      console.log('[bankReinigingOpdrachtForm] Error container gevonden:', !!errorContainer);
       if (errorContainer) {
-        console.log('[bankReinigingOpdrachtForm] showError aangeroepen voor global error');
         showError(errorContainer, 'Vul minimaal 1 bank of 1 stoel in om door te gaan');
-      } else {
-        console.error('[bankReinigingOpdrachtForm] ❌ Geen [data-error-for="global"] element gevonden!');
       }
-    } else {
-      console.error('[bankReinigingOpdrachtForm] ❌ Geen formElement beschikbaar!');
     }
     
     return {
@@ -162,13 +154,13 @@ export function initBankReinigingOpdrachtForm() {
       
       const formElement = document.querySelector(schema.selector);
       
-      // Verzamel alle validatie errors EERST voordat we iets gooien
-      let hasErrors = false;
+      // Verzamel alle validatie errors met specifieke messages
+      const errors = [];
       
       // Validatie 1: Zitvlakken minimaal 1
       const zitvlakkenNum = parseInt(rbs_zitvlakken) || 0;
       if (zitvlakkenNum < 1) {
-        hasErrors = true;
+        errors.push('Vul minimaal 1 zitvlak in');
         // Toon field-specific error
         const zitvlakkenField = formElement.querySelector('[data-field-name="rbs_zitvlakken"]');
         const errorContainer = formElement.querySelector('[data-error-for="rbs_zitvlakken"]');
@@ -184,20 +176,26 @@ export function initBankReinigingOpdrachtForm() {
       // Validatie 2: Minimaal 1 bank OF stoel
       const meubelValidatie = validateMeubelAantallen(formData, formElement);
       if (!meubelValidatie.valid) {
-        hasErrors = true;
+        errors.push(meubelValidatie.error);
         // Error is al getoond in validateMeubelAantallen functie
       }
       
       // Validatie 3: Minimaal 1 materiaal geselecteerd
       const materiaalValidatie = validateMaterialen(formElement);
       if (!materiaalValidatie.valid) {
-        hasErrors = true;
+        errors.push(materiaalValidatie.error);
         // Error is al getoond in validateMaterialen functie
       }
       
-      // Als er errors zijn, gooi één error met alle info
-      if (hasErrors) {
-        const error = new Error('Controleer de formuliervelden en probeer opnieuw');
+      // Als er errors zijn, gooi één error met alle specifieke info
+      if (errors.length > 0) {
+        // Toon alle errors in de global error container
+        const globalErrorContainer = formElement.querySelector('[data-error-for="global"]');
+        if (globalErrorContainer) {
+          showError(globalErrorContainer, errors.join(' • '));
+        }
+        
+        const error = new Error(errors.join(' • '));
         error.code = 'VALIDATION_FAILED';
         throw error;
       }
