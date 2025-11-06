@@ -50,11 +50,18 @@ function validateMeubelAantallen(formData, formElement) {
   
   if (totaal < 1) {
     // Toon error in UI
+    console.log('[bankReinigingOpdrachtForm] ⚠️ Totaal < 1, toon error');
     if (formElement) {
       const errorContainer = formElement.querySelector('[data-error-for="global"]');
+      console.log('[bankReinigingOpdrachtForm] Error container gevonden:', !!errorContainer);
       if (errorContainer) {
+        console.log('[bankReinigingOpdrachtForm] showError aangeroepen voor global error');
         showError(errorContainer, 'Vul minimaal 1 bank of 1 stoel in om door te gaan');
+      } else {
+        console.error('[bankReinigingOpdrachtForm] ❌ Geen [data-error-for="global"] element gevonden!');
       }
+    } else {
+      console.error('[bankReinigingOpdrachtForm] ❌ Geen formElement beschikbaar!');
     }
     
     return {
