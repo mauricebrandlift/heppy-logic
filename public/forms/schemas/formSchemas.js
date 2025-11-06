@@ -854,6 +854,276 @@ export function getFormSchema(name) {
       // Submit logica in verhuisBetalingForm.js
     },
 
+    // ========================================
+    // REINIGING BANK EN STOELEN FLOW (OFFERTE)
+    // ========================================
+
+    // Stap 1: Adresgegevens (hergebruik adres logica)
+    'rbs_adres-form': {
+      name: 'rbs_adres-form',
+      selector: '[data-form-name="rbs_adres-form"]',
+      fields: {
+        postcode: commonFields.postcode,
+        huisnummer: commonFields.huisnummer,
+        toevoeging: commonFields.toevoeging,
+        straatnaam: {
+          ...commonFields.straatnaam,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+        plaats: {
+          ...commonFields.plaats,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in rbsAdresForm.js
+      },
+      triggers: [
+        {
+          type: 'addressLookup',
+        }
+      ],
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.address,
+        commonMessages.coverage,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Je adresgegevens zijn succesvol gecontroleerd.',
+        }
+      ),
+    },
+
+    // Stap 2: Meubel details
+    'rbs_opdracht-form': {
+      name: 'rbs_opdracht-form',
+      selector: '[data-form-name="rbs_opdracht-form"]',
+      fields: {
+        rbs_banken: {
+          label: 'Aantal banken',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:0', 'max:20'],
+          persist: 'form',
+          messages: {
+            required: 'Vul het aantal banken in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 0 banken',
+            max: 'Maximaal 20 banken'
+          }
+        },
+        rbs_stoelen: {
+          label: 'Aantal stoelen',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:0', 'max:50'],
+          persist: 'form',
+          messages: {
+            required: 'Vul het aantal stoelen in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 0 stoelen',
+            max: 'Maximaal 50 stoelen'
+          }
+        },
+        rbs_zitvlakken: {
+          label: 'Totaal aantal zitvlakken',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:1', 'max:100'],
+          persist: 'form',
+          messages: {
+            required: 'Vul het totaal aantal zitvlakken in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 1 zitvlak',
+            max: 'Maximaal 100 zitvlakken'
+          }
+        },
+        rbs_kussens: {
+          label: 'Aantal kussens',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['integer', 'min:0', 'max:200'],
+          persist: 'form',
+          messages: {
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 0 kussens',
+            max: 'Maximaal 200 kussens'
+          }
+        },
+        materiaal_stof: {
+          label: 'Materiaal: Stof',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        materiaal_leer: {
+          label: 'Materiaal: Leer',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        materiaal_kunstleer: {
+          label: 'Materiaal: Kunstleer',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        materiaal_fluweel: {
+          label: 'Materiaal: Fluweel',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        materiaal_suede: {
+          label: 'Materiaal: Suede',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        rbs_specificaties: {
+          label: 'Specificaties',
+          inputType: 'textarea',
+          sanitizers: ['trim'],
+          validators: ['required', 'minLength', 'maxLength'],
+          minLength: 20,
+          maxLength: 1000,
+          persist: 'form',
+          messages: {
+            required: 'Beschrijf je meubels (minimaal 20 tekens)',
+            minLength: 'Geef minimaal 20 tekens aan informatie',
+            maxLength: 'Maximaal 1000 tekens'
+          }
+        }
+      },
+      triggers: [
+        {
+          type: 'atLeastOneCheckbox',
+          fields: ['materiaal_stof', 'materiaal_leer', 'materiaal_kunstleer', 'materiaal_fluweel', 'materiaal_suede'],
+          message: 'Selecteer minimaal één materiaal'
+        }
+      ],
+      submit: {
+        // Submit logica wordt toegevoegd in bankReinigingOpdrachtForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Meubel details opgeslagen',
+          INCOMPLETE_FORM: 'Vul alle verplichte velden in'
+        }
+      ),
+    },
+
+    // Stap 3: Dagdelen voorkeur (hergebruik dagdelen component)
+    'rbs_dagdelen-form': {
+      name: 'rbs_dagdelen-form',
+      selector: '[data-form-name="rbs_dagdelen-form"]',
+      fields: {
+        // Dagdelen checkboxes - worden dynamisch verwerkt door dagdelen component
+        dagdeel: {
+          label: 'Voorkeur dagdelen',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        }
+      },
+      triggers: [
+        {
+          type: 'atLeastOneCheckbox',
+          fields: [], // Wordt dynamisch gevuld door dagdelen form
+          message: 'Selecteer minimaal één dagdeel'
+        }
+      ],
+      submit: {
+        // Submit logica wordt toegevoegd in rbsDagdelenForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Voorkeur dagdelen opgeslagen',
+          NO_DAGDELEN_SELECTED: 'Selecteer minimaal één dagdeel om door te gaan'
+        }
+      ),
+    },
+
+    // Stap 4: Overzicht
+    'rbs_overzicht-form': {
+      name: 'rbs_overzicht-form',
+      selector: '[data-form-name="rbs_overzicht-form"]',
+      fields: {
+        // Geen input velden, alleen weergave
+      },
+      submit: {
+        // Submit action wordt toegevoegd in bankReinigingOverzichtForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Overzicht gecontroleerd, ga door naar persoonsgegevens'
+        }
+      ),
+    },
+
+    // Stap 5: Persoonsgegevens (met offerte aanvraag knop)
+    'rbs_persoonsgegevens-form': {
+      name: 'rbs_persoonsgegevens-form',
+      selector: '[data-form-name="rbs_persoonsgegevens-form"]',
+      fields: {
+        voornaam: {
+          ...commonFields.voornaam,
+        },
+        achternaam: {
+          ...commonFields.achternaam,
+        },
+        telefoonnummer: {
+          ...commonFields.telefoon,
+          label: 'Telefoonnummer',
+          validators: ['required', 'numeric', 'minLength'],
+          minLength: 8,
+          inputFilter: 'digitsOnly',
+          messages: {
+            ...(commonFields.telefoon.messages || {}),
+            required: 'Telefoonnummer is verplicht',
+            minLength: 'Voer een geldig telefoonnummer in'
+          }
+        },
+        emailadres: {
+          ...commonFields.email,
+          label: 'E-mailadres'
+        },
+        wachtwoord: {
+          ...commonFields.wachtwoord,
+          validators: [], // Wachtwoord is OPTIONEEL voor offerte flow
+          messages: {
+            ...commonFields.wachtwoord.messages,
+            required: '' // Geen required message want optioneel
+          }
+        },
+        akkoord_voorwaarden: {
+          ...commonFields.akkoordVoorwaarden,
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Offerte aanvraag verzonden! U ontvangt binnen 24 uur een offerte per email.'
+        }
+      ),
+      // Submit logica wordt toegevoegd in rbsPersoonsgegevensForm.js
+    },
+
     // Andere formulieren...
   };
 
