@@ -178,7 +178,7 @@ export async function initRbsPersoonsgegevensForm() {
       });
     },
     onSuccess: async () => {
-      console.log('✅ [RbsPersoonsgegevens] Opgeslagen, track completion en navigate naar succes…');
+      console.log('✅ [RbsPersoonsgegevens] Opgeslagen, verstuur offerte aanvraag naar backend…');
       
       // Track step 5 completion
       await logStepCompleted('bankreiniging', 'persoonsgegevens', 5, {
@@ -186,10 +186,77 @@ export async function initRbsPersoonsgegevensForm() {
         authenticated: authClient.getAuthState()?.role === 'klant'
       });
       
-      // TODO: Hier komt later de API call naar /api/routes/offerte/create
-      // Voor nu: alleen navigeren naar succes pagina
-      console.log('🚧 [RbsPersoonsgegevens] TODO: API call naar offerte/create komt later');
-      console.log('📍 [RbsPersoonsgegevens] TODO: Navigeer naar /aanvragen/succes/reiniging-bank-en-stoelen');
+      // STAP: Verstuur offerte aanvraag naar backend
+      try {
+        console.log('📤 [RbsPersoonsgegevens] Sending offerte aanvraag to API...');
+        
+        // Laad ALLE flow data
+        const flow = loadFlowData(FLOW_KEY) || {};
+        console.log('📦 [RbsPersoonsgegevens] Flow data geladen:', flow);
+        
+        // Prepare request body
+        const requestBody = {
+          type: 'bankreiniging',
+          // Persoonsgegevens
+          voornaam: flow.voornaam,
+          achternaam: flow.achternaam,
+          email: flow.emailadres,
+          telefoon: flow.telefoonnummer,
+          wachtwoord: flow.wachtwoord || null,  // Optioneel voor offerte
+          // Adres
+          straat: flow.straatnaam,
+          huisnummer: flow.huisnummer,
+          toevoeging: flow.toevoeging || null,
+          postcode: flow.postcode,
+          plaats: flow.plaats,
+          // Dagdelen voorkeur
+          dagdelenVoorkeur: flow.dagdelenVoorkeur || null,
+          geenVoorkeurDagdelen: flow.geenVoorkeurDagdelen || false,
+          // Bank & stoelen specifieke data
+          rbs_banken: flow.rbs_banken,
+          rbs_stoelen: flow.rbs_stoelen,
+          rbs_zitvlakken: flow.rbs_zitvlakken,
+          rbs_kussens: flow.rbs_kussens,
+          rbs_materialen: flow.rbs_materialen || [],
+          rbs_specificaties: flow.rbs_specificaties || null
+        };
+        
+        console.log('� [RbsPersoonsgegevens] Request body:', requestBody);
+        
+        // API call
+        const response = await fetch(`${API_CONFIG.BASE_URL}/routes/offerte/create`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Correlation-ID': `rbs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          },
+          body: JSON.stringify(requestBody)
+        });
+        
+        console.log('� [RbsPersoonsgegevens] Response status:', response.status);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'UNKNOWN_ERROR' }));
+          console.error('❌ [RbsPersoonsgegevens] API error:', errorData);
+          throw new Error(errorData.message || 'Offerte aanvraag mislukt');
+        }
+        
+        const data = await response.json();
+        console.log('✅ [RbsPersoonsgegevens] Offerte aanvraag succesvol:', data);
+        
+        // Clear flow data (aanvraag is verstuurd)
+        localStorage.removeItem(FLOW_KEY);
+        console.log('🗑️ [RbsPersoonsgegevens] Flow data verwijderd uit localStorage');
+        
+        // Navigate naar success pagina
+        console.log('📍 [RbsPersoonsgegevens] Navigeer naar success pagina...');
+        window.location.href = '/aanvragen/succes/reiniging-bank-en-stoelen';
+        
+      } catch (error) {
+        console.error('❌ [RbsPersoonsgegevens] Offerte aanvraag failed:', error);
+        // Error wordt getoond door formHandler in global error div
+        throw error;
+      }
     }
   };
   
