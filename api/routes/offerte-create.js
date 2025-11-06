@@ -41,16 +41,16 @@
  * }
  */
 
-import { userService } from '../../services/userService.js';
-import { addressService } from '../../services/addressService.js';
-import { auditService } from '../../services/auditService.js';
-import { sendEmail } from '../../services/emailService.js';
-import { supabaseConfig, emailConfig } from '../../config/index.js';
-import { handleError } from '../../utils/errorHandler.js';
+import { userService } from '../services/userService.js';
+import { addressService } from '../services/addressService.js';
+import { auditService } from '../services/auditService.js';
+import { sendEmail } from '../services/emailService.js';
+import { supabaseConfig, emailConfig } from '../config/index.js';
+import { handleError } from '../utils/errorHandler.js';
 import { 
   nieuweBankReinigingAdmin, 
   bankReinigingBevestigingKlant 
-} from '../../templates/emails/index.js';
+} from '../templates/emails/index.js';
 
 export default async function handler(req, res) {
   // CORS headers
