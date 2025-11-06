@@ -153,13 +153,21 @@ export function isErrorVisible(errorEl) {
 }
 
 /**
- * Toon een specifieke error container met consistente styling
+ * Toon een specifieke error container met een gegeven bericht
  * @param {HTMLElement} errorEl - De error container om te tonen
  * @param {string} message - De error message om te tonen
  */
 export function showError(errorEl, message) {
   if (!errorEl) return;
-  errorEl.textContent = message;
+  
+  // Check of er een child div is (zoals in global error container)
+  const childDiv = errorEl.querySelector('div');
+  if (childDiv) {
+    childDiv.textContent = message;
+  } else {
+    errorEl.textContent = message;
+  }
+  
   errorEl.classList.remove('hide');
 }
 
