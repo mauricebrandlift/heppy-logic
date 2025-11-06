@@ -225,7 +225,7 @@ export async function initRbsPersoonsgegevensForm() {
         console.log('� [RbsPersoonsgegevens] Request body:', requestBody);
         
         // API call via apiClient wrapper (handles CORS, headers, timeout, error handling)
-        const data = await apiClient('/routes/offerte/create', {
+        const data = await apiClient('/routes/offerte-create', {
           method: 'POST',
           body: JSON.stringify(requestBody)
         }, 10000); // 10 second timeout voor offerte creatie
