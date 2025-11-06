@@ -71,6 +71,18 @@ export const validators = {
     }
     return null;
   },
+  maxLength: (value, fieldSchema) => {
+    const maxLen = fieldSchema.maxLength || Infinity;
+    // Als het veld leeg is, geen error
+    if (!value || value.length === 0) {
+      return null;
+    }
+    // Als er wel text is, check de maximum lengte
+    if (value.length > maxLen) {
+      return `Maximaal ${maxLen} karakters toegestaan.`;
+    }
+    return null;
+  },
 };
 
 /**
@@ -83,6 +95,34 @@ export const validators = {
 export function validateField(fieldName, value, fieldSchema) {
   const { validators: list = [], messages: override = {} } = fieldSchema;
   for (const name of list) {
+    // Check voor parametric validators (min:X, max:X)
+    if (name.includes(':')) {
+      const [validatorName, param] = name.split(':');
+      const paramValue = parseFloat(param);
+      
+      if (validatorName === 'min') {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue) || numValue < paramValue) {
+          const errorMessage = override['min'] || `Minimaal ${paramValue}`;
+          return errorMessage;
+        }
+        continue;
+      }
+      
+      if (validatorName === 'max') {
+        const numValue = parseFloat(value);
+        if (isNaN(numValue) || numValue > paramValue) {
+          const errorMessage = override['max'] || `Maximaal ${paramValue}`;
+          return errorMessage;
+        }
+        continue;
+      }
+      
+      console.warn(`⚠️ [Validator] Onbekende parametric validator '${validatorName}' in veld '${fieldName}'`);
+      continue;
+    }
+    
+    // Reguliere validators
     const fn = validators[name];
     if (typeof fn !== 'function') {
       console.warn(`⚠️ [Validator] Geen validator gevonden voor '${name}' in veld '${fieldName}'`);

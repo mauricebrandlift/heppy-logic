@@ -158,6 +158,17 @@ export function initBankReinigingOpdrachtForm() {
       // Validatie 1: Zitvlakken minimaal 1
       const zitvlakkenNum = parseInt(rbs_zitvlakken) || 0;
       if (zitvlakkenNum < 1) {
+        // Toon field-specific error
+        const zitvlakkenField = formElement.querySelector('[data-field-name="rbs_zitvlakken"]');
+        const errorContainer = formElement.querySelector('[data-error-for="rbs_zitvlakken"]');
+        
+        if (errorContainer) {
+          showError(errorContainer, 'Vul minimaal 1 zitvlak in');
+        }
+        if (zitvlakkenField) {
+          zitvlakkenField.classList.add('input-error');
+        }
+        
         const error = new Error('Vul minimaal 1 zitvlak in');
         error.code = 'INVALID_ZITVLAKKEN';
         error.fieldName = 'rbs_zitvlakken';
