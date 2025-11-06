@@ -164,10 +164,55 @@ export function initRbsDagdelenForm() {
   // Setup "geen voorkeur" exclusieve logica
   setupGeenVoorkeurLogic(formElement);
   
+  // Setup checkbox change listeners om submit button state te updaten
+  setupCheckboxListeners(formElement);
+  
+  // Initial submit button state (disabled als geen selectie)
+  updateSubmitButtonState(formElement);
+  
   console.log('✅ [rbsDagdelenForm] Formulier succesvol geïnitialiseerd.');
   
   // 🔙 PREV BUTTON HANDLER
   setupPrevButtonHandler();
+}
+
+/**
+ * Update submit button state based op checkbox selectie
+ * @param {HTMLElement} formElement - Het formulier element
+ */
+function updateSubmitButtonState(formElement) {
+  const selectedDagdelen = getSelectedDagdelenIncludingNoPreference(formElement);
+  const isValid = selectedDagdelen.length > 0;
+  
+  const submitButton = formElement.querySelector(`[data-form-button="${FORM_NAME}"]`);
+  if (submitButton) {
+    if (isValid) {
+      submitButton.classList.remove('is-disabled');
+      submitButton.style.pointerEvents = '';
+      submitButton.style.opacity = '';
+    } else {
+      submitButton.classList.add('is-disabled');
+      submitButton.style.pointerEvents = 'none';
+      submitButton.style.opacity = '0.5';
+    }
+    console.log(`[rbsDagdelenForm] Submit button ${isValid ? 'enabled ✅' : 'disabled ❌'} (${selectedDagdelen.length} dagdelen geselecteerd)`);
+  }
+}
+
+/**
+ * Setup checkbox change listeners om submit button state te updaten
+ * @param {HTMLElement} formElement - Het formulier element
+ */
+function setupCheckboxListeners(formElement) {
+  const allCheckboxes = formElement.querySelectorAll('input[type="checkbox"][data-field-name="dagdeel"]');
+  
+  allCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      updateSubmitButtonState(formElement);
+    });
+  });
+  
+  console.log(`[rbsDagdelenForm] ${allCheckboxes.length} checkbox listeners toegevoegd voor submit button state`);
 }
 
 /**
