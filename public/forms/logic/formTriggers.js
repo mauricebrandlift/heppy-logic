@@ -299,6 +299,10 @@ export function initAddressLookupTrigger(formHandler, options = {}) {
       formHandler.updateSubmitState(formName);
     });
     
+    // Reset lastProcessedValues zodat een nieuwe lookup plaatsvindt
+    // Dit is nodig als de gebruiker een veld wijzigt nadat de lookup is uitgevoerd
+    lastProcessedValues = { postcode: '', huisnummer: '' };
+    
     clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(lookupAndFillAddress, 500);
   }
