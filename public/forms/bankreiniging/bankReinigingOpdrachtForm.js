@@ -155,9 +155,13 @@ export function initBankReinigingOpdrachtForm() {
       
       const formElement = document.querySelector(schema.selector);
       
+      // Verzamel alle validatie errors EERST voordat we iets gooien
+      let hasErrors = false;
+      
       // Validatie 1: Zitvlakken minimaal 1
       const zitvlakkenNum = parseInt(rbs_zitvlakken) || 0;
       if (zitvlakkenNum < 1) {
+        hasErrors = true;
         // Toon field-specific error
         const zitvlakkenField = formElement.querySelector('[data-field-name="rbs_zitvlakken"]');
         const errorContainer = formElement.querySelector('[data-error-for="rbs_zitvlakken"]');
@@ -168,26 +172,26 @@ export function initBankReinigingOpdrachtForm() {
         if (zitvlakkenField) {
           zitvlakkenField.classList.add('input-error');
         }
-        
-        const error = new Error('Vul minimaal 1 zitvlak in');
-        error.code = 'INVALID_ZITVLAKKEN';
-        error.fieldName = 'rbs_zitvlakken';
-        throw error;
       }
       
       // Validatie 2: Minimaal 1 bank OF stoel
       const meubelValidatie = validateMeubelAantallen(formData, formElement);
       if (!meubelValidatie.valid) {
-        const error = new Error(meubelValidatie.error);
-        error.code = 'INVALID_MEUBEL_AANTAL';
-        throw error;
+        hasErrors = true;
+        // Error is al getoond in validateMeubelAantallen functie
       }
       
       // Validatie 3: Minimaal 1 materiaal geselecteerd
       const materiaalValidatie = validateMaterialen(formElement);
       if (!materiaalValidatie.valid) {
-        const error = new Error(materiaalValidatie.error);
-        error.code = 'NO_MATERIAAL_SELECTED';
+        hasErrors = true;
+        // Error is al getoond in validateMaterialen functie
+      }
+      
+      // Als er errors zijn, gooi één error met alle info
+      if (hasErrors) {
+        const error = new Error('Controleer de formuliervelden en probeer opnieuw');
+        error.code = 'VALIDATION_FAILED';
         throw error;
       }
       
@@ -269,10 +273,13 @@ export function initBankReinigingOpdrachtForm() {
   materiaalCheckboxes.forEach(checkbox => {
     checkbox.addEventListener('change', () => {
       console.log(`[bankReinigingOpdrachtForm] Materiaal checkbox gewijzigd: ${checkbox.dataset.fieldName}`);
-      // Valideer materialen bij elke wijziging
+      // Valideer materialen bij elke wijziging (verberg error als er nu wel een materiaal is geselecteerd)
       validateMaterialen(formElement);
     });
   });
+  
+  // Doe GEEN initiële validatie van materialen (toon pas error bij submit)
+  // De error wordt alleen getoond als gebruiker probeert te submitten zonder materiaal
   
   console.log(`✅ [bankReinigingOpdrachtForm] Formulier '${FORM_NAME}' is succesvol geïnitialiseerd.`);
   
