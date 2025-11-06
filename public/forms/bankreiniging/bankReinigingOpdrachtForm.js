@@ -40,7 +40,7 @@ function goToFormStep(nextFormName) {
 /**
  * Custom validatie: minimaal 1 bank OF 1 stoel moet ingevuld zijn
  */
-function validateMeubelAantallen(formData) {
+function validateMeubelAantallen(formData, formElement) {
   const banken = parseInt(formData.rbs_banken) || 0;
   const stoelen = parseInt(formData.rbs_stoelen) || 0;
   
@@ -49,10 +49,46 @@ function validateMeubelAantallen(formData) {
   console.log(`[bankReinigingOpdrachtForm] Validatie meubels: ${banken} banken + ${stoelen} stoelen = ${totaal}`);
   
   if (totaal < 1) {
+    // Toon error in UI
+    if (formElement) {
+      const errorContainer = formElement.querySelector('[data-error-for="global"]');
+      if (errorContainer) {
+        showError(errorContainer, 'Vul minimaal 1 bank of 1 stoel in om door te gaan');
+      }
+    }
+    
     return {
       valid: false,
-      error: 'Vul minimaal 1 bank of 1 stoel in'
+      error: 'Vul minimaal 1 bank of 1 stoel in om door te gaan'
     };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Valideer materiaal selectie en toon UI feedback
+ */
+function validateMaterialen(formElement) {
+  const materialen = getSelectedMaterialen(formElement);
+  
+  console.log(`[bankReinigingOpdrachtForm] Validatie materialen: ${materialen.length} geselecteerd`);
+  
+  const errorContainer = formElement.querySelector('[data-error-for="rbs_materialen"]');
+  
+  if (materialen.length === 0) {
+    if (errorContainer) {
+      showError(errorContainer, 'Selecteer minimaal één materiaal');
+    }
+    return {
+      valid: false,
+      error: 'Selecteer minimaal één materiaal'
+    };
+  }
+  
+  // Verberg error als er wel materialen zijn geselecteerd
+  if (errorContainer) {
+    hideError(errorContainer);
   }
   
   return { valid: true };
@@ -117,24 +153,35 @@ export function initBankReinigingOpdrachtForm() {
         rbs_specificaties
       } = formData;
       
-      // Custom validatie: minimaal 1 bank OF stoel
-      const meubelValidatie = validateMeubelAantallen(formData);
+      const formElement = document.querySelector(schema.selector);
+      
+      // Validatie 1: Zitvlakken minimaal 1
+      const zitvlakkenNum = parseInt(rbs_zitvlakken) || 0;
+      if (zitvlakkenNum < 1) {
+        const error = new Error('Vul minimaal 1 zitvlak in');
+        error.code = 'INVALID_ZITVLAKKEN';
+        error.fieldName = 'rbs_zitvlakken';
+        throw error;
+      }
+      
+      // Validatie 2: Minimaal 1 bank OF stoel
+      const meubelValidatie = validateMeubelAantallen(formData, formElement);
       if (!meubelValidatie.valid) {
         const error = new Error(meubelValidatie.error);
         error.code = 'INVALID_MEUBEL_AANTAL';
         throw error;
       }
       
-      // Verzamel geselecteerde materialen
-      const formElement = document.querySelector(schema.selector);
-      const materialen = getSelectedMaterialen(formElement);
-      
-      // Check of minimaal 1 materiaal is geselecteerd (dit wordt al gecontroleerd door atLeastOneCheckbox trigger)
-      if (materialen.length === 0) {
-        const error = new Error('Selecteer minimaal één materiaal');
+      // Validatie 3: Minimaal 1 materiaal geselecteerd
+      const materiaalValidatie = validateMaterialen(formElement);
+      if (!materiaalValidatie.valid) {
+        const error = new Error(materiaalValidatie.error);
         error.code = 'NO_MATERIAAL_SELECTED';
         throw error;
       }
+      
+      // Verzamel geselecteerde materialen
+      const materialen = getSelectedMaterialen(formElement);
       
       // Sla alle gegevens op in flow data
       const updatedFlowData = loadFlowData('bankreiniging-aanvraag') || {};
@@ -185,6 +232,36 @@ export function initBankReinigingOpdrachtForm() {
   
   // Initialiseer de formHandler met het bijgewerkte schema
   formHandler.init(schema);
+  
+  // Haal form element op
+  const formElement = document.querySelector(schema.selector);
+  if (!formElement) {
+    console.error('[bankReinigingOpdrachtForm] Form element niet gevonden!');
+    return;
+  }
+  
+  // Set default waarde 0 voor number inputs als ze leeg zijn
+  const numberFields = ['rbs_banken', 'rbs_stoelen', 'rbs_zitvlakken', 'rbs_kussens'];
+  numberFields.forEach(fieldName => {
+    const input = formElement.querySelector(`[data-field-name="${fieldName}"]`);
+    if (input && !input.value) {
+      input.value = '0';
+      // Update ook formHandler data
+      if (formHandler.formData) {
+        formHandler.formData[fieldName] = '0';
+      }
+    }
+  });
+  
+  // Setup live validatie voor materiaal checkboxes
+  const materiaalCheckboxes = formElement.querySelectorAll('[data-field-name^="materiaal_"]');
+  materiaalCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      console.log(`[bankReinigingOpdrachtForm] Materiaal checkbox gewijzigd: ${checkbox.dataset.fieldName}`);
+      // Valideer materialen bij elke wijziging
+      validateMaterialen(formElement);
+    });
+  });
   
   console.log(`✅ [bankReinigingOpdrachtForm] Formulier '${FORM_NAME}' is succesvol geïnitialiseerd.`);
   

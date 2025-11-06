@@ -36,6 +36,11 @@ export const validators = {
   },
   minLength: (value, fieldSchema) => {
     const minLen = fieldSchema.minLength || 0;
+    // Als het veld leeg is en NIET required, accepteer het
+    if (!value || value.length === 0) {
+      return null; // Geen error als veld leeg is (tenzij required validator apart aanwezig is)
+    }
+    // Als er wel text is, check de minimum lengte
     if (value.length < minLen) {
       return `Minimaal ${minLen} karakters vereist.`;
     }
