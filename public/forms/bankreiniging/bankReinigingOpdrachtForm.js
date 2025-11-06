@@ -4,7 +4,6 @@
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
-import { showError, hideError } from '../ui/formUi.js';
 import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 const FORM_NAME = 'rbs_opdracht-form';
@@ -38,53 +37,16 @@ function goToFormStep(nextFormName) {
 }
 
 /**
- * Custom validatie: minimaal 1 bank OF 1 stoel moet ingevuld zijn
- */
-function validateMeubelAantallen(formData, formElement) {
-  const banken = parseInt(formData.rbs_banken) || 0;
-  const stoelen = parseInt(formData.rbs_stoelen) || 0;
-  
-  const totaal = banken + stoelen;
-  
-  console.log(`[bankReinigingOpdrachtForm] Validatie meubels: ${banken} banken + ${stoelen} stoelen = ${totaal}`);
-  
-  if (totaal < 1) {
-    return {
-      valid: false,
-      error: 'Vul minimaal 1 bank of 1 stoel in om door te gaan'
-    };
-  }
-  
-  return { valid: true };
-}
-
-/**
- * Valideer materiaal selectie
+ * Valideer materiaal selectie (alleen check, geen UI updates)
  * @param {HTMLElement} formElement - Het formulier element
- * @param {boolean} showErrors - Of errors getoond moeten worden in de UI
  */
-function validateMaterialen(formElement, showErrors = false) {
+function validateMaterialen(formElement) {
   const materialen = getSelectedMaterialen(formElement);
   
   console.log(`[bankReinigingOpdrachtForm] Validatie materialen: ${materialen.length} geselecteerd`);
   
   if (materialen.length === 0) {
-    if (showErrors) {
-      const errorContainer = formElement.querySelector('[data-error-for="rbs_materialen"]');
-      if (errorContainer) {
-        showError(errorContainer, 'Selecteer minimaal 1 materiaalsoort');
-      }
-    }
-    return {
-      valid: false,
-      error: 'Selecteer minimaal 1 materiaalsoort'
-    };
-  }
-  
-  // Verberg error als er wel materialen zijn geselecteerd
-  const errorContainer = formElement.querySelector('[data-error-for="rbs_materialen"]');
-  if (errorContainer) {
-    hideError(errorContainer);
+    return { valid: false };
   }
   
   return { valid: true };
@@ -151,47 +113,20 @@ export function initBankReinigingOpdrachtForm() {
       
       const formElement = document.querySelector(schema.selector);
       
-      // Verzamel alle validatie errors met specifieke messages
-      const errors = [];
-      
-      // Validatie 1: Zitvlakken minimaal 1
-      const zitvlakkenNum = parseInt(rbs_zitvlakken) || 0;
-      if (zitvlakkenNum < 1) {
-        errors.push('Vul minimaal 1 zitvlak in');
-        // Toon field-specific error
-        const zitvlakkenField = formElement.querySelector('[data-field-name="rbs_zitvlakken"]');
-        const errorContainer = formElement.querySelector('[data-error-for="rbs_zitvlakken"]');
-        
-        if (errorContainer) {
-          showError(errorContainer, 'Vul minimaal 1 zitvlak in');
-        }
-        if (zitvlakkenField) {
-          zitvlakkenField.classList.add('input-error');
-        }
+      // Custom validatie: Minimaal 1 bank OF stoel (kan niet via schema validators)
+      const bankenNum = parseInt(rbs_banken) || 0;
+      const stoelenNum = parseInt(rbs_stoelen) || 0;
+      if (bankenNum + stoelenNum < 1) {
+        const error = new Error('Vul minimaal 1 bank of 1 stoel in om door te gaan');
+        error.code = 'MEUBELS_REQUIRED';
+        throw error;
       }
       
-      // Validatie 2: Minimaal 1 bank OF stoel
-      const meubelValidatie = validateMeubelAantallen(formData, formElement);
-      if (!meubelValidatie.valid) {
-        errors.push(meubelValidatie.error);
-      }
-      
-      // Validatie 3: Minimaal 1 materiaal geselecteerd
-      const materiaalValidatie = validateMaterialen(formElement, true); // showErrors = true
+      // Custom validatie: Minimaal 1 materiaal geselecteerd
+      const materiaalValidatie = validateMaterialen(formElement);
       if (!materiaalValidatie.valid) {
-        errors.push(materiaalValidatie.error);
-      }
-      
-      // Als er errors zijn, toon ze en gooi error
-      if (errors.length > 0) {
-        // Toon alle errors in de global error container
-        const globalErrorContainer = formElement.querySelector('[data-error-for="global"]');
-        if (globalErrorContainer) {
-          showError(globalErrorContainer, errors.join(' • '));
-        }
-        
-        const error = new Error(errors.join(' • '));
-        error.code = 'VALIDATION_FAILED';
+        const error = new Error('Selecteer minimaal 1 materiaalsoort');
+        error.code = 'MATERIAAL_REQUIRED';
         throw error;
       }
       
@@ -267,19 +202,6 @@ export function initBankReinigingOpdrachtForm() {
       }
     }
   });
-  
-  // Setup live validatie voor materiaal checkboxes
-  const materiaalCheckboxes = formElement.querySelectorAll('[data-field-name^="materiaal_"]');
-  materiaalCheckboxes.forEach(checkbox => {
-    checkbox.addEventListener('change', () => {
-      console.log(`[bankReinigingOpdrachtForm] Materiaal checkbox gewijzigd: ${checkbox.dataset.fieldName}`);
-      // Valideer materialen bij elke wijziging (verberg error als er nu wel een materiaal is geselecteerd)
-      validateMaterialen(formElement);
-    });
-  });
-  
-  // Doe GEEN initiële validatie van materialen (toon pas error bij submit)
-  // De error wordt alleen getoond als gebruiker probeert te submitten zonder materiaal
   
   console.log(`✅ [bankReinigingOpdrachtForm] Formulier '${FORM_NAME}' is succesvol geïnitialiseerd.`);
   

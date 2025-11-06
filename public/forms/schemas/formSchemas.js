@@ -1021,7 +1021,9 @@ export function getFormSchema(name) {
         commonMessages.server,
         {
           CUSTOM_SUCCESS: 'Meubel details opgeslagen',
-          INCOMPLETE_FORM: 'Vul alle verplichte velden in'
+          INCOMPLETE_FORM: 'Vul alle verplichte velden in',
+          MEUBELS_REQUIRED: 'Vul minimaal 1 bank of 1 stoel in om door te gaan',
+          MATERIAAL_REQUIRED: 'Selecteer minimaal 1 materiaalsoort'
         }
       ),
     },

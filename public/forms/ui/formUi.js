@@ -159,15 +159,7 @@ export function isErrorVisible(errorEl) {
  */
 export function showError(errorEl, message) {
   if (!errorEl) return;
-  
-  // Check of er een child div is (zoals in global error container)
-  const childDiv = errorEl.querySelector('div');
-  if (childDiv) {
-    childDiv.textContent = message;
-  } else {
-    errorEl.textContent = message;
-  }
-  
+  errorEl.textContent = message;
   errorEl.classList.remove('hide');
 }
 
