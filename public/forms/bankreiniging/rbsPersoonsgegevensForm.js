@@ -7,6 +7,7 @@ import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
 import { authClient } from '../../utils/auth/authClient.js';
 import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 import { API_CONFIG } from '../../config/apiConfig.js';
+import { apiClient } from '../../utils/api/client.js';
 
 const FORM_NAME = 'rbs_persoonsgegevens-form';
 const FLOW_KEY = 'bankreiniging-aanvraag';
@@ -223,25 +224,11 @@ export async function initRbsPersoonsgegevensForm() {
         
         console.log('� [RbsPersoonsgegevens] Request body:', requestBody);
         
-        // API call
-        const response = await fetch(`${API_CONFIG.BASE_URL}/routes/offerte/create`, {
+        // API call via apiClient wrapper (handles CORS, headers, timeout, error handling)
+        const data = await apiClient('/routes/offerte/create', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Correlation-ID': `rbs-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-          },
           body: JSON.stringify(requestBody)
-        });
-        
-        console.log('� [RbsPersoonsgegevens] Response status:', response.status);
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: 'UNKNOWN_ERROR' }));
-          console.error('❌ [RbsPersoonsgegevens] API error:', errorData);
-          throw new Error(errorData.message || 'Offerte aanvraag mislukt');
-        }
-        
-        const data = await response.json();
+        }, 10000); // 10 second timeout voor offerte creatie
         console.log('✅ [RbsPersoonsgegevens] Offerte aanvraag succesvol:', data);
         
         // Clear flow data (aanvraag is verstuurd)
