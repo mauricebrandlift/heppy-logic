@@ -905,10 +905,9 @@ export function getFormSchema(name) {
           label: 'Aantal banken',
           inputType: 'number',
           sanitizers: ['trim'],
-          validators: ['required', 'integer', 'min:0', 'max:20'],
+          validators: ['integer', 'min:0', 'max:20'],
           persist: 'form',
           messages: {
-            required: 'Vul het aantal banken in',
             integer: 'Vul een geldig getal in',
             min: 'Minimaal 0 banken',
             max: 'Maximaal 20 banken'
@@ -918,10 +917,9 @@ export function getFormSchema(name) {
           label: 'Aantal stoelen',
           inputType: 'number',
           sanitizers: ['trim'],
-          validators: ['required', 'integer', 'min:0', 'max:50'],
+          validators: ['integer', 'min:0', 'max:50'],
           persist: 'form',
           messages: {
-            required: 'Vul het aantal stoelen in',
             integer: 'Vul een geldig getal in',
             min: 'Minimaal 0 stoelen',
             max: 'Maximaal 50 stoelen'
@@ -987,16 +985,22 @@ export function getFormSchema(name) {
           validators: [],
           persist: 'form',
         },
+        materiaal_anders: {
+          label: 'Materiaal: Weet ik niet / Anders',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
         rbs_specificaties: {
           label: 'Specificaties',
           inputType: 'textarea',
           sanitizers: ['trim'],
-          validators: ['required', 'minLength', 'maxLength'],
+          validators: ['minLength', 'maxLength'],
           minLength: 20,
           maxLength: 1000,
           persist: 'form',
           messages: {
-            required: 'Beschrijf je meubels (minimaal 20 tekens)',
             minLength: 'Geef minimaal 20 tekens aan informatie',
             maxLength: 'Maximaal 1000 tekens'
           }
@@ -1005,7 +1009,7 @@ export function getFormSchema(name) {
       triggers: [
         {
           type: 'atLeastOneCheckbox',
-          fields: ['materiaal_stof', 'materiaal_leer', 'materiaal_kunstleer', 'materiaal_fluweel', 'materiaal_suede'],
+          fields: ['materiaal_stof', 'materiaal_leer', 'materiaal_kunstleer', 'materiaal_fluweel', 'materiaal_suede', 'materiaal_anders'],
           message: 'Selecteer minimaal één materiaal'
         }
       ],
