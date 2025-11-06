@@ -242,7 +242,17 @@ export const formHandler = {
       }
     } else if (fieldElement.type === 'checkbox') {
       // Voor checkboxes: zet checked status op basis van waarde
-      fieldElement.checked = (value === 'true' || value === true);
+      const isChecked = (value === 'true' || value === true);
+      fieldElement.checked = isChecked;
+      
+      // Toggle Webflow helper class voor visuele styling
+      fieldElement.classList.toggle('w--redirected-checked', isChecked);
+      
+      // Toggle is-checked class op wrapper (indien aanwezig)
+      const wrapper = fieldElement.closest('.w-checkbox, .checkbox-fancy_field');
+      if (wrapper) {
+        wrapper.classList.toggle('is-checked', isChecked);
+      }
     } else {
       // Voor andere velden: gewoon de value zetten
       fieldElement.value = value;
