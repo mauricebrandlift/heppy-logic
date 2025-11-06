@@ -424,7 +424,7 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
               uren: parseInt(metadata.uren || metadata.gewenste_uren) || 0,
               dagdelen: metadata.dagdelen || {},
               startdatum: metadata.startdatum,
-              autoAssigned,
+              autoAssigned: finalAutoAssigned,
               aanvraagId: aanvraag.id,
               matchId: schoonmaakMatch.id // Gebruik echte match ID
             });
