@@ -46,7 +46,7 @@ import { addressService } from '../services/addressService.js';
 import { auditService } from '../services/auditService.js';
 import { sendEmail } from '../services/emailService.js';
 import { supabaseConfig, emailConfig } from '../config/index.js';
-import { handleError } from '../utils/errorHandler.js';
+import { handleErrorResponse } from '../utils/errorHandler.js';
 import { 
   nieuweBankReinigingAdmin, 
   bankReinigingBevestigingKlant 
@@ -286,6 +286,6 @@ export default async function handler(req, res) {
     console.error(`🔥 [OfferteCreate] Error: ${error.message}`);
     console.error(`🔥 [OfferteCreate] Stack:`, error.stack);
     
-    return handleError(error, res, correlationId);
+    return handleErrorResponse(res, error, 500, correlationId);
   }
 }
