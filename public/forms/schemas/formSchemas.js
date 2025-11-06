@@ -1057,7 +1057,7 @@ export function getFormSchema(name) {
         commonMessages.server,
         {
           CUSTOM_SUCCESS: 'Voorkeur dagdelen opgeslagen',
-          NO_DAGDELEN_SELECTED: 'Selecteer minimaal één dagdeel om door te gaan'
+          NO_DAGDELEN_SELECTED: 'Selecteer minimaal één dagdeel of kies "Geen voorkeur"'
         }
       ),
     },
