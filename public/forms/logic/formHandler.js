@@ -245,13 +245,16 @@ export const formHandler = {
       const isChecked = (value === 'true' || value === true);
       fieldElement.checked = isChecked;
       
-      // Toggle Webflow helper class voor visuele styling
-      fieldElement.classList.toggle('w--redirected-checked', isChecked);
-      
-      // Toggle is-checked class op wrapper (indien aanwezig)
-      const wrapper = fieldElement.closest('.w-checkbox, .checkbox-fancy_field');
-      if (wrapper) {
-        wrapper.classList.toggle('is-checked', isChecked);
+      // Toggle is-checked class op label wrapper (indien aanwezig)
+      const label = fieldElement.closest('label.w-checkbox, label.checkbox-fancy_field');
+      if (label) {
+        label.classList.toggle('is-checked', isChecked);
+        
+        // Toggle w--redirected-checked op de visuele checkbox icon div
+        const checkboxIcon = label.querySelector('.w-checkbox-input, .checkbox-fancy_icon');
+        if (checkboxIcon) {
+          checkboxIcon.classList.toggle('w--redirected-checked', isChecked);
+        }
       }
     } else {
       // Voor andere velden: gewoon de value zetten
