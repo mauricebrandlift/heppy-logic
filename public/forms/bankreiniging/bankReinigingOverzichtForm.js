@@ -11,28 +11,30 @@ const FORM_SELECTOR = `[data-form-name="${FORM_NAME}"]`;
 const NEXT_FORM_NAME = 'rbs_persoonsgegevens-form';
 
 function goToFormStep(nextFormName) {
-  console.log(`[bankReinigingOverzichtForm] goToFormStep → ${nextFormName}`);
-  
-  const targetSlide = document.querySelector(`[data-form-name="${nextFormName}"]`);
-  if (targetSlide) {
-    const splideInstance = document.querySelector('.splide');
-    if (splideInstance && splideInstance.splide) {
-      const slideIndex = Array.from(splideInstance.splide.Components.Slides.slides)
-        .findIndex(slide => slide.slide.contains(targetSlide));
-      
-      if (slideIndex !== -1) {
-        splideInstance.splide.go(slideIndex);
-        return;
-      }
+  console.log('[bankReinigingOverzichtForm] goToFormStep →', nextFormName);
+  if (window.navigateToFormStep) {
+    const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
+    if (navigated) {
+      console.log('[bankReinigingOverzichtForm] navigateToFormStep succesvol', nextFormName);
+      return true;
     }
+    console.warn('[bankReinigingOverzichtForm] navigateToFormStep kon niet navigeren, probeer fallback.');
   }
-  
+
+  if (window.jumpToSlideByFormName) {
+    console.log('[bankReinigingOverzichtForm] Fallback jumpToSlideByFormName', nextFormName);
+    window.jumpToSlideByFormName(nextFormName);
+    return true;
+  }
+
   if (window.moveToNextSlide) {
     console.log('[bankReinigingOverzichtForm] Fallback moveToNextSlide (geen target match)');
     window.moveToNextSlide();
-  } else {
-    console.error('[bankReinigingOverzichtForm] ❌ Geen navigatie methode beschikbaar');
+    return true;
   }
+
+  console.error('[bankReinigingOverzichtForm] Geen slider navigatie functie gevonden.');
+  return false;
 }
 
 function setText(selector, text) {
@@ -209,11 +211,15 @@ function setupPrevButtonHandler() {
       console.log('[bankReinigingOverzichtForm] ♻️ Re-init rbsDagdelenForm voor terug navigatie...');
       module.initRbsDagdelenForm();
       
-      // Navigeer terug
-      goToFormStep('rbs_dagdelen-form');
+      // NA re-init, ga naar vorige slide
+      if (typeof window.moveToPrevSlide === 'function') {
+        console.log('[bankReinigingOverzichtForm] Roep window.moveToPrevSlide() aan');
+        window.moveToPrevSlide();
+      } else {
+        console.error('[bankReinigingOverzichtForm] window.moveToPrevSlide niet beschikbaar');
+      }
     }).catch(err => {
       console.error('[bankReinigingOverzichtForm] ❌ Fout bij re-init rbsDagdelenForm:', err);
-      goToFormStep('rbs_dagdelen-form'); // Probeer toch te navigeren
     });
   };
   

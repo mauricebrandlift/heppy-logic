@@ -11,28 +11,30 @@ const FORM_NAME = 'rbs_dagdelen-form';
 const NEXT_FORM_NAME = 'rbs_overzicht-form';
 
 function goToFormStep(nextFormName) {
-  console.log(`[rbsDagdelenForm] goToFormStep → ${nextFormName}`);
-  
-  const targetSlide = document.querySelector(`[data-form-name="${nextFormName}"]`);
-  if (targetSlide) {
-    const splideInstance = document.querySelector('.splide');
-    if (splideInstance && splideInstance.splide) {
-      const slideIndex = Array.from(splideInstance.splide.Components.Slides.slides)
-        .findIndex(slide => slide.slide.contains(targetSlide));
-      
-      if (slideIndex !== -1) {
-        splideInstance.splide.go(slideIndex);
-        return;
-      }
+  console.log('[rbsDagdelenForm] goToFormStep →', nextFormName);
+  if (window.navigateToFormStep) {
+    const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
+    if (navigated) {
+      console.log('[rbsDagdelenForm] navigateToFormStep succesvol', nextFormName);
+      return true;
     }
+    console.warn('[rbsDagdelenForm] navigateToFormStep kon niet navigeren, probeer fallback.');
   }
-  
+
+  if (window.jumpToSlideByFormName) {
+    console.log('[rbsDagdelenForm] Fallback jumpToSlideByFormName', nextFormName);
+    window.jumpToSlideByFormName(nextFormName);
+    return true;
+  }
+
   if (window.moveToNextSlide) {
     console.log('[rbsDagdelenForm] Fallback moveToNextSlide (geen target match)');
     window.moveToNextSlide();
-  } else {
-    console.error('[rbsDagdelenForm] ❌ Geen navigatie methode beschikbaar');
+    return true;
   }
+
+  console.error('[rbsDagdelenForm] Geen slider navigatie functie gevonden.');
+  return false;
 }
 
 /**
