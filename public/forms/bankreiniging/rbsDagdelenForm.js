@@ -27,9 +27,12 @@ function goToFormStep(nextFormName) {
     }
   }
   
-  console.log('[rbsDagdelenForm] Fallback moveToNextSlide (geen target match)');
-  const moveEvent = new CustomEvent('moveToNextSlide');
-  document.dispatchEvent(moveEvent);
+  if (window.moveToNextSlide) {
+    console.log('[rbsDagdelenForm] Fallback moveToNextSlide (geen target match)');
+    window.moveToNextSlide();
+  } else {
+    console.error('[rbsDagdelenForm] ❌ Geen navigatie methode beschikbaar');
+  }
 }
 
 /**

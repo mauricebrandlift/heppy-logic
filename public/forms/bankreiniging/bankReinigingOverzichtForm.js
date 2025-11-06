@@ -27,9 +27,12 @@ function goToFormStep(nextFormName) {
     }
   }
   
-  console.log('[bankReinigingOverzichtForm] Fallback moveToNextSlide (geen target match)');
-  const moveEvent = new CustomEvent('moveToNextSlide');
-  document.dispatchEvent(moveEvent);
+  if (window.moveToNextSlide) {
+    console.log('[bankReinigingOverzichtForm] Fallback moveToNextSlide (geen target match)');
+    window.moveToNextSlide();
+  } else {
+    console.error('[bankReinigingOverzichtForm] ❌ Geen navigatie methode beschikbaar');
+  }
 }
 
 function setText(selector, text) {
@@ -66,19 +69,9 @@ function formatDagdelen(dagdelenDB, geenVoorkeur) {
     'zondag': 'Zo'
   };
   
-  // Mapping van dagdelen naar emoji/iconen
-  const dagdeelIconen = {
-    'ochtend': '🌅',
-    'middag': '☀️',
-    'avond': '🌙'
-  };
-  
   for (const [dag, dagdelen] of Object.entries(dagdelenDB)) {
     const dagAfkorting = dagAfkortingen[dag] || dag;
-    const dagdeelLabels = dagdelen.map(d => {
-      const icoon = dagdeelIconen[d] || '';
-      return `${icoon} ${d}`;
-    }).join(', ');
+    const dagdeelLabels = dagdelen.join(', ');
     
     dagdeelStrings.push(`${dagAfkorting}: ${dagdeelLabels}`);
   }
