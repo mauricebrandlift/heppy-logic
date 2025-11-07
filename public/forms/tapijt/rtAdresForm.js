@@ -94,10 +94,10 @@ export function initRtAdresForm() {
         const coverageData = await fetchCoverageStatus(addressDetails.plaats);
         console.log('[rtAdresForm] Coverage data ontvangen:', coverageData);
 
-        if (coverageData && typeof coverageData.heeftDekking === 'boolean') {
-          console.log(`[rtAdresForm] Dekking status: ${coverageData.heeftDekking}`);
+        if (coverageData && typeof coverageData.gedekt === 'boolean') {
+          console.log(`[rtAdresForm] Dekking status: ${coverageData.gedekt}`);
 
-          if (coverageData.heeftDekking) {
+          if (coverageData.gedekt) {
             console.log('[rtAdresForm] ✅ Adres heeft dekking, opslaan in flowData...');
             
             // Update formHandler data
