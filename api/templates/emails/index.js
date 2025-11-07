@@ -28,6 +28,10 @@ export { verhuisToegewezenSchoonmaker } from './verhuisToegewezenSchoonmaker.js'
 export { nieuweBankReinigingAdmin } from './nieuweBankReinigingAdmin.js';
 export { bankReinigingBevestigingKlant } from './bankReinigingBevestigingKlant.js';
 
+// Offerte Flow Templates - Tapijt Reiniging
+export { nieuweTapijtReinigingAdmin } from './nieuweTapijtReinigingAdmin.js';
+export { tapijtReinigingBevestigingKlant } from './tapijtReinigingBevestigingKlant.js';
+
 // Approve/Reject Flow Templates
 export { matchGoedgekeurdKlant } from './matchGoedgekeurdKlant.js';
 export { matchAfgewezenAdmin } from './matchAfgewezenAdmin.js';
@@ -63,6 +67,10 @@ export const templates = {
   // Offerte Flow - Bank & Stoelen Reiniging
   nieuweBankReinigingAdmin: (await import('./nieuweBankReinigingAdmin.js')).nieuweBankReinigingAdmin,
   bankReinigingBevestigingKlant: (await import('./bankReinigingBevestigingKlant.js')).bankReinigingBevestigingKlant,
+  
+  // Offerte Flow - Tapijt Reiniging
+  nieuweTapijtReinigingAdmin: (await import('./nieuweTapijtReinigingAdmin.js')).nieuweTapijtReinigingAdmin,
+  tapijtReinigingBevestigingKlant: (await import('./tapijtReinigingBevestigingKlant.js')).tapijtReinigingBevestigingKlant,
   
   // Approve/Reject Flow
   matchGoedgekeurdKlant: (await import('./matchGoedgekeurdKlant.js')).matchGoedgekeurdKlant,

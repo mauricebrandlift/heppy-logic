@@ -17,12 +17,15 @@ import { safeTrack, logStepCompleted } from '../utils/tracking/simpleFunnelTrack
     const abonnementFlow = loadFlowData('abonnement-aanvraag');
     const dieptereinigingFlow = loadFlowData('dieptereiniging-aanvraag');
     const verhuisFlow = loadFlowData('verhuis-aanvraag');
+    const bankReinigingFlow = loadFlowData('bankreiniging-aanvraag');
+    const tapijtFlow = loadFlowData('tapijt-aanvraag');
     
     // Bepaal actieve flow op basis van welke data aanwezig is
     let activeFlow = null;
     let flowType = null;
     let flowKey = null;
     
+    // Priority order: verhuis > dieptereiniging > bankreiniging > tapijt > abonnement
     if (verhuisFlow && Object.keys(verhuisFlow).length > 1) {
       activeFlow = verhuisFlow;
       flowType = 'verhuis_opleverschoonmaak';
@@ -33,6 +36,16 @@ import { safeTrack, logStepCompleted } from '../utils/tracking/simpleFunnelTrack
       flowType = 'dieptereiniging';
       flowKey = 'dieptereiniging-aanvraag';
       console.log('[PaymentReturnEarly] Detected flow: dieptereiniging');
+    } else if (bankReinigingFlow && Object.keys(bankReinigingFlow).length > 1) {
+      activeFlow = bankReinigingFlow;
+      flowType = 'bankreiniging';
+      flowKey = 'bankreiniging-aanvraag';
+      console.log('[PaymentReturnEarly] Detected flow: bankreiniging');
+    } else if (tapijtFlow && Object.keys(tapijtFlow).length > 1) {
+      activeFlow = tapijtFlow;
+      flowType = 'tapijt';
+      flowKey = 'tapijt-aanvraag';
+      console.log('[PaymentReturnEarly] Detected flow: tapijt');
     } else if (abonnementFlow && Object.keys(abonnementFlow).length > 1) {
       activeFlow = abonnementFlow;
       flowType = 'abonnement';

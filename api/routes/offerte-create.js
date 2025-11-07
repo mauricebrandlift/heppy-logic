@@ -49,7 +49,9 @@ import { supabaseConfig, emailConfig } from '../config/index.js';
 import { handleErrorResponse } from '../utils/errorHandler.js';
 import { 
   nieuweBankReinigingAdmin, 
-  bankReinigingBevestigingKlant 
+  bankReinigingBevestigingKlant,
+  nieuweTapijtReinigingAdmin,
+  tapijtReinigingBevestigingKlant
 } from '../templates/emails/index.js';
 
 export default async function handler(req, res) {
@@ -86,12 +88,19 @@ export default async function handler(req, res) {
       plaats,
       dagdelenVoorkeur,
       geenVoorkeurDagdelen,
+      // Bank & Stoelen reiniging velden
       rbs_banken,
       rbs_stoelen,
       rbs_zitvlakken,
       rbs_kussens,
       rbs_materialen,
-      rbs_specificaties
+      rbs_specificaties,
+      // Tapijt reiniging velden
+      rt_totaal_m2,
+      rt_opties,
+      rt_opties_allergie,
+      rt_opties_ontgeuren_urine,
+      rt_opties_ontgeuren_overig
     } = req.body;
 
     // Validatie
@@ -103,8 +112,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Alleen bankreiniging type toegestaan voorlopig
-    if (type !== 'bankreiniging') {
+    // Alleen bankreiniging en tapijt types toegestaan voorlopig
+    if (type !== 'bankreiniging' && type !== 'tapijt') {
       console.error(`❌ [OfferteCreate] Unsupported type: ${type} [${correlationId}]`);
       return res.status(400).json({ 
         error: 'UNSUPPORTED_TYPE',
@@ -159,8 +168,8 @@ export default async function handler(req, res) {
     console.log(`📋 [OfferteCreate] Creating opdracht (${type})...`);
     let opdracht;
     try {
-      // Prepare gegevens JSON
-      const gegevens = {
+      // Prepare gegevens JSON based on type
+      let gegevens = {
         // Klant gegevens
         email,
         voornaam,
@@ -175,15 +184,30 @@ export default async function handler(req, res) {
         adres_id: address.id,
         // Dagdelen voorkeur
         dagdelenVoorkeur: dagdelenVoorkeur || null,
-        geenVoorkeurDagdelen: geenVoorkeurDagdelen || false,
-        // Bank & stoelen reiniging specifieke data
-        rbs_banken: parseInt(rbs_banken) || 0,
-        rbs_stoelen: parseInt(rbs_stoelen) || 0,
-        rbs_zitvlakken: parseInt(rbs_zitvlakken) || 0,
-        rbs_kussens: parseInt(rbs_kussens) || 0,
-        rbs_materialen: rbs_materialen || [],
-        rbs_specificaties: rbs_specificaties || null
+        geenVoorkeurDagdelen: geenVoorkeurDagdelen || false
       };
+
+      // Add type-specific fields
+      if (type === 'bankreiniging') {
+        gegevens = {
+          ...gegevens,
+          rbs_banken: parseInt(rbs_banken) || 0,
+          rbs_stoelen: parseInt(rbs_stoelen) || 0,
+          rbs_zitvlakken: parseInt(rbs_zitvlakken) || 0,
+          rbs_kussens: parseInt(rbs_kussens) || 0,
+          rbs_materialen: rbs_materialen || [],
+          rbs_specificaties: rbs_specificaties || null
+        };
+      } else if (type === 'tapijt') {
+        gegevens = {
+          ...gegevens,
+          rt_totaal_m2: parseInt(rt_totaal_m2) || 0,
+          rt_opties: rt_opties || [],
+          rt_opties_allergie: rt_opties_allergie || false,
+          rt_opties_ontgeuren_urine: rt_opties_ontgeuren_urine || false,
+          rt_opties_ontgeuren_overig: rt_opties_ontgeuren_overig || false
+        };
+      }
 
       const opdrachtPayload = {
         gebruiker_id: user.id,
@@ -228,30 +252,61 @@ export default async function handler(req, res) {
     // STAP 4: Emails versturen
     console.log(`📧 [OfferteCreate] Sending email notifications...`);
     
-    const emailData = {
-      klantNaam: `${voornaam} ${achternaam}`,
-      klantEmail: email,
-      klantTelefoon: telefoon || '—',
-      plaats: plaats,
-      adres: `${straat} ${huisnummer}${toevoeging ? toevoeging : ''}`,
-      postcode: postcode,
-      dagdelenVoorkeur: dagdelenVoorkeur,
-      geenVoorkeurDagdelen: geenVoorkeurDagdelen || false,
-      aantalBanken: parseInt(rbs_banken) || 0,
-      aantalStoelen: parseInt(rbs_stoelen) || 0,
-      aantalZitvlakken: parseInt(rbs_zitvlakken) || 0,
-      aantalKussens: parseInt(rbs_kussens) || 0,
-      materialen: rbs_materialen || [],
-      specificaties: rbs_specificaties || null,
-      opdrachtId: opdracht.id
-    };
+    // Prepare email data based on type
+    let emailData;
+    let adminSubject;
+    let clientSubject;
+    let adminTemplate;
+    let clientTemplate;
+
+    if (type === 'bankreiniging') {
+      emailData = {
+        klantNaam: `${voornaam} ${achternaam}`,
+        klantEmail: email,
+        klantTelefoon: telefoon || '—',
+        plaats: plaats,
+        adres: `${straat} ${huisnummer}${toevoeging ? toevoeging : ''}`,
+        postcode: postcode,
+        dagdelenVoorkeur: dagdelenVoorkeur,
+        geenVoorkeurDagdelen: geenVoorkeurDagdelen || false,
+        aantalBanken: parseInt(rbs_banken) || 0,
+        aantalStoelen: parseInt(rbs_stoelen) || 0,
+        aantalZitvlakken: parseInt(rbs_zitvlakken) || 0,
+        aantalKussens: parseInt(rbs_kussens) || 0,
+        materialen: rbs_materialen || [],
+        specificaties: rbs_specificaties || null,
+        opdrachtId: opdracht.id
+      };
+      adminSubject = '🆕 Nieuwe Bank & Stoelen Reiniging Offerte Aanvraag';
+      clientSubject = '✅ Offerte Aanvraag Ontvangen - Bank & Stoelen Reiniging';
+      adminTemplate = nieuweBankReinigingAdmin;
+      clientTemplate = bankReinigingBevestigingKlant;
+    } else if (type === 'tapijt') {
+      emailData = {
+        klantNaam: `${voornaam} ${achternaam}`,
+        klantEmail: email,
+        klantTelefoon: telefoon || '—',
+        plaats: plaats,
+        adres: `${straat} ${huisnummer}${toevoeging ? toevoeging : ''}`,
+        postcode: postcode,
+        dagdelenVoorkeur: dagdelenVoorkeur,
+        geenVoorkeurDagdelen: geenVoorkeurDagdelen || false,
+        totaalM2: parseInt(rt_totaal_m2) || 0,
+        opties: rt_opties || [],
+        opdrachtId: opdracht.id
+      };
+      adminSubject = '🆕 Nieuwe Tapijt Reiniging Offerte Aanvraag';
+      clientSubject = '✅ Offerte Aanvraag Ontvangen - Tapijt Reiniging';
+      adminTemplate = nieuweTapijtReinigingAdmin;
+      clientTemplate = tapijtReinigingBevestigingKlant;
+    }
 
     // 4a. Admin notification email
     try {
       await sendEmail({
         to: emailConfig.notificationsEmail,
-        subject: '🆕 Nieuwe Bank & Stoelen Reiniging Offerte Aanvraag',
-        html: nieuweBankReinigingAdmin(emailData)
+        subject: adminSubject,
+        html: adminTemplate(emailData)
       }, correlationId);
       console.log(`✅ [OfferteCreate] Admin notification email sent to ${emailConfig.notificationsEmail}`);
     } catch (error) {
@@ -266,8 +321,8 @@ export default async function handler(req, res) {
     try {
       await sendEmail({
         to: email,
-        subject: '✅ Offerte Aanvraag Ontvangen - Bank & Stoelen Reiniging',
-        html: bankReinigingBevestigingKlant(emailData)
+        subject: clientSubject,
+        html: clientTemplate(emailData)
       }, correlationId);
       console.log(`✅ [OfferteCreate] Client confirmation email sent to ${email}`);
     } catch (error) {

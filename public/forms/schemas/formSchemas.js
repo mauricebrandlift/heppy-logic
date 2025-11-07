@@ -1130,6 +1130,189 @@ export function getFormSchema(name) {
       // Submit logica wordt toegevoegd in rbsPersoonsgegevensForm.js
     },
 
+    // ===============================================
+    // TAPIJT REINIGING FLOW (rt_ prefix)
+    // ===============================================
+
+    // Stap 1: Adres
+    'rt_adres-form': {
+      name: 'rt_adres-form',
+      selector: '[data-form-name="rt_adres-form"]',
+      fields: {
+        postcode: commonFields.postcode,
+        huisnummer: commonFields.huisnummer,
+        toevoeging: commonFields.toevoeging,
+        straatnaam: {
+          ...commonFields.straatnaam,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+        plaats: {
+          ...commonFields.plaats,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in rtAdresForm.js
+      },
+      triggers: [
+        {
+          type: 'addressLookup',
+        }
+      ],
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.address,
+        commonMessages.coverage,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Je adresgegevens zijn succesvol gecontroleerd.',
+        }
+      ),
+    },
+
+    // Stap 2: Tapijt details
+    'rt_opdracht-form': {
+      name: 'rt_opdracht-form',
+      selector: '[data-form-name="rt_opdracht-form"]',
+      fields: {
+        rt_totaal_m2: {
+          label: 'Totaal aantal m²',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:1', 'max:500'],
+          persist: 'form',
+          messages: {
+            required: 'Vul het totaal aantal vierkante meters in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 1 m²',
+            max: 'Maximaal 500 m²'
+          }
+        },
+        rt_opties_allergie: {
+          label: 'Anti Allergie Behandeling',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        rt_opties_ontgeuren_urine: {
+          label: 'Ontgeuren Urine en/of braaksel',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        rt_opties_ontgeuren_overig: {
+          label: 'Ontgeuren Overig (Geen Urine)',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        }
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in tapijtOpdrachtForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          M2_REQUIRED: 'Vul minimaal 1 m² in om door te gaan.',
+          CUSTOM_SUCCESS: 'Tapijt details succesvol opgeslagen.'
+        }
+      ),
+    },
+
+    // Stap 3: Dagdelen voorkeur
+    'rt_dagdelen-form': {
+      name: 'rt_dagdelen-form',
+      selector: '[data-form-name="rt_dagdelen-form"]',
+      fields: {
+        dagdeel: {
+          label: 'Dagdelen',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        }
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in rtDagdelenForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Dagdelen voorkeuren opgeslagen.'
+        }
+      ),
+    },
+
+    // Stap 4: Overzicht (geen velden, alleen navigatie)
+    'rt_overzicht-form': {
+      name: 'rt_overzicht-form',
+      selector: '[data-form-name="rt_overzicht-form"]',
+      fields: {},
+      submit: {
+        // De submit logica wordt gedefinieerd in tapijtOverzichtForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server
+      ),
+    },
+
+    // Stap 5: Persoonsgegevens + offerte aanvraag
+    'rt_persoonsgegevens-form': {
+      name: 'rt_persoonsgegevens-form',
+      selector: '[data-form-name="rt_persoonsgegevens-form"]',
+      fields: {
+        voornaam: {
+          ...commonFields.voornaam,
+        },
+        achternaam: {
+          ...commonFields.achternaam,
+        },
+        telefoonnummer: {
+          ...commonFields.telefoon,
+          label: 'Telefoonnummer',
+          validators: ['required', 'numeric', 'minLength'],
+          minLength: 8,
+          inputFilter: 'digitsOnly',
+          messages: {
+            ...(commonFields.telefoon.messages || {}),
+            required: 'Telefoonnummer is verplicht',
+            minLength: 'Voer een geldig telefoonnummer in'
+          }
+        },
+        emailadres: {
+          ...commonFields.email,
+          label: 'E-mailadres'
+        },
+        wachtwoord: {
+          ...commonFields.wachtwoord,
+          validators: [], // Wachtwoord is OPTIONEEL voor offerte flow
+          messages: {
+            ...commonFields.wachtwoord.messages,
+            required: '' // Geen required message want optioneel
+          }
+        },
+        akkoord_voorwaarden: {
+          ...commonFields.akkoordVoorwaarden,
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Offerte aanvraag verzonden! U ontvangt binnen 24 uur een offerte per email.'
+        }
+      ),
+      // Submit logica wordt toegevoegd in rtPersoonsgegevensForm.js
+    },
+
     // Andere formulieren...
   };
 
