@@ -4,8 +4,8 @@
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
-import { collectDagdelen, convertDagdelenToDBFormat } from '../logic/dagdelenLogic.js';
 import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
+import { convertUIDagdelenNaarDB } from '../logic/dagdelenHelper.js';
 
 const FORM_NAME = 'rt_dagdelen-form';
 const NEXT_FORM_NAME = 'rt_overzicht-form';
@@ -38,6 +38,36 @@ function goToFormStep(nextFormName) {
 }
 
 /**
+ * Verzamel alle geselecteerde dagdelen (inclusief "geen voorkeur")
+ * @param {HTMLElement} formElement - Het formulier element
+ * @returns {Array<string>} - Array van data-dagdeel waarden
+ */
+function getSelectedDagdelenIncludingNoPreference(formElement) {
+  const checkboxes = formElement.querySelectorAll('input[type="checkbox"][data-field-name="dagdeel"]:checked');
+  return Array.from(checkboxes)
+    .map(cb => cb.getAttribute('data-dagdeel'))
+    .filter(Boolean);
+}
+
+/**
+ * Check of "geen voorkeur" is geselecteerd
+ * @param {Array<string>} selectedDagdelen - Array van geselecteerde dagdeel waarden
+ * @returns {boolean}
+ */
+function hasNoPreference(selectedDagdelen) {
+  return selectedDagdelen.includes('geen-voorkeur');
+}
+
+/**
+ * Haal reguliere dagdelen (excl. "geen voorkeur")
+ * @param {Array<string>} selectedDagdelen - Array van geselecteerde dagdeel waarden
+ * @returns {Array<string>}
+ */
+function getRegularDagdelen(selectedDagdelen) {
+  return selectedDagdelen.filter(d => d !== 'geen-voorkeur');
+}
+
+/**
  * Initialiseert het dagdelen voorkeur formulier
  */
 export function initRtDagdelenForm() {
@@ -61,24 +91,35 @@ export function initRtDagdelenForm() {
       
       const formElement = document.querySelector(schema.selector);
       if (!formElement) {
-        console.error('[rtDagdelenForm] Form element niet gevonden');
-        throw new Error('Formulier niet gevonden');
+        throw new Error('Formulier element niet gevonden');
       }
       
-      // Verzamel dagdelen selecties via dagdelenLogic helper
-      const dagdelenData = collectDagdelen(formElement);
-      console.log('[rtDagdelenForm] Dagdelen data verzameld:', dagdelenData);
+      // Verzamel alle geselecteerde checkboxes (incl. geen voorkeur)
+      const selectedDagdelen = getSelectedDagdelenIncludingNoPreference(formElement);
+      console.log('[rtDagdelenForm] Geselecteerde dagdelen:', selectedDagdelen);
       
-      // Converteer naar DB formaat
-      const dagdelenDB = convertDagdelenToDBFormat(dagdelenData.regulier);
-      console.log('[rtDagdelenForm] Dagdelen DB formaat:', dagdelenDB);
+      // Validatie: minimaal 1 dagdeel OF "geen voorkeur" moet geselecteerd zijn
+      if (selectedDagdelen.length === 0) {
+        const error = new Error('Selecteer minimaal één dagdeel of kies "Geen voorkeur"');
+        error.code = 'NO_DAGDELEN_SELECTED';
+        throw error;
+      }
       
-      // Sla op in flow data
-      const updatedFlowData = loadFlowData('tapijt-aanvraag') || {};
-      updatedFlowData.geenVoorkeurDagdelen = dagdelenData.geenVoorkeur;
+      // Check of "geen voorkeur" is aangevinkt
+      const geenVoorkeur = hasNoPreference(selectedDagdelen);
       
-      if (!dagdelenData.geenVoorkeur && Object.keys(dagdelenDB).length > 0) {
-        // Reguliere dagdelen geselecteerd
+      // Haal reguliere dagdelen (zonder "geen voorkeur")
+      const regularDagdelen = getRegularDagdelen(selectedDagdelen);
+      
+      // Sla flow data op
+      const updatedFlowData = {
+        ...flowData,
+        geenVoorkeurDagdelen: geenVoorkeur,
+      };
+      
+      // Als er reguliere dagdelen zijn geselecteerd, converteer naar DB formaat
+      if (regularDagdelen.length > 0) {
+        const dagdelenDB = convertUIDagdelenNaarDB(regularDagdelen);
         updatedFlowData.dagdelenVoorkeur = dagdelenDB;
         console.log('[rtDagdelenForm] Dagdelen opgeslagen (DB formaat):', dagdelenDB);
       } else {
@@ -92,14 +133,18 @@ export function initRtDagdelenForm() {
       
       // 🎯 TRACK STEP COMPLETION
       await logStepCompleted('tapijt', 'dagdelen', 3, {
-        geenVoorkeur: dagdelenData.geenVoorkeur,
-        aantalDagdelen: dagdelenData.geenVoorkeur ? 0 : Object.keys(dagdelenDB).length
+        geenVoorkeurDagdelen: geenVoorkeur,
+        dagdelenVoorkeur: updatedFlowData.dagdelenVoorkeur || null,
+        aantalDagdelen: regularDagdelen.length
       }).catch(err => console.warn('[rtDagdelenForm] Tracking failed:', err));
-    },
-    onSuccess: () => {
-      console.log('[rtDagdelenForm] Submit success, navigeer naar stap 4 (overzicht)...');
       
-      // Import en initialiseer de volgende stap: overzicht
+      console.log('[rtDagdelenForm] Submit succesvol, navigeer naar volgende stap');
+    },
+    
+    onSuccess: () => {
+      console.log('[rtDagdelenForm] onSuccess - Navigeer naar overzicht');
+      
+      // Lazy load overzicht stap
       import('./tapijtOverzichtForm.js').then(module => {
         console.log('[rtDagdelenForm] Stap 4 (tapijtOverzichtForm) wordt geïnitialiseerd...');
         module.initTapijtOverzichtForm();
@@ -111,46 +156,160 @@ export function initRtDagdelenForm() {
     }
   };
   
-  // Initialiseer formHandler
+  // Initialiseer de formHandler met het bijgewerkte schema
   formHandler.init(schema);
   
-  console.log(`✅ [rtDagdelenForm] Formulier '${FORM_NAME}' is succesvol geïnitialiseerd.`);
+  // Haal form element op
+  const formElement = document.querySelector(schema.selector);
+  if (!formElement) {
+    console.error(`❌ [rtDagdelenForm] Formulier element niet gevonden: ${schema.selector}`);
+    return;
+  }
   
-  // 🔙 PREV BUTTON HANDLER - Re-initialiseer vorige stap bij terug navigeren
+  // Setup "geen voorkeur" exclusieve logica
+  setupGeenVoorkeurLogic(formElement);
+  
+  // Setup checkbox change listeners om submit button state te updaten
+  setupCheckboxListeners(formElement);
+  
+  // Initial submit button state (disabled als geen selectie)
+  updateSubmitButtonState(formElement);
+  
+  console.log('✅ [rtDagdelenForm] Formulier succesvol geïnitialiseerd.');
+  
+  // 🔙 PREV BUTTON HANDLER
   setupPrevButtonHandler();
 }
 
 /**
- * Setup prev button handler voor terug navigatie
- * Re-initialiseert stap 2 (opdracht) voordat er terug wordt genavigeerd
+ * Update submit button state based op checkbox selectie
+ * @param {HTMLElement} formElement - Het formulier element
  */
-let prevButtonHandler = null;
-
-function setupPrevButtonHandler() {
-  const prevButton = document.querySelector('[data-form-button-prev="rt_dagdelen-form"]');
+function updateSubmitButtonState(formElement) {
+  const selectedDagdelen = getSelectedDagdelenIncludingNoPreference(formElement);
+  const isValid = selectedDagdelen.length > 0;
   
+  const submitButton = formElement.querySelector(`[data-form-button="${FORM_NAME}"]`);
+  if (submitButton) {
+    if (isValid) {
+      submitButton.classList.remove('is-disabled');
+      submitButton.style.pointerEvents = '';
+      submitButton.style.opacity = '';
+    } else {
+      submitButton.classList.add('is-disabled');
+      submitButton.style.pointerEvents = 'none';
+      submitButton.style.opacity = '0.5';
+    }
+    console.log(`[rtDagdelenForm] Submit button ${isValid ? 'enabled ✅' : 'disabled ❌'} (${selectedDagdelen.length} dagdelen geselecteerd)`);
+  }
+}
+
+/**
+ * Setup checkbox change listeners om submit button state te updaten
+ * @param {HTMLElement} formElement - Het formulier element
+ */
+function setupCheckboxListeners(formElement) {
+  const allCheckboxes = formElement.querySelectorAll('input[type="checkbox"][data-field-name="dagdeel"]');
+  
+  allCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      updateSubmitButtonState(formElement);
+    });
+  });
+  
+  console.log(`[rtDagdelenForm] ${allCheckboxes.length} checkbox listeners toegevoegd voor submit button state`);
+}
+
+/**
+ * Setup logica voor "geen voorkeur" checkbox
+ * Als "geen voorkeur" wordt aangevinkt, worden alle andere dagdelen uitgevinkt
+ * Als een dagdeel wordt aangevinkt, wordt "geen voorkeur" uitgevinkt
+ */
+function setupGeenVoorkeurLogic(formElement) {
+  const geenVoorkeurCheckbox = formElement.querySelector('[data-dagdeel="geen-voorkeur"]');
+  const dagdeelCheckboxes = formElement.querySelectorAll('[data-dagdeel]:not([data-dagdeel="geen-voorkeur"])');
+  
+  if (!geenVoorkeurCheckbox) {
+    console.warn('⚠️ [rtDagdelenForm] "Geen voorkeur" checkbox niet gevonden');
+    return;
+  }
+  
+  // Als "geen voorkeur" wordt aangeklikt
+  geenVoorkeurCheckbox.addEventListener('change', (e) => {
+    if (e.target.checked) {
+      console.log('[rtDagdelenForm] "Geen voorkeur" aangevinkt, uncheck alle dagdelen');
+      
+      // Uncheck alle dagdeel checkboxes
+      dagdeelCheckboxes.forEach(cb => {
+        if (cb.checked) {
+          cb.checked = false;
+          
+          // Update Webflow styling
+          const label = cb.closest('label.w-checkbox, label.radio-fancy_field');
+          if (label) {
+            label.classList.remove('is-checked');
+            const icon = label.querySelector('.w-checkbox-input, .radio-fancy_checkmark');
+            if (icon) {
+              icon.classList.remove('w--redirected-checked');
+            }
+          }
+        }
+      });
+    }
+  });
+  
+  // Als een dagdeel checkbox wordt aangeklikt
+  dagdeelCheckboxes.forEach(cb => {
+    cb.addEventListener('change', (e) => {
+      if (e.target.checked && geenVoorkeurCheckbox.checked) {
+        console.log('[rtDagdelenForm] Dagdeel aangevinkt, uncheck "geen voorkeur"');
+        
+        // Uncheck "geen voorkeur"
+        geenVoorkeurCheckbox.checked = false;
+        
+        // Update Webflow styling
+        const label = geenVoorkeurCheckbox.closest('label.w-checkbox, label.radio-fancy_field');
+        if (label) {
+          label.classList.remove('is-checked');
+          const icon = label.querySelector('.w-checkbox-input, .radio-fancy_checkmark');
+          if (icon) {
+            icon.classList.remove('w--redirected-checked');
+          }
+        }
+      }
+    });
+  });
+  
+  console.log('[rtDagdelenForm] "Geen voorkeur" logica ingesteld');
+}
+
+/**
+ * Setup prev button handler voor terug navigatie
+ */
+function setupPrevButtonHandler() {
+  const formElement = document.querySelector(`[data-form-name="${FORM_NAME}"]`);
+  if (!formElement) {
+    console.warn('⚠️ [rtDagdelenForm] Form element niet gevonden');
+    return;
+  }
+  
+  const prevButton = formElement.querySelector(`[data-form-button-prev="${FORM_NAME}"]`);
   if (!prevButton) {
-    console.log('[rtDagdelenForm] Geen prev button gevonden met [data-form-button-prev="rt_dagdelen-form"]');
+    console.warn('⚠️ [rtDagdelenForm] Prev button niet gevonden');
     return;
   }
   
   console.log('[rtDagdelenForm] Prev button gevonden, event handler toevoegen...');
   
-  // Verwijder oude handler indien aanwezig
-  if (prevButtonHandler) {
-    prevButton.removeEventListener('click', prevButtonHandler);
-    console.log('[rtDagdelenForm] ♻️ Oude prev button handler verwijderd');
-  }
-  
-  // Definieer nieuwe handler
-  prevButtonHandler = (e) => {
+  prevButton.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('[rtDagdelenForm] 🔙 Prev button clicked - navigeer naar stap 2 (opdracht)');
+    console.log('[rtDagdelenForm] 🔙 Prev button clicked - ga terug naar opdracht stap');
     
-    // Re-initialiseer de VORIGE stap (stap 2 = tapijtOpdrachtForm) VOOR navigatie
-    import('./tapijtOpdrachtForm.js').then(module => {
+    // Lazy load vorige stap
+    try {
+      const module = await import('./tapijtOpdrachtForm.js');
       console.log('[rtDagdelenForm] ♻️ Re-init tapijtOpdrachtForm voor terug navigatie...');
       module.initTapijtOpdrachtForm();
       
@@ -159,18 +318,20 @@ function setupPrevButtonHandler() {
         console.log('[rtDagdelenForm] Roep window.moveToPrevSlide() aan');
         window.moveToPrevSlide();
       } else {
-        console.warn('[rtDagdelenForm] window.moveToPrevSlide() niet beschikbaar');
+        console.warn('[rtDagdelenForm] window.moveToPrevSlide() niet beschikbaar, probeer fallback');
+        // Fallback: probeer goToFormStep
+        goToFormStep('rt_opdracht-form');
       }
-    }).catch(err => {
+    } catch (err) {
       console.error('[rtDagdelenForm] ❌ Fout bij re-init tapijtOpdrachtForm:', err);
+      // Navigeer alsnog terug bij fout
       if (typeof window.moveToPrevSlide === 'function') {
         window.moveToPrevSlide();
+      } else {
+        goToFormStep('rt_opdracht-form');
       }
-    });
-  };
-  
-  // Voeg nieuwe handler toe
-  prevButton.addEventListener('click', prevButtonHandler);
+    }
+  });
   
   console.log('[rtDagdelenForm] ✅ Prev button handler toegevoegd');
 }
