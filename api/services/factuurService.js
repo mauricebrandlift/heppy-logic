@@ -134,15 +134,13 @@ export async function createStripeInvoice({ customerId, omschrijving, regels, to
     itemParams.set('description', regel.omschrijving);
     itemParams.set('currency', 'eur');
     
-    // Stripe accepteert OFWEL amount OFWEL quantity+unit_amount
-    if (regel.aantal && regel.aantal > 1 && regel.prijs_per_stuk_cents) {
-      // Use quantity + unit_amount voor meerdere items
-      itemParams.set('quantity', String(regel.aantal));
-      itemParams.set('unit_amount', String(regel.prijs_per_stuk_cents));
-    } else {
-      // Use amount voor single items of totaalbedrag
-      itemParams.set('amount', String(regel.subtotaal_cents));
-    }
+    // Stripe accepteert OFWEL amount OFWEL quantity+unit_amount (NIET beide!)
+    // We gebruiken altijd quantity+unit_amount voor transparantie
+    const quantity = regel.aantal || 1;
+    const unitAmount = regel.prijs_per_stuk_cents || regel.subtotaal_cents;
+    
+    itemParams.set('quantity', String(quantity));
+    itemParams.set('unit_amount', String(unitAmount));
 
     const itemResponse = await fetch('https://api.stripe.com/v1/invoiceitems', {
       method: 'POST',
@@ -158,7 +156,8 @@ export async function createStripeInvoice({ customerId, omschrijving, regels, to
       console.error(`❌ [FactuurService] Invoice item toevoegen mislukt [${correlationId}]`, itemError);
       // Niet fataal - invoice kan nog steeds gefinaliseerd worden
     } else {
-      console.log(`✅ [FactuurService] Invoice item toegevoegd: ${regel.omschrijving} [${correlationId}]`);
+      const itemResult = await itemResponse.json();
+      console.log(`✅ [FactuurService] Invoice item toegevoegd: ${regel.omschrijving} (${quantity}x €${(unitAmount/100).toFixed(2)}) [${correlationId}]`);
     }
   }
 
