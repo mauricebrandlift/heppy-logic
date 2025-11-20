@@ -9,6 +9,12 @@
         { "key": "Access-Control-Allow-Headers", "value": "Content-Type, X-Correlation-ID" }
     ]
     }
+],
+"crons": [
+    {
+    "path": "/api/cron/recurring-billing",
+    "schedule": "0 2 * * *"
+    }
 ]
 }
     
