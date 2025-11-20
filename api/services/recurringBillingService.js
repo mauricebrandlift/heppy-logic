@@ -241,11 +241,14 @@ export async function processAbonnementRecurringBilling(abonnement, correlationI
 
     console.log(`👤 [RecurringBilling] User: ${user.email} (${user.id}) [${correlationId}]`);
 
-    // 3. Bereken bedrag (uit abonnement gegevens)
-    const gegevens = abonnement.gegevens || {};
-    const sessionsPerCycle = gegevens.sessions_per_4w || 4;
-    const prijsPerSessie = gegevens.prijs_per_sessie_cents || 0;
-    const totalAmount = sessionsPerCycle * prijsPerSessie;
+    // 3. Bereken bedrag (uit abonnement kolommen)
+    const sessionsPerCycle = abonnement.sessions_per_4w || 4;
+    const prijsPerSessie = abonnement.prijs_per_sessie_cents || 0;
+    const totalAmount = abonnement.bundle_amount_cents || (sessionsPerCycle * prijsPerSessie);
+
+    if (totalAmount < 50) {
+      throw new Error(`Bedrag (${totalAmount} cents) is te laag voor Stripe (minimum 50 cents)`);
+    }
 
     console.log(`💰 [RecurringBilling] Bedrag: ${sessionsPerCycle} sessies × €${(prijsPerSessie/100).toFixed(2)} = €${(totalAmount/100).toFixed(2)} [${correlationId}]`);
 
