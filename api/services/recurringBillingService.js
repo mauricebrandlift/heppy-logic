@@ -80,6 +80,36 @@ async function createRecurringPaymentIntent({
 }, correlationId) {
   console.log(`💳 [RecurringBilling] Creating PaymentIntent voor €${(amount/100).toFixed(2)} [${correlationId}]`);
   
+  // 1. Zorg dat PaymentMethod attached is aan Customer (idempotent)
+  try {
+    const attachParams = new URLSearchParams();
+    attachParams.set('customer', customerId);
+    
+    const attachResponse = await fetch(`https://api.stripe.com/v1/payment_methods/${paymentMethodId}/attach`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${stripeConfig.secretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: attachParams.toString(),
+    });
+    
+    const attachResult = await attachResponse.json();
+    
+    if (!attachResponse.ok && !attachResult?.error?.message?.includes('already been attached')) {
+      console.error(`⚠️ [RecurringBilling] PaymentMethod attach failed [${correlationId}]`, attachResult.error);
+      throw new Error(`PaymentMethod attach failed: ${attachResult.error?.message}`);
+    }
+    
+    console.log(`✅ [RecurringBilling] PaymentMethod ${paymentMethodId} attached to Customer ${customerId} [${correlationId}]`);
+  } catch (attachError) {
+    // Als al attached: geen probleem, ga door
+    if (!attachError.message.includes('already been attached')) {
+      throw attachError;
+    }
+  }
+  
+  // 2. Maak PaymentIntent
   const params = new URLSearchParams();
   params.set('amount', String(amount));
   params.set('currency', 'eur');
