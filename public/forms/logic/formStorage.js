@@ -139,3 +139,30 @@ export function clearFlowData(formName) {
     _setStorageObject(FLOW_DATA_KEY, flow);
   }
 }
+
+/**
+ * Verwijder alle andere flow data behalve de huidige flow.
+ * Voorkomt vervuiling van localStorage met oude flow data.
+ * Aanroepen in stap 1 (adres) van elke flow.
+ * 
+ * @param {string} currentFlowKey - De flow key die NIET verwijderd moet worden
+ */
+export function clearOtherFlows(currentFlowKey) {
+  const allFlowKeys = [
+    'abonnement-aanvraag',
+    'dieptereiniging-aanvraag',
+    'verhuis-aanvraag',
+    'bankreiniging-aanvraag',
+    'tapijt-aanvraag',
+    'vloer-aanvraag'
+  ];
+  
+  console.log(`[FormStorage] Clearing other flows, keeping: ${currentFlowKey}`);
+  
+  allFlowKeys
+    .filter(key => key !== currentFlowKey)
+    .forEach(key => {
+      clearFlowData(key);
+      console.log(`[FormStorage] ✓ Cleared flow: ${key}`);
+    });
+}

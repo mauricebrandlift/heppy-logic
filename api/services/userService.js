@@ -103,5 +103,19 @@ export const userService = {
     console.log(`📍 [UserService] Updating adres_id for user ${userId}: ${adresId} [${correlationId}]`);
     await patchUserProfile(userId, { adres_id: adresId }, correlationId);
     console.log(`✅ [UserService] adres_id updated [${correlationId}]`);
+  },
+
+  async updateStripeCustomerId(userId, stripeCustomerId, correlationId){
+    console.log(`💳 [UserService] Updating stripe_customer_id for user ${userId}: ${stripeCustomerId} [${correlationId}]`);
+    await patchUserProfile(userId, { stripe_customer_id: stripeCustomerId }, correlationId);
+    console.log(`✅ [UserService] stripe_customer_id updated [${correlationId}]`);
+  },
+
+  async getStripeCustomerId(userId, correlationId){
+    const url = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${userId}&select=stripe_customer_id`;
+    const resp = await httpClient(url, { headers:{ 'apikey':supabaseConfig.anonKey,'Authorization':`Bearer ${supabaseConfig.anonKey}` } }, correlationId);
+    if(!resp.ok) throw new Error(`user_profiles select failed: ${await resp.text()}`);
+    const data = await resp.json();
+    return data[0]?.stripe_customer_id || null;
   }
 };

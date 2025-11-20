@@ -72,5 +72,22 @@ export const abonnementService = {
     const resp = await httpClient(url, { method:'POST', headers:{ 'Content-Type':'application/json','apikey':supabaseConfig.anonKey,'Authorization':`Bearer ${supabaseConfig.anonKey}`,'Prefer':'return=minimal' }, body: JSON.stringify(body) }, correlationId);
     if(!resp.ok) throw new Error(`abonnementen insert failed: ${await resp.text()}`);
     return { id };
+  },
+
+  async updatePaymentMethod(abonnementId, paymentMethodId, correlationId){
+    console.log(`💳 [AbonnementService] Updating payment method for ${abonnementId}: ${paymentMethodId} [${correlationId}]`);
+    const url = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${abonnementId}`;
+    const resp = await httpClient(url, { 
+      method:'PATCH', 
+      headers:{ 
+        'Content-Type':'application/json',
+        'apikey':supabaseConfig.anonKey,
+        'Authorization':`Bearer ${supabaseConfig.anonKey}`,
+        'Prefer':'return=minimal' 
+      }, 
+      body: JSON.stringify({ stripe_payment_method_id: paymentMethodId }) 
+    }, correlationId);
+    if(!resp.ok) throw new Error(`abonnement payment method update failed: ${await resp.text()}`);
+    console.log(`✅ [AbonnementService] Payment method updated [${correlationId}]`);
   }
 };

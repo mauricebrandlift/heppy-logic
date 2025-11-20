@@ -84,7 +84,12 @@ export const authClient = {
       
       // Controleer of token verlopen is
       if (parsed.expires_at && new Date(parsed.expires_at * 1000) < new Date()) {
-        this.logout('expired');
+        // GRACEFUL: Clear expired token maar redirect NIET
+        console.warn('[AuthClient] Token expired, clearing auth state');
+        localStorage.removeItem(AUTH_STORAGE_KEY);
+        window.dispatchEvent(new CustomEvent(AUTH_EVENTS.SESSION_EXPIRED, {
+          detail: { reason: 'Token expired' }
+        }));
         return null;
       }
       
@@ -102,9 +107,9 @@ export const authClient = {
 
   /**
    * Log huidige gebruiker uit
-   * @param {string} reason - Optionele reden voor uitloggen
+   * @param {string} reason - Optionele reden voor uitloggen ('expired', 'redirect', 'manual')
    */
-  async logout(reason) {
+  async logout(reason = 'manual') {
     try {
       // Roep logout endpoint aan indien nodig
       const authData = this.getAuthState();
@@ -128,10 +133,13 @@ export const authClient = {
         detail: { reason }
       }));
       
-      // Redirect naar home of login pagina als reden niet 'redirect' is
-      // Dit voorkomt oneindige redirects
-      if (reason !== 'redirect') {
+      // Redirect alleen bij MANUAL logout (gebruiker klikt op uitloggen)
+      // NIET bij 'expired' (token verlopen) of 'redirect' (oneindige loop preventie)
+      if (reason === 'manual') {
+        console.log('[AuthClient] Manual logout, redirecting to /inloggen');
         window.location.href = '/inloggen';
+      } else {
+        console.log(`[AuthClient] Logout reason: ${reason}, no redirect`);
       }
     }
   },
@@ -174,32 +182,50 @@ export const authClient = {
 
   /**
    * Haal huidige gebruiker op via API (vernieuwt data)
-   * @returns {Promise<Object>} User object met profiel data
+   * @returns {Promise<Object|null>} User object met profiel data, of null bij expired token
    */
   async getCurrentUser() {
     const authData = this.getAuthState();
     if (!authData || !authData.access_token) {
-      throw new AuthError('Niet ingelogd', 401, 'NOT_AUTHENTICATED');
+      // Geen auth data, return null (geen error thrown)
+      console.log('[AuthClient] Geen auth data, user is guest');
+      return null;
     }
 
     // Haal uitgebreide profiel data op via profile endpoint
-    const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PROFILE}`, {
-      headers: {
-        Authorization: `Bearer ${authData.access_token}`
-      }
-    });
+    try {
+      const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PROFILE}`, {
+        headers: {
+          Authorization: `Bearer ${authData.access_token}`
+        }
+      });
 
-    if (!response.ok) {
+      if (!response.ok) {
+        const data = await response.json();
+        
+        if (response.status === 401) {
+          // Token expired of ongeldig - GRACEFUL: clear en return null
+          console.warn('[AuthClient] 401 response, token expired/invalid - clearing auth state');
+          localStorage.removeItem(AUTH_STORAGE_KEY);
+          window.dispatchEvent(new CustomEvent(AUTH_EVENTS.SESSION_EXPIRED, {
+            detail: { reason: 'API returned 401' }
+          }));
+          return null;
+        }
+        
+        // Andere errors: throw zoals voorheen
+        throw new AuthError(data.error || 'Sessie fout', response.status, data.code);
+      }
+
       const data = await response.json();
-      if (response.status === 401) {
-        this.logout('expired');
-      }
-      throw new AuthError(data.error || 'Sessie fout', response.status, data.code);
+      // Profile endpoint retourneert { profile: {...} }
+      return data.profile || data.user || data;
+      
+    } catch (error) {
+      // Network errors etc - log en return null
+      console.error('[AuthClient] Error fetching current user:', error);
+      return null;
     }
-
-    const data = await response.json();
-    // Profile endpoint retourneert { profile: {...} }
-    return data.profile || data.user || data;
   },
 
   /**

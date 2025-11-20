@@ -14,6 +14,8 @@ import {
   verhuisBevestigingKlant, 
   verhuisToegewezenSchoonmaker 
 } from '../../templates/emails/index.js';
+import { createOrGetCustomer } from '../../services/stripeCustomerService.js';
+import { createFactuurForBetaling } from '../../services/factuurService.js';
 
 export async function processVerhuisPayment({ paymentIntent, metadata, correlationId, event }) {
   console.log(`💰 [ProcessVerhuis] ========== START ========== [${correlationId}]`);
@@ -55,6 +57,41 @@ export async function processVerhuisPayment({ paymentIntent, metadata, correlati
         metadata: { email: metadata.email, voornaam: metadata.voornaam, achternaam: metadata.achternaam }
       });
       throw new Error(`User creation failed: ${error.message}`);
+    }
+
+    // Stripe Customer (NIEUW - voor facturen)
+    console.log(`💳 [ProcessVerhuis] Creating/finding Stripe Customer... [${correlationId}]`);
+    let stripeCustomer;
+    try {
+      stripeCustomer = await createOrGetCustomer({
+        userId: user.id,
+        email: metadata.email,
+        name: `${metadata.voornaam || ''} ${metadata.achternaam || ''}`.trim(),
+        phone: metadata.telefoon || null,
+        address: {
+          straat: metadata.straat,
+          huisnummer: metadata.huisnummer,
+          toevoeging: metadata.toevoeging,
+          postcode: metadata.postcode,
+          plaats: metadata.plaats,
+        },
+      }, correlationId);
+      
+      console.log(`✅ [ProcessVerhuis] Stripe Customer ${stripeCustomer.created ? 'created' : 'found'}: ${stripeCustomer.id} [${correlationId}]`);
+      
+      if (stripeCustomer.created) {
+        await userService.updateStripeCustomerId(user.id, stripeCustomer.id, correlationId);
+      }
+      
+      await auditService.log('stripe_customer', user.id, stripeCustomer.created ? 'created' : 'reused', user.id, { 
+        stripe_customer_id: stripeCustomer.id 
+      }, correlationId);
+    } catch (error) {
+      console.error(`❌ [ProcessVerhuis] FAILED: Stripe Customer creation error [${correlationId}]`, {
+        error: error.message,
+        stack: error.stack,
+      });
+      stripeCustomer = null;
     }
 
     // Address
@@ -186,6 +223,74 @@ export async function processVerhuisPayment({ paymentIntent, metadata, correlati
         opdrachtId: opdracht.id
       });
       throw new Error(`Payment record creation failed: ${error.message}`);
+    }
+
+    // Factuur genereren (NIEUW - non-fatal)
+    console.log(`📄 [ProcessVerhuis] Generating invoice for one-time payment... [${correlationId}]`);
+    try {
+      // Parse verhuis metadata
+      const vhUren = parseFloat(metadata.vh_uren) || 0;
+      const vhM2 = parseInt(metadata.vh_m2) || 0;
+      const vhDatum = metadata.vh_datum || null;
+      
+      // Calculate prijs per uur (from total amount)
+      const totaalCents = paymentIntent.amount;
+      const calculatePrijsPerUur = (totalCents, uren) => {
+        if (!uren || uren <= 0) return 0;
+        return Math.round(totalCents / uren); // cents per uur
+      };
+      const prijsPerUurCents = calculatePrijsPerUur(totaalCents, vhUren);
+      
+      // Build omschrijving with details
+      let omschrijving = `Verhuis/opleverschoonmaak`;
+      if (vhUren > 0) omschrijving += ` - ${vhUren} ${vhUren === 1 ? 'uur' : 'uren'}`;
+      if (vhM2 > 0) omschrijving += ` - ${vhM2}m²`;
+      if (vhDatum) omschrijving += ` - ${vhDatum}`;
+      
+      const factuur = await createFactuurForBetaling({
+        betalingId: betaling.id,
+        userId: user.id,
+        opdrachtId: opdracht.id,
+        abonnementId: null,
+        stripeCustomerId: stripeCustomer?.id || null,
+        omschrijving,
+        regels: vhUren > 0 ? [
+          {
+            omschrijving: `Verhuis/opleverschoonmaak${vhM2 > 0 ? ` (${vhM2}m²)` : ''}`,
+            aantal: vhUren,
+            eenheid: vhUren === 1 ? 'uur' : 'uren',
+            prijsPerEenheidCents: prijsPerUurCents,
+            totaalCents: totaalCents
+          }
+        ] : [
+          {
+            omschrijving: 'Verhuis/opleverschoonmaak',
+            aantal: 1,
+            eenheid: 'opdracht',
+            prijsPerEenheidCents: totaalCents,
+            totaalCents: totaalCents
+          }
+        ],
+        metadata: {
+          flow: 'verhuis',
+          vh_uren: vhUren,
+          vh_m2: vhM2,
+          vh_datum: vhDatum,
+        }
+      }, correlationId);
+      
+      console.log(`✅ [ProcessVerhuis] Invoice generated: ${factuur.id}, stripe_invoice_id: ${factuur.stripe_invoice_id} [${correlationId}]`);
+      await auditService.log('factuur', factuur.id, 'created', user.id, { 
+        betaling_id: betaling.id, 
+        stripe_invoice_id: factuur.stripe_invoice_id 
+      }, correlationId);
+    } catch (error) {
+      console.error(`⚠️ [ProcessVerhuis] WARNING: Invoice generation failed (non-fatal) [${correlationId}]`, {
+        error: error.message,
+        stack: error.stack,
+        betalingId: betaling.id
+      });
+      // Continue - invoice generation failure should not break the payment flow
     }
 
     // Schoonmaak match opslaan (schoonmaker koppeling)

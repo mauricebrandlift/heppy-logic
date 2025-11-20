@@ -5,7 +5,7 @@ import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { fetchAddressDetails, fetchCoverageStatus, ApiError as FrontendApiError } from '../../utils/api/index.js';
 import { showError, hideError } from '../ui/formUi.js';
-import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
+import { saveFlowData, loadFlowData, clearOtherFlows } from '../logic/formStorage.js';
 import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
 
 const FORM_NAME = 'abb_adres-form';
@@ -44,6 +44,9 @@ function goToFormStep(nextFormName) {
  */
 export function initAbbAdresForm() {
   console.log('[abbAdresForm] Initialiseren van formulier:', FORM_NAME);
+  
+  // ✨ Clear andere flow data om vervuiling te voorkomen
+  clearOtherFlows('abonnement-aanvraag');
   
   // Haal het schema op
   const schema = getFormSchema(FORM_NAME);

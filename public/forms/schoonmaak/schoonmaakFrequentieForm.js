@@ -8,6 +8,7 @@ import {
   saveFlowData,
   loadFlowData,
   loadGlobalFieldData,
+  clearOtherFlows,
 } from '../logic/formStorage.js';
 
 const FORM_NAME = 'schoonmaak-frequentie-form';
@@ -20,6 +21,9 @@ const REDIRECT_URLS = {
 
 export function initSchoonmaakFrequentieForm() {
   console.log(`[SchoonmaakFrequentieForm] Initialiseren van formulier: ${FORM_NAME}`);
+  
+  // ✨ Clear andere flow data om vervuiling te voorkomen
+  clearOtherFlows('abonnement-aanvraag');
 
   const schema = getFormSchema(FORM_NAME);
   if (!schema) {

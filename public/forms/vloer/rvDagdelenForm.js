@@ -1,39 +1,39 @@
-// public/forms/bankreiniging/rbsDagdelenForm.js
-// Formulier handling voor stap 3 van de bank & stoelen reiniging aanvraag: dagdelen voorkeur
+// public/forms/vloer/rvDagdelenForm.js
+// Formulier handling voor stap 3 van de vloer reiniging aanvraag: dagdelen voorkeur
 
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
 import { saveFlowData, loadFlowData } from '../logic/formStorage.js';
 import { logStepCompleted } from '../../utils/tracking/simpleFunnelTracker.js';
-import { getSelectedDagdelenFromForm, convertUIDagdelenNaarDB } from '../logic/dagdelenHelper.js';
+import { convertUIDagdelenNaarDB } from '../logic/dagdelenHelper.js';
 
-const FORM_NAME = 'rbs_dagdelen-form';
-const NEXT_FORM_NAME = 'rbs_overzicht-form';
+const FORM_NAME = 'rv_dagdelen-form';
+const NEXT_FORM_NAME = 'rv_overzicht-form';
 
 function goToFormStep(nextFormName) {
-  console.log('[rbsDagdelenForm] goToFormStep →', nextFormName);
+  console.log('[rvDagdelenForm] goToFormStep →', nextFormName);
   if (window.navigateToFormStep) {
     const navigated = window.navigateToFormStep(FORM_NAME, nextFormName);
     if (navigated) {
-      console.log('[rbsDagdelenForm] navigateToFormStep succesvol', nextFormName);
+      console.log('[rvDagdelenForm] navigateToFormStep succesvol', nextFormName);
       return true;
     }
-    console.warn('[rbsDagdelenForm] navigateToFormStep kon niet navigeren, probeer fallback.');
+    console.warn('[rvDagdelenForm] navigateToFormStep kon niet navigeren, probeer fallback.');
   }
 
   if (window.jumpToSlideByFormName) {
-    console.log('[rbsDagdelenForm] Fallback jumpToSlideByFormName', nextFormName);
+    console.log('[rvDagdelenForm] Fallback jumpToSlideByFormName', nextFormName);
     window.jumpToSlideByFormName(nextFormName);
     return true;
   }
 
   if (window.moveToNextSlide) {
-    console.log('[rbsDagdelenForm] Fallback moveToNextSlide (geen target match)');
+    console.log('[rvDagdelenForm] Fallback moveToNextSlide (geen target match)');
     window.moveToNextSlide();
     return true;
   }
 
-  console.error('[rbsDagdelenForm] Geen slider navigatie functie gevonden.');
+  console.error('[rvDagdelenForm] Geen slider navigatie functie gevonden.');
   return false;
 }
 
@@ -70,24 +70,24 @@ function getRegularDagdelen(selectedDagdelen) {
 /**
  * Initialiseert het dagdelen voorkeur formulier
  */
-export function initRbsDagdelenForm() {
-  console.log('[rbsDagdelenForm] Initialiseren van formulier:', FORM_NAME);
+export function initRvDagdelenForm() {
+  console.log('[rvDagdelenForm] Initialiseren van formulier:', FORM_NAME);
   
   // Haal schema op
   const schema = getFormSchema(FORM_NAME);
   if (!schema) {
-    console.error(`❌ [rbsDagdelenForm] Schema niet gevonden voor ${FORM_NAME}`);
+    console.error(`❌ [rvDagdelenForm] Schema niet gevonden voor ${FORM_NAME}`);
     return;
   }
   
   // Laad bestaande flow data
-  const flowData = loadFlowData('bankreiniging-aanvraag') || {};
-  console.log('[rbsDagdelenForm] Bestaande flow data:', flowData);
+  const flowData = loadFlowData('vloer-aanvraag') || {};
+  console.log('[rvDagdelenForm] Bestaande flow data:', flowData);
   
   // Submit action
   schema.submit = {
     action: async (formData) => {
-      console.log('[rbsDagdelenForm] Submit action gestart met formData:', formData);
+      console.log('[rvDagdelenForm] Submit action gestart met formData:', formData);
       
       const formElement = document.querySelector(schema.selector);
       if (!formElement) {
@@ -96,7 +96,7 @@ export function initRbsDagdelenForm() {
       
       // Verzamel alle geselecteerde checkboxes (incl. geen voorkeur)
       const selectedDagdelen = getSelectedDagdelenIncludingNoPreference(formElement);
-      console.log('[rbsDagdelenForm] Geselecteerde dagdelen:', selectedDagdelen);
+      console.log('[rvDagdelenForm] Geselecteerde dagdelen:', selectedDagdelen);
       
       // Validatie: minimaal 1 dagdeel OF "geen voorkeur" moet geselecteerd zijn
       if (selectedDagdelen.length === 0) {
@@ -121,36 +121,36 @@ export function initRbsDagdelenForm() {
       if (regularDagdelen.length > 0) {
         const dagdelenDB = convertUIDagdelenNaarDB(regularDagdelen);
         updatedFlowData.dagdelenVoorkeur = dagdelenDB;
-        console.log('[rbsDagdelenForm] Dagdelen opgeslagen (DB formaat):', dagdelenDB);
+        console.log('[rvDagdelenForm] Dagdelen opgeslagen (DB formaat):', dagdelenDB);
       } else {
         // Geen reguliere dagdelen, verwijder uit flow data
         delete updatedFlowData.dagdelenVoorkeur;
-        console.log('[rbsDagdelenForm] Geen reguliere dagdelen geselecteerd');
+        console.log('[rvDagdelenForm] Geen reguliere dagdelen geselecteerd');
       }
       
-      saveFlowData('bankreiniging-aanvraag', updatedFlowData);
-      console.log('[rbsDagdelenForm] Flow data opgeslagen:', updatedFlowData);
+      saveFlowData('vloer-aanvraag', updatedFlowData);
+      console.log('[rvDagdelenForm] Flow data opgeslagen:', updatedFlowData);
       
       // 🎯 TRACK STEP COMPLETION
-      await logStepCompleted('bankreiniging', 'dagdelen', 3, {
+      await logStepCompleted('vloerreinigen', 'dagdelen', 3, {
         geenVoorkeurDagdelen: geenVoorkeur,
         dagdelenVoorkeur: updatedFlowData.dagdelenVoorkeur || null,
         aantalDagdelen: regularDagdelen.length
-      }).catch(err => console.warn('[rbsDagdelenForm] Tracking failed:', err));
+      }).catch(err => console.warn('[rvDagdelenForm] Tracking failed:', err));
       
-      console.log('[rbsDagdelenForm] Submit succesvol, navigeer naar volgende stap');
+      console.log('[rvDagdelenForm] Submit succesvol, navigeer naar volgende stap');
     },
     
     onSuccess: () => {
-      console.log('[rbsDagdelenForm] onSuccess - Navigeer naar overzicht');
+      console.log('[rvDagdelenForm] onSuccess - Navigeer naar overzicht');
       
       // Lazy load overzicht stap
-      import('./bankReinigingOverzichtForm.js').then(module => {
-        console.log('[rbsDagdelenForm] Stap 4 (bankReinigingOverzichtForm) wordt geïnitialiseerd...');
-        module.initBankReinigingOverzichtForm();
+      import('./rvOverzichtForm.js').then(module => {
+        console.log('[rvDagdelenForm] Stap 4 (rvOverzichtForm) wordt geïnitialiseerd...');
+        module.initRvOverzichtForm();
         goToFormStep(NEXT_FORM_NAME);
       }).catch(err => {
-        console.error('[rbsDagdelenForm] Kon stap 4 niet laden:', err);
+        console.error('[rvDagdelenForm] Kon stap 4 niet laden:', err);
         goToFormStep(NEXT_FORM_NAME);
       });
     }
@@ -162,7 +162,7 @@ export function initRbsDagdelenForm() {
   // Haal form element op
   const formElement = document.querySelector(schema.selector);
   if (!formElement) {
-    console.error(`❌ [rbsDagdelenForm] Formulier element niet gevonden: ${schema.selector}`);
+    console.error(`❌ [rvDagdelenForm] Formulier element niet gevonden: ${schema.selector}`);
     return;
   }
   
@@ -175,7 +175,7 @@ export function initRbsDagdelenForm() {
   // Initial submit button state (disabled als geen selectie)
   updateSubmitButtonState(formElement);
   
-  console.log('✅ [rbsDagdelenForm] Formulier succesvol geïnitialiseerd.');
+  console.log('✅ [rvDagdelenForm] Formulier succesvol geïnitialiseerd.');
   
   // 🔙 PREV BUTTON HANDLER
   setupPrevButtonHandler();
@@ -200,7 +200,7 @@ function updateSubmitButtonState(formElement) {
       submitButton.style.pointerEvents = 'none';
       submitButton.style.opacity = '0.5';
     }
-    console.log(`[rbsDagdelenForm] Submit button ${isValid ? 'enabled ✅' : 'disabled ❌'} (${selectedDagdelen.length} dagdelen geselecteerd)`);
+    console.log(`[rvDagdelenForm] Submit button ${isValid ? 'enabled ✅' : 'disabled ❌'} (${selectedDagdelen.length} dagdelen geselecteerd)`);
   }
 }
 
@@ -217,7 +217,7 @@ function setupCheckboxListeners(formElement) {
     });
   });
   
-  console.log(`[rbsDagdelenForm] ${allCheckboxes.length} checkbox listeners toegevoegd voor submit button state`);
+  console.log(`[rvDagdelenForm] ${allCheckboxes.length} checkbox listeners toegevoegd voor submit button state`);
 }
 
 /**
@@ -230,14 +230,14 @@ function setupGeenVoorkeurLogic(formElement) {
   const dagdeelCheckboxes = formElement.querySelectorAll('[data-dagdeel]:not([data-dagdeel="geen-voorkeur"])');
   
   if (!geenVoorkeurCheckbox) {
-    console.warn('⚠️ [rbsDagdelenForm] "Geen voorkeur" checkbox niet gevonden');
+    console.warn('⚠️ [rvDagdelenForm] "Geen voorkeur" checkbox niet gevonden');
     return;
   }
   
   // Als "geen voorkeur" wordt aangeklikt
   geenVoorkeurCheckbox.addEventListener('change', (e) => {
     if (e.target.checked) {
-      console.log('[rbsDagdelenForm] "Geen voorkeur" aangevinkt, uncheck alle dagdelen');
+      console.log('[rvDagdelenForm] "Geen voorkeur" aangevinkt, uncheck alle dagdelen');
       
       // Uncheck alle dagdeel checkboxes
       dagdeelCheckboxes.forEach(cb => {
@@ -262,7 +262,7 @@ function setupGeenVoorkeurLogic(formElement) {
   dagdeelCheckboxes.forEach(cb => {
     cb.addEventListener('change', (e) => {
       if (e.target.checked && geenVoorkeurCheckbox.checked) {
-        console.log('[rbsDagdelenForm] Dagdeel aangevinkt, uncheck "geen voorkeur"');
+        console.log('[rvDagdelenForm] Dagdeel aangevinkt, uncheck "geen voorkeur"');
         
         // Uncheck "geen voorkeur"
         geenVoorkeurCheckbox.checked = false;
@@ -280,7 +280,7 @@ function setupGeenVoorkeurLogic(formElement) {
     });
   });
   
-  console.log('[rbsDagdelenForm] "Geen voorkeur" logica ingesteld');
+  console.log('[rvDagdelenForm] "Geen voorkeur" logica ingesteld');
 }
 
 /**
@@ -289,49 +289,49 @@ function setupGeenVoorkeurLogic(formElement) {
 function setupPrevButtonHandler() {
   const formElement = document.querySelector(`[data-form-name="${FORM_NAME}"]`);
   if (!formElement) {
-    console.warn('⚠️ [rbsDagdelenForm] Form element niet gevonden');
+    console.warn('⚠️ [rvDagdelenForm] Form element niet gevonden');
     return;
   }
   
   const prevButton = formElement.querySelector(`[data-form-button-prev="${FORM_NAME}"]`);
   if (!prevButton) {
-    console.warn('⚠️ [rbsDagdelenForm] Prev button niet gevonden');
+    console.warn('⚠️ [rvDagdelenForm] Prev button niet gevonden');
     return;
   }
   
-  console.log('[rbsDagdelenForm] Prev button gevonden, event handler toevoegen...');
+  console.log('[rvDagdelenForm] Prev button gevonden, event handler toevoegen...');
   
   prevButton.addEventListener('click', async (e) => {
     e.preventDefault();
     e.stopPropagation();
     
-    console.log('[rbsDagdelenForm] 🔙 Prev button clicked - ga terug naar opdracht stap');
+    console.log('[rvDagdelenForm] 🔙 Prev button clicked - ga terug naar opdracht stap');
     
     // Lazy load vorige stap
     try {
-      const module = await import('./bankReinigingOpdrachtForm.js');
-      console.log('[rbsDagdelenForm] ♻️ Re-init bankReinigingOpdrachtForm voor terug navigatie...');
-      module.initBankReinigingOpdrachtForm();
+      const module = await import('./rvOpdrachtForm.js');
+      console.log('[rvDagdelenForm] ♻️ Re-init rvOpdrachtForm voor terug navigatie...');
+      module.initRvOpdrachtForm();
       
       // NA re-init, ga naar vorige slide via Webflow functie
       if (typeof window.moveToPrevSlide === 'function') {
-        console.log('[rbsDagdelenForm] Roep window.moveToPrevSlide() aan');
+        console.log('[rvDagdelenForm] Roep window.moveToPrevSlide() aan');
         window.moveToPrevSlide();
       } else {
-        console.warn('[rbsDagdelenForm] window.moveToPrevSlide() niet beschikbaar, probeer fallback');
+        console.warn('[rvDagdelenForm] window.moveToPrevSlide() niet beschikbaar, probeer fallback');
         // Fallback: probeer goToFormStep
-        goToFormStep('rbs_opdracht-form');
+        goToFormStep('rv_opdracht-form');
       }
     } catch (err) {
-      console.error('[rbsDagdelenForm] ❌ Fout bij re-init bankReinigingOpdrachtForm:', err);
+      console.error('[rvDagdelenForm] ❌ Fout bij re-init rvOpdrachtForm:', err);
       // Navigeer alsnog terug bij fout
       if (typeof window.moveToPrevSlide === 'function') {
         window.moveToPrevSlide();
       } else {
-        goToFormStep('rbs_opdracht-form');
+        goToFormStep('rt_opdracht-form');
       }
     }
   });
   
-  console.log('[rbsDagdelenForm] ✅ Prev button handler toegevoegd');
+  console.log('[rvDagdelenForm] ✅ Prev button handler toegevoegd');
 }

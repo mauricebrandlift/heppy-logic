@@ -1313,6 +1313,225 @@ export function getFormSchema(name) {
       // Submit logica wordt toegevoegd in rtPersoonsgegevensForm.js
     },
 
+    // ===============================================
+    // VLOER REINIGING FLOW (rv_ prefix)
+    // ===============================================
+
+    // Stap 1: Adres
+    'rv_adres-form': {
+      name: 'rv_adres-form',
+      selector: '[data-form-name="rv_adres-form"]',
+      fields: {
+        postcode: commonFields.postcode,
+        huisnummer: commonFields.huisnummer,
+        toevoeging: commonFields.toevoeging,
+        straatnaam: {
+          ...commonFields.straatnaam,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+        plaats: {
+          ...commonFields.plaats,
+          requiresServerValidation: true,
+          validationDependsOn: ['postcode', 'huisnummer']
+        },
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in rvAdresForm.js
+      },
+      triggers: [
+        {
+          type: 'addressLookup',
+        }
+      ],
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.address,
+        commonMessages.coverage,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Je adresgegevens zijn succesvol gecontroleerd.',
+        }
+      ),
+    },
+
+    // Stap 2: Vloer details
+    'rv_opdracht-form': {
+      name: 'rv_opdracht-form',
+      selector: '[data-form-name="rv_opdracht-form"]',
+      fields: {
+        rv_oppervlakte_m2: {
+          label: 'Oppervlakte in m²',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'min:1', 'max:1000'],
+          persist: 'form',
+          messages: {
+            required: 'Vul de oppervlakte in vierkante meters in',
+            integer: 'Vul een geldig getal in',
+            min: 'Minimaal 1 m²',
+            max: 'Maximaal 1000 m²'
+          }
+        },
+        rv_type_natuursteen: {
+          label: 'Natuursteen (graniet, basalt)',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        rv_type_marmer: {
+          label: 'Marmer',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        rv_type_hout: {
+          label: 'Hout (parket, laminaat)',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        rv_type_pvc: {
+          label: 'PVC',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        rv_type_linoleum: {
+          label: 'Linoleum',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        rv_type_tegels: {
+          label: 'Tegels (keramisch, porselein)',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        rv_type_beton: {
+          label: 'Beton/Epoxy',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        },
+        rv_type_vinyl: {
+          label: 'Vinyl',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        }
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in rvOpdrachtForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          M2_REQUIRED: 'Vul minimaal 1 m² in om door te gaan.',
+          TYPE_REQUIRED: 'Selecteer minimaal één type vloer.',
+          CUSTOM_SUCCESS: 'Vloer details succesvol opgeslagen.'
+        }
+      ),
+    },
+
+    // Stap 3: Dagdelen voorkeur
+    'rv_dagdelen-form': {
+      name: 'rv_dagdelen-form',
+      selector: '[data-form-name="rv_dagdelen-form"]',
+      fields: {
+        dagdeel: {
+          label: 'Dagdelen',
+          inputType: 'checkbox',
+          sanitizers: [],
+          validators: [],
+          persist: 'form',
+        }
+      },
+      submit: {
+        // De submit logica wordt gedefinieerd in rvDagdelenForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Dagdelen voorkeuren opgeslagen.'
+        }
+      ),
+    },
+
+    // Stap 4: Overzicht (geen velden, alleen navigatie)
+    'rv_overzicht-form': {
+      name: 'rv_overzicht-form',
+      selector: '[data-form-name="rv_overzicht-form"]',
+      fields: {},
+      submit: {
+        // De submit logica wordt gedefinieerd in rvOverzichtForm.js
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server
+      ),
+    },
+
+    // Stap 5: Persoonsgegevens + offerte aanvraag
+    'rv_persoonsgegevens-form': {
+      name: 'rv_persoonsgegevens-form',
+      selector: '[data-form-name="rv_persoonsgegevens-form"]',
+      fields: {
+        voornaam: {
+          ...commonFields.voornaam,
+        },
+        achternaam: {
+          ...commonFields.achternaam,
+        },
+        telefoonnummer: {
+          ...commonFields.telefoon,
+          label: 'Telefoonnummer',
+          validators: ['required', 'numeric', 'minLength'],
+          minLength: 8,
+          inputFilter: 'digitsOnly',
+          messages: {
+            ...(commonFields.telefoon.messages || {}),
+            required: 'Telefoonnummer is verplicht',
+            minLength: 'Voer een geldig telefoonnummer in'
+          }
+        },
+        emailadres: {
+          ...commonFields.email,
+          label: 'E-mailadres'
+        },
+        wachtwoord: {
+          ...commonFields.wachtwoord,
+          validators: [], // Wachtwoord is OPTIONEEL voor offerte flow
+          messages: {
+            ...commonFields.wachtwoord.messages,
+            required: '' // Geen required message want optioneel
+          }
+        },
+        akkoord_voorwaarden: {
+          ...commonFields.akkoordVoorwaarden,
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          CUSTOM_SUCCESS: 'Offerte aanvraag verzonden! U ontvangt binnen 24 uur een offerte per email.'
+        }
+      ),
+      // Submit logica wordt toegevoegd in rvPersoonsgegevensForm.js
+    },
+
     // Andere formulieren...
   };
 

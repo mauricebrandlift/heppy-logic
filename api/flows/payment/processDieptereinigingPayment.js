@@ -14,6 +14,8 @@ import {
   dieptereinigingBevestigingKlant, 
   dieptereinigingToegewezenSchoonmaker 
 } from '../../templates/emails/index.js';
+import { createOrGetCustomer } from '../../services/stripeCustomerService.js';
+import { createFactuurForBetaling } from '../../services/factuurService.js';
 
 export async function processDieptereinigingPayment({ paymentIntent, metadata, correlationId, event }) {
   console.log(`💰 [ProcessDieptereiniging] ========== START ========== [${correlationId}]`);
@@ -55,6 +57,41 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
         metadata: { email: metadata.email, voornaam: metadata.voornaam, achternaam: metadata.achternaam }
       });
       throw new Error(`User creation failed: ${error.message}`);
+    }
+
+    // Stripe Customer (NIEUW - voor facturen)
+    console.log(`💳 [ProcessDieptereiniging] Creating/finding Stripe Customer... [${correlationId}]`);
+    let stripeCustomer;
+    try {
+      stripeCustomer = await createOrGetCustomer({
+        userId: user.id,
+        email: metadata.email,
+        name: `${metadata.voornaam || ''} ${metadata.achternaam || ''}`.trim(),
+        phone: metadata.telefoon || null,
+        address: {
+          straat: metadata.straat,
+          huisnummer: metadata.huisnummer,
+          toevoeging: metadata.toevoeging,
+          postcode: metadata.postcode,
+          plaats: metadata.plaats,
+        },
+      }, correlationId);
+      
+      console.log(`✅ [ProcessDieptereiniging] Stripe Customer ${stripeCustomer.created ? 'created' : 'found'}: ${stripeCustomer.id} [${correlationId}]`);
+      
+      if (stripeCustomer.created) {
+        await userService.updateStripeCustomerId(user.id, stripeCustomer.id, correlationId);
+      }
+      
+      await auditService.log('stripe_customer', user.id, stripeCustomer.created ? 'created' : 'reused', user.id, { 
+        stripe_customer_id: stripeCustomer.id 
+      }, correlationId);
+    } catch (error) {
+      console.error(`❌ [ProcessDieptereiniging] FAILED: Stripe Customer creation error [${correlationId}]`, {
+        error: error.message,
+        stack: error.stack,
+      });
+      stripeCustomer = null;
     }
 
     // Address
@@ -176,6 +213,61 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       }, correlationId);
       console.log(`✅ [ProcessDieptereiniging] Payment ${betaling.updated ? 'updated' : 'created'}: ${betaling.id}`);
       await auditService.log('betaling', betaling.id, betaling.updated ? 'updated' : 'created', user.id, { amount_cents: paymentIntent.amount }, correlationId);
+      
+      // 💰 FACTUUR GENEREREN (NIEUW)
+      console.log(`📄 [ProcessDieptereiniging] Genereer factuur voor betaling... [${correlationId}]`);
+      try {
+        const uren = parseFloat(metadata.dr_uren) || 0;
+        const m2 = parseInt(metadata.dr_m2) || null;
+        const prijsPerUur = uren > 0 ? (paymentIntent.amount / 100) / uren : 0;
+        
+        const omschrijving = `Heppy dieptereiniging - ${uren} uur${m2 ? ` (${m2}m²)` : ''}`;
+        
+        const factuur = await createFactuurForBetaling({
+          gebruikerId: user.id,
+          opdrachtId: opdracht.id,
+          betalingId: betaling.id,
+          totaalCents: paymentIntent.amount,
+          omschrijving,
+          regels: [
+            {
+              omschrijving: `Dieptereiniging service${m2 ? ` - ${m2}m²` : ''}`,
+              aantal: 1,
+              prijs_per_stuk_cents: paymentIntent.amount,
+              subtotaal_cents: paymentIntent.amount,
+              details: {
+                uren: uren,
+                prijs_per_uur: prijsPerUur.toFixed(2),
+                m2: m2,
+                gewenste_datum: metadata.dr_datum
+              }
+            }
+          ],
+          stripeCustomerId: stripeCustomer?.id || null,
+          stripePaymentIntentId: paymentIntent.id,
+          metadata: {
+            flow: 'dieptereiniging',
+            uren: uren,
+            m2: m2,
+          }
+        }, correlationId);
+        
+        console.log(`✅ [ProcessDieptereiniging] Factuur aangemaakt: ${factuur.factuur_nummer} (${factuur.id}) [${correlationId}]`);
+        if (factuur.pdf_url) {
+          console.log(`📎 [ProcessDieptereiniging] Factuur PDF: ${factuur.pdf_url} [${correlationId}]`);
+        }
+        
+        await auditService.log('factuur', factuur.id, 'created', user.id, { 
+          factuur_nummer: factuur.factuur_nummer,
+          totaal_cents: paymentIntent.amount 
+        }, correlationId);
+        
+      } catch (factuurError) {
+        console.error(`⚠️ [ProcessDieptereiniging] Factuur genereren mislukt (niet fataal) [${correlationId}]`, {
+          error: factuurError.message,
+          stack: factuurError.stack,
+        });
+      }
       
     } catch (error) {
       console.error(`❌ [ProcessDieptereiniging] FAILED: Payment record creation error [${correlationId}]`, {

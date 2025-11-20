@@ -12,10 +12,12 @@
  * @param {string} [options.payload.currency] - Valuta (bv. 'eur')
  * @param {string} [options.payload.description]
  * @param {string} [options.payload.customerEmail]
+ * @param {string} [options.payload.customerId] - Stripe Customer ID (NIEUW)
+ * @param {boolean} [options.payload.savePaymentMethod=false] - Sla payment method op voor recurring (NIEUW)
  * @param {object} [options.payload.metadata]
  * @param {string} [options.payload.idempotencyKey]
  * @param {string} [options.correlationId]
- * @returns {Promise<object>} - Resultaat met id, clientSecret, amount, currency, status, livemode
+ * @returns {Promise<object>} - Resultaat met id, clientSecret, amount, currency, status, livemode, payment_method
  */
 export async function createPaymentIntent({ secretKey, defaultCurrency = 'eur', payload = {}, correlationId }) {
   if (!secretKey) {
@@ -29,6 +31,8 @@ export async function createPaymentIntent({ secretKey, defaultCurrency = 'eur', 
     currency,
     description,
     customerEmail,
+    customerId,
+    savePaymentMethod = false,
     metadata,
     idempotencyKey,
   } = payload;
@@ -48,7 +52,21 @@ export async function createPaymentIntent({ secretKey, defaultCurrency = 'eur', 
   params.set('automatic_payment_methods[enabled]', 'true');
 
   if (description) params.set('description', String(description));
-  if (customerEmail) params.set('receipt_email', String(customerEmail));
+  
+  // Customer koppeling (NIEUW)
+  if (customerId) {
+    params.set('customer', String(customerId));
+    console.log(`👤 [StripePaymentIntent] Koppelen aan customer: ${customerId} [${correlationId}]`);
+  } else if (customerEmail) {
+    // Fallback: alleen email als geen customer ID
+    params.set('receipt_email', String(customerEmail));
+  }
+
+  // Payment method opslaan voor toekomstige betalingen (NIEUW)
+  if (savePaymentMethod && customerId) {
+    params.set('setup_future_usage', 'off_session');
+    console.log(`💳 [StripePaymentIntent] Payment method wordt opgeslagen voor recurring billing [${correlationId}]`);
+  }
 
   if (metadata && typeof metadata === 'object') {
     for (const [key, value] of Object.entries(metadata)) {
@@ -86,6 +104,8 @@ export async function createPaymentIntent({ secretKey, defaultCurrency = 'eur', 
     currency: data.currency,
     status: data.status,
     livemode: data.livemode,
+    customer: data.customer, // NIEUW: return customer ID
+    payment_method: data.payment_method, // NIEUW: return payment method (als al attached)
   };
 }
 

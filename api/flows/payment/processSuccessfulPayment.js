@@ -17,6 +17,8 @@ import {
   betalingBevestigingKlant,
   matchToegewezenSchoonmaker 
 } from '../../templates/emails/index.js';
+import { createOrGetCustomer } from '../../services/stripeCustomerService.js';
+import { createFactuurForBetaling } from '../../services/factuurService.js';
 
 export async function processSuccessfulPayment({ paymentIntent, metadata, correlationId, event }){
   console.log(`💰 [ProcessSuccessfulPayment] ========== START ========== [${correlationId}]`);
@@ -70,6 +72,43 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         metadata: { email: metadata.email, voornaam: metadata.voornaam, achternaam: metadata.achternaam }
       });
       throw new Error(`User creation failed: ${error.message}`);
+    }
+
+    // Stripe Customer (NIEUW - voor recurring billing + facturen)
+    console.log(`💳 [ProcessSuccessfulPayment] Creating/finding Stripe Customer... [${correlationId}]`);
+    let stripeCustomer;
+    try {
+      stripeCustomer = await createOrGetCustomer({
+        userId: user.id,
+        email: metadata.email,
+        name: `${metadata.voornaam || ''} ${metadata.achternaam || ''}`.trim(),
+        phone: metadata.telefoon || null,
+        address: {
+          straat: metadata.straat,
+          huisnummer: metadata.huisnummer,
+          toevoeging: metadata.toevoeging,
+          postcode: metadata.postcode,
+          plaats: metadata.plaats,
+        },
+      }, correlationId);
+      
+      console.log(`✅ [ProcessSuccessfulPayment] Stripe Customer ${stripeCustomer.created ? 'created' : 'found'}: ${stripeCustomer.id} [${correlationId}]`);
+      
+      // Sla customer ID op in database
+      if (stripeCustomer.created) {
+        await userService.updateStripeCustomerId(user.id, stripeCustomer.id, correlationId);
+      }
+      
+      await auditService.log('stripe_customer', user.id, stripeCustomer.created ? 'created' : 'reused', user.id, { 
+        stripe_customer_id: stripeCustomer.id 
+      }, correlationId);
+    } catch (error) {
+      console.error(`❌ [ProcessSuccessfulPayment] FAILED: Stripe Customer creation error [${correlationId}]`, {
+        error: error.message,
+        stack: error.stack,
+      });
+      // Niet fataal - we kunnen doorgaan zonder Stripe Customer (maar wel zonder recurring billing)
+      stripeCustomer = null;
     }
 
     // Address
@@ -180,6 +219,16 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       abonnement = await abonnementService.create(metadata, user.id, aanvraag.id, correlationId);
       console.log(`✅ [ProcessSuccessfulPayment] Abonnement created: ${abonnement.id}`);
       await auditService.log('abonnement', abonnement.id, 'created', user.id, { intent: paymentIntent.id }, correlationId);
+      
+      // Sla payment method ID op (voor recurring billing)
+      if (paymentIntent.payment_method) {
+        try {
+          await abonnementService.updatePaymentMethod(abonnement.id, paymentIntent.payment_method, correlationId);
+          console.log(`✅ [ProcessSuccessfulPayment] Payment method opgeslagen voor recurring billing [${correlationId}]`);
+        } catch (pmError) {
+          console.warn(`⚠️ [ProcessSuccessfulPayment] Payment method opslaan mislukt (niet fataal) [${correlationId}]`, pmError.message);
+        }
+      }
     } catch (error) {
       console.error(`❌ [ProcessSuccessfulPayment] FAILED: Abonnement creation error [${correlationId}]`, {
         error: error.message,
@@ -207,7 +256,60 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       console.log(`✅ [ProcessSuccessfulPayment] Payment ${betaling.updated ? 'updated' : 'created'}: ${betaling.id}`);
       await auditService.log('betaling', betaling.id, betaling.updated?'updated':'created', user.id, { amount_cents: paymentIntent.amount }, correlationId);
       
-      // 📧 EMAIL TRIGGER 2: Betaling bevestiging → Klant
+      // � FACTUUR GENEREREN (NIEUW)
+      console.log(`📄 [ProcessSuccessfulPayment] Genereer factuur voor betaling... [${correlationId}]`);
+      try {
+        const sessionsPerCycle = metadata.sessions_per_4w || (metadata.frequentie === 'pertweeweek' ? 2 : 4);
+        const prijsPerSessie = paymentIntent.amount / sessionsPerCycle;
+        
+        const factuur = await createFactuurForBetaling({
+          gebruikerId: user.id,
+          abonnementId: abonnement.id,
+          betalingId: betaling.id,
+          totaalCents: paymentIntent.amount,
+          omschrijving: `Heppy schoonmaak abonnement - ${sessionsPerCycle}x per 4 weken`,
+          regels: [
+            {
+              omschrijving: `Schoonmaakdiensten abonnement (${sessionsPerCycle} sessies)`,
+              aantal: sessionsPerCycle,
+              prijs_per_stuk_cents: Math.round(prijsPerSessie),
+              subtotaal_cents: paymentIntent.amount,
+              periode: {
+                start: metadata.startdatum,
+                cyclus: '4 weken'
+              }
+            }
+          ],
+          stripeCustomerId: stripeCustomer?.id || null,
+          stripePaymentIntentId: paymentIntent.id,
+          metadata: {
+            flow: 'abonnement',
+            frequentie: metadata.frequentie,
+            uren: metadata.uren,
+          }
+        }, correlationId);
+        
+        console.log(`✅ [ProcessSuccessfulPayment] Factuur aangemaakt: ${factuur.factuur_nummer} (${factuur.id}) [${correlationId}]`);
+        if (factuur.pdf_url) {
+          console.log(`📎 [ProcessSuccessfulPayment] Factuur PDF: ${factuur.pdf_url} [${correlationId}]`);
+        }
+        
+        await auditService.log('factuur', factuur.id, 'created', user.id, { 
+          factuur_nummer: factuur.factuur_nummer,
+          totaal_cents: paymentIntent.amount 
+        }, correlationId);
+        
+        // TODO: Email factuur naar klant (kan later toegevoegd worden aan bestaande email)
+        
+      } catch (factuurError) {
+        console.error(`⚠️ [ProcessSuccessfulPayment] Factuur genereren mislukt (niet fataal) [${correlationId}]`, {
+          error: factuurError.message,
+          stack: factuurError.stack,
+        });
+        // Niet fataal - betaling is al geslaagd
+      }
+      
+      // �📧 EMAIL TRIGGER 2: Betaling bevestiging → Klant
       console.log(`📧 [ProcessSuccessfulPayment] Sending email to klant (betaling bevestiging)...`);
       try {
         // Gebruik dezelfde schoonmakerNaam die we voor admin email hebben opgehaald
