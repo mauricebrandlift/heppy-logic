@@ -19,13 +19,14 @@ import { sendEmail } from './emailService.js';
 
 /**
  * Haal abonnementen op die vandaag gefactureerd moeten worden
+ * Requirements: status = 'actief', next_billing_date <= today, SEPA setup completed
  */
 async function getAbonnementenDueForBilling(correlationId) {
-  console.log(`📅 [RecurringBilling] Ophalen abonnementen met next_billing_date <= today [${correlationId}]`);
+  console.log(`📅 [RecurringBilling] Ophalen abonnementen met next_billing_date <= today EN sepa_setup_completed = true [${correlationId}]`);
   
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   
-  const url = `${supabaseConfig.url}/rest/v1/abonnementen?next_billing_date=lte.${today}&status=eq.actief&select=*`;
+  const url = `${supabaseConfig.url}/rest/v1/abonnementen?next_billing_date=lte.${today}&status=eq.actief&sepa_setup_completed=eq.true&select=*`;
   
   const response = await fetch(url, {
     method: 'GET',
@@ -41,7 +42,7 @@ async function getAbonnementenDueForBilling(correlationId) {
   }
 
   const abonnementen = await response.json();
-  console.log(`✅ [RecurringBilling] ${abonnementen.length} abonnement(en) gevonden voor billing [${correlationId}]`);
+  console.log(`✅ [RecurringBilling] ${abonnementen.length} abonnement(en) gevonden voor billing (met SEPA setup) [${correlationId}]`);
   
   return abonnementen;
 }
@@ -80,36 +81,10 @@ async function createRecurringPaymentIntent({
 }, correlationId) {
   console.log(`💳 [RecurringBilling] Creating PaymentIntent voor €${(amount/100).toFixed(2)} [${correlationId}]`);
   
-  // 1. Zorg dat PaymentMethod attached is aan Customer (idempotent)
-  try {
-    const attachParams = new URLSearchParams();
-    attachParams.set('customer', customerId);
-    
-    const attachResponse = await fetch(`https://api.stripe.com/v1/payment_methods/${paymentMethodId}/attach`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${stripeConfig.secretKey}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: attachParams.toString(),
-    });
-    
-    const attachResult = await attachResponse.json();
-    
-    if (!attachResponse.ok && !attachResult?.error?.message?.includes('already been attached')) {
-      console.error(`⚠️ [RecurringBilling] PaymentMethod attach failed [${correlationId}]`, attachResult.error);
-      throw new Error(`PaymentMethod attach failed: ${attachResult.error?.message}`);
-    }
-    
-    console.log(`✅ [RecurringBilling] PaymentMethod ${paymentMethodId} attached to Customer ${customerId} [${correlationId}]`);
-  } catch (attachError) {
-    // Als al attached: geen probleem, ga door
-    if (!attachError.message.includes('already been attached')) {
-      throw attachError;
-    }
-  }
+  // PaymentMethod is al attached via SEPA SetupIntent - geen extra attach nodig
+  console.log(`ℹ️ [RecurringBilling] Using SEPA PaymentMethod ${paymentMethodId} (already attached via mandate) [${correlationId}]`);
   
-  // 2. Maak PaymentIntent
+  // Maak PaymentIntent
   const params = new URLSearchParams();
   params.set('amount', String(amount));
   params.set('currency', 'eur');
