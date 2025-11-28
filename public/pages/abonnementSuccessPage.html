@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Betaling Geslaagd - Heppy Schoonmaak</title>
+  <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+  
+  <!-- Success Container -->
+  <div data-success-container>
+    
+    <!-- 1. Success Header -->
+    <div data-success-header>
+      <div data-success-icon>✅</div>
+      <h1 data-success-title>Betaling Geslaagd!</h1>
+      <p data-success-subtitle>Je abonnement is geactiveerd</p>
+    </div>
+
+    <!-- 2. Betalingsdetails -->
+    <div data-payment-details>
+      <h2>Betalingsgegevens</h2>
+      <div data-detail-row>
+        <span data-detail-label>Bedrag:</span>
+        <span data-detail-value data-payment-amount>-</span>
+      </div>
+      <div data-detail-row>
+        <span data-detail-label>Factuurnummer:</span>
+        <span data-detail-value data-invoice-number>-</span>
+      </div>
+      <div data-detail-row>
+        <span data-detail-label>Betaalmethode:</span>
+        <span data-detail-value data-payment-method>-</span>
+      </div>
+      <div data-detail-row>
+        <span data-detail-label>Betaling ID:</span>
+        <span data-detail-value data-payment-id>-</span>
+      </div>
+    </div>
+
+    <!-- 3. Abonnement Info -->
+    <div data-abonnement-details>
+      <h2>Je Abonnement</h2>
+      <div data-detail-row>
+        <span data-detail-label>Startdatum:</span>
+        <span data-detail-value data-start-date>-</span>
+      </div>
+      <div data-detail-row>
+        <span data-detail-label>Frequentie:</span>
+        <span data-detail-value data-frequency>-</span>
+      </div>
+      <div data-detail-row>
+        <span data-detail-label>Sessies per 4 weken:</span>
+        <span data-detail-value data-sessions-count>-</span>
+      </div>
+      <div data-detail-row>
+        <span data-detail-label>Volgende betaling:</span>
+        <span data-detail-value data-next-billing>-</span>
+      </div>
+    </div>
+
+    <!-- 4. SEPA Setup (CONDITIONEEL) -->
+    <div data-sepa-setup-container style="display: none;">
+      <div data-sepa-setup-box>
+        <h2>🔄 Automatische Verlenging Instellen</h2>
+        <p data-sepa-intro>
+          Je hebt betaald met <span data-current-payment-method>iDEAL</span>. 
+          Voor automatische verlenging hebben we een SEPA incasso machtiging nodig.
+        </p>
+        
+        <form data-sepa-form>
+          <div data-form-field>
+            <label for="account-holder-name">Naam rekeninghouder *</label>
+            <input 
+              type="text" 
+              id="account-holder-name" 
+              data-sepa-name
+              placeholder="Jan Jansen" 
+              required
+            />
+          </div>
+          
+          <div data-form-field>
+            <label for="iban-element">IBAN Nummer *</label>
+            <div id="iban-element" data-iban-element>
+              <!-- Stripe IBAN Element wordt hier gemount -->
+            </div>
+            <div data-iban-error style="display: none;"></div>
+          </div>
+          
+          <div data-mandate-info>
+            <p>
+              Door te autoriseren geef je Heppy Schoonmaak toestemming om via SEPA automatisch 
+              je abonnement te verlengen elke 4 weken. Je kunt dit op elk moment intrekken.
+            </p>
+          </div>
+          
+          <button 
+            type="submit" 
+            data-sepa-submit-button
+            data-loading-text="Verwerken..."
+          >
+            Autoriseer Automatische Incasso
+          </button>
+          
+          <button 
+            type="button" 
+            data-sepa-skip-button
+            style="display: none;"
+          >
+            Overslaan (later instellen via dashboard)
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- 5. SEPA Success Message -->
+    <div data-sepa-success style="display: none;">
+      <div data-success-box>
+        <div data-success-icon>✅</div>
+        <h3>Automatische Incasso Geactiveerd!</h3>
+        <p>Je abonnement wordt automatisch verlengd. Je ontvangt een factuur per email.</p>
+      </div>
+    </div>
+
+    <!-- 6. Schoonmaker Info -->
+    <div data-schoonmaker-info>
+      <h2>Je Schoonmaker</h2>
+      <div data-schoonmaker-assigned style="display: none;">
+        <p>
+          <strong data-schoonmaker-name>-</strong> is aan je gekoppeld en 
+          moet je aanvraag nog goedkeuren.
+        </p>
+        <p data-schoonmaker-status>
+          Je ontvangt een email zodra de schoonmaker heeft geaccepteerd.
+        </p>
+      </div>
+      <div data-schoonmaker-pending style="display: none;">
+        <p>We zoeken een geschikte schoonmaker voor je. Je ontvangt binnen 24 uur bericht.</p>
+      </div>
+    </div>
+
+    <!-- 7. Volgende Stappen -->
+    <div data-next-steps>
+      <h2>Wat nu?</h2>
+      <ul>
+        <li data-step-item>Check je email voor de bevestiging en factuur</li>
+        <li data-step-item>Wacht op goedkeuring van je schoonmaker</li>
+        <li data-step-item data-sepa-step style="display: none;">
+          Stel automatische incasso in (zie hierboven)
+        </li>
+        <li data-step-item>Bekijk je abonnement details in het dashboard</li>
+      </ul>
+    </div>
+
+    <!-- 8. CTA Buttons -->
+    <div data-cta-buttons>
+      <button data-goto-dashboard data-primary-button>
+        Ga naar Dashboard
+      </button>
+      <button data-download-invoice data-secondary-button style="display: none;">
+        Download Factuur (PDF)
+      </button>
+    </div>
+
+    <!-- Loading State -->
+    <div data-loading-state style="display: none;">
+      <div data-spinner></div>
+      <p>Gegevens laden...</p>
+    </div>
+
+    <!-- Error State -->
+    <div data-error-state style="display: none;">
+      <h2>❌ Er ging iets mis</h2>
+      <p data-error-message>-</p>
+      <button data-retry-button>Opnieuw proberen</button>
+    </div>
+
+  </div>
+
+  <!-- Scripts -->
+  <script type="module" src="/pages/abonnementSuccessPage.js"></script>
+  
+</body>
+</html>
