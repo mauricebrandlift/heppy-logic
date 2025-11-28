@@ -106,6 +106,7 @@ function renderCartItems(items) {
 function createCartItemElement(template, item) {
   const clone = template.cloneNode(true);
   clone.style.display = ''; // Show clone
+  clone.classList.remove('cart_product-item-template'); // Remove template class
   clone.setAttribute('data-product-id', item.id);
 
   // Set product image
