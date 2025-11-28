@@ -52,7 +52,8 @@ function handleAddToCart(event) {
     id: productItem.dataset.productId,
     name: productItem.dataset.productName,
     price: productItem.dataset.productPrice,
-    slug: productItem.dataset.productSlug
+    slug: productItem.dataset.productSlug,
+    image: productItem.dataset.productImage || '' // Image URL from Webflow
   };
 
   // Validate product data

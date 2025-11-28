@@ -45,6 +45,7 @@ export const cart = {
         name: product.name,
         price: parseFloat(product.price),
         slug: product.slug,
+        image: product.image || '',
         quantity: quantity,
         addedAt: new Date().toISOString()
       });

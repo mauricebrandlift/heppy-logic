@@ -111,10 +111,9 @@ function createCartItemElement(template, item) {
 
   // Set product image
   const image = clone.querySelector('[data-cart-item-image]');
-  if (image) {
-    // Image URL should come from Webflow CMS or be stored in cart
-    // For now, we'll keep the placeholder from template
-    // TODO: Add image URL to cart when adding product
+  if (image && item.image) {
+    image.src = item.image;
+    image.alt = item.name;
   }
 
   // Set product name
