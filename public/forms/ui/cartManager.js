@@ -80,14 +80,14 @@ function renderCartItems(items) {
   }
 
   // Find template (should be hidden)
-  const template = container.querySelector('[data-cart-item]');
+  const template = container.querySelector('.cart_product-item-template[data-cart-item]');
   if (!template) {
     console.warn('Cart item template not found');
     return;
   }
 
-  // Clear container (keep template)
-  const clones = container.querySelectorAll('[data-cart-item]:not([data-cart-item=""])');
+  // Clear container (keep only template)
+  const clones = container.querySelectorAll('[data-cart-item]:not(.cart_product-item-template)');
   clones.forEach(clone => clone.remove());
 
   // Render each item

@@ -147,7 +147,7 @@ export const cart = {
       if (totals.itemCount === 0) {
         wrapper.style.display = 'none';
       } else {
-        wrapper.style.display = '';
+        wrapper.style.display = 'flex'; // Of 'block' afhankelijk van jouw CSS
       }
     });
   }
