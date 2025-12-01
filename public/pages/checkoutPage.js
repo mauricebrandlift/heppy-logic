@@ -1,6 +1,6 @@
 import { apiClient } from '../utils/api/client.js';
 import { authClient } from '../utils/auth/authClient.js';
-import { getCart, getTotals, clearCart } from '../utils/cart.js';
+import { cart } from '../utils/cart.js';
 import { showLoader, hideLoader } from '../forms/ui/formUi.js';
 
 /**
@@ -436,15 +436,15 @@ class CheckoutPage {
   }
 
   displayOrderSummary() {
-    const cart = getCart();
-    const totals = getTotals();
+    const cartItems = cart.getItems();
+    const totals = cart.getTotals();
     
     // Display cart items
     const itemsList = document.querySelector('[data-checkout-items]');
     if (itemsList) {
       itemsList.innerHTML = '';
       
-      cart.forEach(item => {
+      cartItems.forEach(item => {
         const itemEl = document.createElement('div');
         itemEl.className = 'checkout-item';
         itemEl.innerHTML = `
@@ -486,7 +486,7 @@ class CheckoutPage {
       this.stripe = window.Stripe(config.stripePublicKey);
       
       // Create Payment Intent
-      const totals = getTotals();
+      const totals = cart.getTotals();
       const intentResponse = await apiClient('/stripe/create-payment-intent', {
         method: 'POST',
         body: JSON.stringify({
@@ -614,8 +614,8 @@ class CheckoutPage {
     try {
       console.log('[CheckoutPage] Payment successful, creating order...');
       
-      const cart = getCart();
-      const totals = getTotals();
+      const cartItems = cart.getItems();
+      const totals = cart.getTotals();
       const deliveryAddress = await this.getDeliveryAddress();
       
       // Create order in backend
@@ -623,7 +623,7 @@ class CheckoutPage {
         method: 'POST',
         body: JSON.stringify({
           paymentIntentId,
-          items: cart,
+          items: cartItems,
           totals,
           deliveryAddress
         })
@@ -632,7 +632,7 @@ class CheckoutPage {
       console.log('[CheckoutPage] Order created:', order.id);
       
       // Clear cart
-      clearCart();
+      cart.clear();
       
       // Redirect to success page
       window.location.href = `/shop/checkout/success?order=${order.id}`;
