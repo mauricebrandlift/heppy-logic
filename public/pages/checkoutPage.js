@@ -71,6 +71,10 @@ class CheckoutPage {
     this.loginFormButton = document.querySelector('[data-form-button="checkout-login"]');
     this.registerFormButton = document.querySelector('[data-form-button="checkout-register"]');
     
+    // Toggle buttons between login and register
+    this.showRegisterBtn = document.querySelector('[data-switch-to-register]');
+    this.showLoginBtn = document.querySelector('[data-switch-to-login]');
+    
     // Checkout button
     this.checkoutButton = document.querySelector('[data-form-button="checkout-betaling"]');
     
@@ -101,13 +105,24 @@ class CheckoutPage {
   setupEventListeners() {
     console.log('[CheckoutPage] Setting up event listeners...');
     
-    // Backdrop click prevention (with capture phase to intercept Webflow animation)
-    const backdrop = this.modal?.querySelector('.checkout-auth-modal_component');
+    // Backdrop click prevention - prevent modal close on backdrop click
+    const backdrop = document.querySelector('[data-modal-backdrop]');
+    const backgroundOverlay = this.modal?.querySelector('.contact-modal1_background-overlay');
+    
     if (backdrop) {
       backdrop.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
       }, true);
-      console.log('[CheckoutPage] ✅ Backdrop listener added');
+      console.log('[CheckoutPage] ✅ Backdrop click prevented');
+    }
+    
+    if (backgroundOverlay) {
+      backgroundOverlay.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }, true);
+      console.log('[CheckoutPage] ✅ Background overlay click prevented');
     }
 
     // Close buttons (X)
@@ -121,11 +136,8 @@ class CheckoutPage {
     console.log('[CheckoutPage] ✅ Close buttons:', closeButtons?.length || 0);
 
     // Toggle between login and register
-    const showRegisterBtn = document.querySelector('[data-show-register]');
-    const showLoginBtn = document.querySelector('[data-show-login]');
-    
-    if (showRegisterBtn) {
-      showRegisterBtn.addEventListener('click', (e) => {
+    if (this.showRegisterBtn) {
+      this.showRegisterBtn.addEventListener('click', (e) => {
         e.preventDefault();
         console.log('[CheckoutPage] Show register clicked');
         this.showRegisterState();
@@ -135,8 +147,8 @@ class CheckoutPage {
       console.error('[CheckoutPage] ❌ Show register button not found');
     }
     
-    if (showLoginBtn) {
-      showLoginBtn.addEventListener('click', (e) => {
+    if (this.showLoginBtn) {
+      this.showLoginBtn.addEventListener('click', (e) => {
         e.preventDefault();
         console.log('[CheckoutPage] Show login clicked');
         this.showLoginState();
@@ -169,6 +181,30 @@ class CheckoutPage {
     } else {
       console.error('[CheckoutPage] ❌ Register form button not found');
     }
+
+    // Real-time button state management for login form
+    const loginEmailField = document.querySelector('[data-field-name="login-email"]');
+    const loginPasswordField = document.querySelector('[data-field-name="login-password"]');
+    
+    [loginEmailField, loginPasswordField].forEach(field => {
+      if (field) {
+        field.addEventListener('input', () => this.updateLoginButtonState());
+      }
+    });
+
+    // Real-time button state management for register form
+    const registerFields = [
+      'register-voornaam', 'register-achternaam', 'register-email',
+      'register-password', 'register-postcode', 'register-huisnummer',
+      'register-straatnaam', 'register-plaats'
+    ];
+    
+    registerFields.forEach(fieldName => {
+      const field = document.querySelector(`[data-field-name="${fieldName}"]`);
+      if (field) {
+        field.addEventListener('input', () => this.updateRegisterButtonState());
+      }
+    });
 
     // Address lookup trigger (postcode + huisnummer)
     this.initAddressLookupTrigger();
@@ -424,6 +460,9 @@ class CheckoutPage {
   async initCheckout() {
     console.log('[CheckoutPage] Initializing checkout...');
     
+    // Show auth-required content
+    this.showAuthRequiredContent();
+    
     // Load user profile and pre-fill delivery address
     await this.loadUserProfile();
     
@@ -432,6 +471,14 @@ class CheckoutPage {
     
     // Display order summary
     this.displayOrderSummary();
+  }
+
+  showAuthRequiredContent() {
+    const authRequiredElements = document.querySelectorAll('[data-auth-required]');
+    authRequiredElements.forEach(el => {
+      el.style.display = '';
+    });
+    console.log('[CheckoutPage] ✅ Auth-required content shown:', authRequiredElements.length);
   }
 
   async loadUserProfile() {
@@ -713,7 +760,49 @@ class CheckoutPage {
   }
 
   isValidEmail(email) {
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    return /^[\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  updateLoginButtonState() {
+    if (!this.loginFormButton) return;
+    
+    const email = this.getFieldValue('login-email');
+    const password = this.getFieldValue('login-password');
+    
+    const isValid = this.isValidEmail(email) && password.length >= 8;
+    
+    if (isValid) {
+      this.loginFormButton.disabled = false;
+      this.loginFormButton.classList.remove('is-disabled');
+    } else {
+      this.loginFormButton.disabled = true;
+      this.loginFormButton.classList.add('is-disabled');
+    }
+  }
+
+  updateRegisterButtonState() {
+    if (!this.registerFormButton) return;
+    
+    const voornaam = this.getFieldValue('register-voornaam');
+    const achternaam = this.getFieldValue('register-achternaam');
+    const email = this.getFieldValue('register-email');
+    const password = this.getFieldValue('register-password');
+    const postcode = this.getFieldValue('register-postcode');
+    const huisnummer = this.getFieldValue('register-huisnummer');
+    const straatnaam = this.getFieldValue('register-straatnaam');
+    const plaats = this.getFieldValue('register-plaats');
+    
+    const isValid = voornaam && achternaam && this.isValidEmail(email) && 
+                    password.length >= 8 && postcode && huisnummer && 
+                    straatnaam && plaats;
+    
+    if (isValid) {
+      this.registerFormButton.disabled = false;
+      this.registerFormButton.classList.remove('is-disabled');
+    } else {
+      this.registerFormButton.disabled = true;
+      this.registerFormButton.classList.add('is-disabled');
+    }
   }
 }
 
