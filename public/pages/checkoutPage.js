@@ -45,9 +45,7 @@ class CheckoutPage {
     this.initDOMReferences();
     
     // Check auth state
-    const authState = authClient.getAuthState();
-    
-    if (authState.isAuthenticated) {
+    if (authClient.isAuthenticated()) {
       console.log('[CheckoutPage] User authenticated, proceeding to checkout');
       await this.initCheckout();
     } else {
@@ -173,8 +171,7 @@ class CheckoutPage {
     }
 
     // Check if user is authenticated - if not, they can't proceed
-    const authState = authClient.getAuthState();
-    if (!authState.isAuthenticated) {
+    if (!authClient.isAuthenticated()) {
       console.log('[CheckoutPage] User must login to checkout');
       this.showModalError('general', 'Je moet inloggen om een bestelling te plaatsen');
       return;
@@ -395,8 +392,7 @@ class CheckoutPage {
 
   async loadUserProfile() {
     try {
-      const authState = authClient.getAuthState();
-      if (!authState.isAuthenticated) return;
+      if (!authClient.isAuthenticated()) return;
 
       const response = await apiClient('/profile');
       
