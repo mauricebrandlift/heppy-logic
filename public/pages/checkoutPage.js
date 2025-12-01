@@ -67,12 +67,12 @@ class CheckoutPage {
     this.loginState = document.querySelector('[data-auth-login-state]');
     this.registerState = document.querySelector('[data-auth-register-state]');
     
-    // Auth form buttons
-    this.loginFormButton = document.querySelector('[data-form-button="login-form"]');
-    this.registerFormButton = document.querySelector('[data-form-button="register-form"]');
+    // Auth form buttons - using data-form-button pattern from HTML
+    this.loginFormButton = document.querySelector('[data-form-button="checkout-login"]');
+    this.registerFormButton = document.querySelector('[data-form-button="checkout-register"]');
     
     // Checkout button
-    this.checkoutButton = document.querySelector('[data-form-button="checkout-form"]');
+    this.checkoutButton = document.querySelector('[data-form-button="checkout-betaling"]');
     
     // Address wrapper
     this.alternateAddressWrapper = document.querySelector('[data-address-form-wrapper]');
