@@ -77,18 +77,37 @@ class CheckoutPage {
     // Address wrapper
     this.alternateAddressWrapper = document.querySelector('[data-address-form-wrapper]');
     
+    // Debug logging
+    console.log('[CheckoutPage] DOM References:', {
+      modal: !!this.modal,
+      loginState: !!this.loginState,
+      registerState: !!this.registerState,
+      loginFormButton: !!this.loginFormButton,
+      registerFormButton: !!this.registerFormButton,
+      checkoutButton: !!this.checkoutButton
+    });
+    
     if (!this.modal) {
       console.error('[CheckoutPage] Auth modal not found');
+    }
+    if (!this.loginFormButton) {
+      console.error('[CheckoutPage] Login button not found');
+    }
+    if (!this.registerFormButton) {
+      console.error('[CheckoutPage] Register button not found');
     }
   }
 
   setupEventListeners() {
+    console.log('[CheckoutPage] Setting up event listeners...');
+    
     // Backdrop click prevention (with capture phase to intercept Webflow animation)
     const backdrop = this.modal?.querySelector('.checkout-auth-modal_component');
     if (backdrop) {
       backdrop.addEventListener('click', (e) => {
         e.stopPropagation();
       }, true);
+      console.log('[CheckoutPage] ✅ Backdrop listener added');
     }
 
     // Close buttons (X)
@@ -99,32 +118,57 @@ class CheckoutPage {
         this.handleModalClose();
       });
     });
+    console.log('[CheckoutPage] ✅ Close buttons:', closeButtons?.length || 0);
 
     // Toggle between login and register
     const showRegisterBtn = document.querySelector('[data-show-register]');
     const showLoginBtn = document.querySelector('[data-show-login]');
     
-    showRegisterBtn?.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.showRegisterState();
-    });
+    if (showRegisterBtn) {
+      showRegisterBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('[CheckoutPage] Show register clicked');
+        this.showRegisterState();
+      });
+      console.log('[CheckoutPage] ✅ Show register button listener added');
+    } else {
+      console.error('[CheckoutPage] ❌ Show register button not found');
+    }
     
-    showLoginBtn?.addEventListener('click', (e) => {
-      e.preventDefault();
-      this.showLoginState();
-    });
+    if (showLoginBtn) {
+      showLoginBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        console.log('[CheckoutPage] Show login clicked');
+        this.showLoginState();
+      });
+      console.log('[CheckoutPage] ✅ Show login button listener added');
+    } else {
+      console.error('[CheckoutPage] ❌ Show login button not found');
+    }
 
     // Login form submit
-    this.loginFormButton?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await this.handleLogin();
-    });
+    if (this.loginFormButton) {
+      this.loginFormButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        console.log('[CheckoutPage] Login button clicked');
+        await this.handleLogin();
+      });
+      console.log('[CheckoutPage] ✅ Login form button listener added');
+    } else {
+      console.error('[CheckoutPage] ❌ Login form button not found');
+    }
 
     // Register form submit
-    this.registerFormButton?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await this.handleRegister();
-    });
+    if (this.registerFormButton) {
+      this.registerFormButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        console.log('[CheckoutPage] Register button clicked');
+        await this.handleRegister();
+      });
+      console.log('[CheckoutPage] ✅ Register form button listener added');
+    } else {
+      console.error('[CheckoutPage] ❌ Register form button not found');
+    }
 
     // Address lookup trigger (postcode + huisnummer)
     this.initAddressLookupTrigger();
