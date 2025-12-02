@@ -129,7 +129,18 @@ class CheckoutPage {
     try {
       if (!authClient.isAuthenticated()) return;
 
-      const response = await apiClient('/routes/profile');
+      // Get auth token for protected route
+      const authState = authClient.getAuthState();
+      if (!authState?.access_token) {
+        console.warn('[CheckoutPage] No access token available');
+        return;
+      }
+
+      const response = await apiClient('/routes/profile', {
+        headers: {
+          Authorization: `Bearer ${authState.access_token}`
+        }
+      });
       
       if (response.adres) {
         // Pre-fill delivery address display
@@ -237,7 +248,7 @@ class CheckoutPage {
       
       // Create Payment Intent
       const totals = cart.getTotals();
-      const intentResponse = await apiClient('/stripe/create-payment-intent', {
+      const intentResponse = await apiClient('/routes/stripe/create-payment-intent', {
         method: 'POST',
         body: JSON.stringify({
           amount: Math.round(totals.total * 100), // Amount in cents
