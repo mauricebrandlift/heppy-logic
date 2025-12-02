@@ -40,6 +40,9 @@ class CheckoutPage {
     // Initialize DOM references
     this.initDOMReferences();
     
+    // Hide auth-required content initially
+    this.hideAuthRequiredContent();
+    
     // Initialize auth modal
     initCheckoutAuthModal();
     
@@ -103,10 +106,18 @@ class CheckoutPage {
     this.displayOrderSummary();
   }
 
+  hideAuthRequiredContent() {
+    const authRequiredElements = document.querySelectorAll('[data-auth-required]');
+    authRequiredElements.forEach(el => {
+      el.style.display = 'none';
+    });
+    console.log('[CheckoutPage] 🔒 Auth-required content hidden:', authRequiredElements.length);
+  }
+
   showAuthRequiredContent() {
     const authRequiredElements = document.querySelectorAll('[data-auth-required]');
     authRequiredElements.forEach(el => {
-      el.style.display = '';
+      el.style.display = 'block';
     });
     console.log('[CheckoutPage] ✅ Auth-required content shown:', authRequiredElements.length);
   }
