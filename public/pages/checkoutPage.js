@@ -40,6 +40,9 @@ class CheckoutPage {
     // Initialize DOM references
     this.initDOMReferences();
     
+    // Display order summary immediately (cart is visible before login)
+    this.displayOrderSummary();
+    
     // Hide auth-required content initially
     this.hideAuthRequiredContent();
     
@@ -172,36 +175,50 @@ class CheckoutPage {
     const cartItems = cart.getItems();
     const totals = cart.getTotals();
     
-    // Display cart items
-    const itemsList = document.querySelector('[data-checkout-items]');
-    if (itemsList) {
-      itemsList.innerHTML = '';
+    console.log('[CheckoutPage] Displaying order summary:', { itemCount: cartItems.length, totals });
+    
+    // Display cart items using template clone
+    const itemsContainer = document.querySelector('[data-cart-items-container]');
+    const template = document.querySelector('[data-checkout-item]');
+    
+    if (itemsContainer && template) {
+      // Clear existing items (except template)
+      const existingItems = itemsContainer.querySelectorAll('[data-checkout-item]:not(.cart_product-item-template)');
+      existingItems.forEach(item => item.remove());
       
+      // Clone and populate template for each cart item
       cartItems.forEach(item => {
-        const itemEl = document.createElement('div');
-        itemEl.className = 'checkout-item';
-        itemEl.innerHTML = `
-          <div class="checkout-item_image">
-            <img src="${item.image}" alt="${item.name}" />
-          </div>
-          <div class="checkout-item_details">
-            <div class="checkout-item_name">${item.name}</div>
-            <div class="checkout-item_quantity">Aantal: ${item.quantity}</div>
-          </div>
-          <div class="checkout-item_price">€${(item.price * item.quantity).toFixed(2)}</div>
-        `;
-        itemsList.appendChild(itemEl);
+        const itemEl = template.cloneNode(true);
+        itemEl.classList.remove('cart_product-item-template');
+        itemEl.style.display = '';
+        itemEl.setAttribute('data-product-id', item.id);
+        
+        const image = itemEl.querySelector('[data-checkout-item-image]');
+        const name = itemEl.querySelector('[data-checkout-item-name]');
+        const subtotal = itemEl.querySelector('[data-checkout-item-subtotal]');
+        const quantity = itemEl.querySelector('[data-checkout-item-quantity]');
+        
+        if (image) image.src = item.image;
+        if (name) name.textContent = item.name;
+        if (subtotal) subtotal.textContent = (item.price * item.quantity).toFixed(2);
+        if (quantity) quantity.textContent = item.quantity;
+        
+        itemsContainer.appendChild(itemEl);
       });
+      
+      console.log('[CheckoutPage] ✅ Cart items rendered:', cartItems.length);
     }
     
-    // Display totals
+    // Display totals (HTML already has € symbols)
+    const itemCountEl = document.querySelector('[data-cart-item-count]');
     const subtotalEl = document.querySelector('[data-checkout-subtotal]');
     const shippingEl = document.querySelector('[data-checkout-shipping]');
     const totalEl = document.querySelector('[data-checkout-total]');
     
-    if (subtotalEl) subtotalEl.textContent = `€${totals.subtotal.toFixed(2)}`;
-    if (shippingEl) shippingEl.textContent = `€${totals.shipping.toFixed(2)}`;
-    if (totalEl) totalEl.textContent = `€${totals.total.toFixed(2)}`;
+    if (itemCountEl) itemCountEl.textContent = cartItems.length;
+    if (subtotalEl) subtotalEl.textContent = totals.subtotal.toFixed(2);
+    if (shippingEl) shippingEl.textContent = totals.shipping.toFixed(2);
+    if (totalEl) totalEl.textContent = totals.total.toFixed(2);
   }
 
   async initStripeElements() {
