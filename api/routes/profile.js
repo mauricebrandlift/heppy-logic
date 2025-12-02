@@ -1,33 +1,9 @@
 // api/routes/profile.js
 /**
  * Protected profile API route
- * Gives access to use    const profiles = await profileResponse.json();
-    console.log(`📋 [Profile API] Profiles array length: ${profiles?.length || 0}`);
-    
-    if (!profiles || profiles.length === 0) {
-      console.log(`❌ [Profile API] Geen ${role} profiel gevonden voor user ${userId}`);
-      throw new Error(`Geen ${role} profiel gevonden`);
-    }
-    
-    profileData = profiles[0];
-    console.log(`✅ [Profile API] Profile data keys: ${Object.keys(profileData).join(', ')}`);
-    
-    // Haal basis gebruikersinformatie op
-    const baseProfileUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${userId}&select=*`;
-    console.log(`🔗 [Profile API] Base profile URL: ${baseProfileUrl}`);
-    
-    const baseProfileResponse = await httpClient(
-      baseProfileUrl, 
-      {
-        headers: {
-          'apikey': supabaseConfig.anonKey,
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
-      }
-    );
-    
-    console.log(`📊 [Profile API] Base profile response status: ${baseProfileResponse.status}`);import { withAuth } from '../utils/authMiddleware.js';
+ * Returns user profile data based on their role
+ */
+import { withAuth } from '../utils/authMiddleware.js';
 import { httpClient } from '../utils/apiClient.js';
 import { supabaseConfig } from '../config/index.js';
 
@@ -43,7 +19,7 @@ async function profileHandler(req, res) {
 
   // Handle OPTIONS preflight request
   if (req.method === 'OPTIONS') {
-    res.status(204).end();
+    res.status(200).end();
     return;
   }
 
@@ -159,7 +135,7 @@ async function profileHandler(req, res) {
     const baseProfile = baseProfiles[0];
     console.log(`✅ [Profile API] Base profile data keys: ${Object.keys(baseProfile).join(', ')}`);
     
-    // Combineer profielen
+    // Combineer profielen - return zoals frontend verwacht
     const combinedProfile = {
       ...baseProfile,
       ...profileData,
@@ -170,11 +146,9 @@ async function profileHandler(req, res) {
     console.log(`⏱️ [Profile API] Total request duration: ${Date.now() - startTime}ms`);
     console.log('🎉 [Profile API] ========== PROFILE SUCCESS ==========');
     
-    // Retourneer profiel
-    return res.status(200).json({ 
-      success: true,
-      profile: combinedProfile
-    });
+    // Retourneer profiel DIRECT (niet genest in {success, profile})
+    // Zodat frontend direct response.adres kan gebruiken
+    return res.status(200).json(combinedProfile);
     
   } catch (error) {
     console.error('❌ [Profile API] Fout bij ophalen profiel:', error);
