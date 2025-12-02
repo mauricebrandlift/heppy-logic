@@ -1,7 +1,7 @@
 import { apiClient } from '../utils/api/client.js';
 import { authClient } from '../utils/auth/authClient.js';
 import { cart } from '../utils/cart.js';
-import { showLoader, hideLoader } from '../forms/ui/formUi.js';
+import { showLoader, hideLoader, showError, hideError } from '../forms/ui/formUi.js';
 
 /**
  * Checkout Page Handler
@@ -182,30 +182,6 @@ class CheckoutPage {
       console.error('[CheckoutPage] ❌ Register form button not found');
     }
 
-    // Real-time button state management for login form
-    const loginEmailField = document.querySelector('[data-field-name="login-email"]');
-    const loginPasswordField = document.querySelector('[data-field-name="login-password"]');
-    
-    [loginEmailField, loginPasswordField].forEach(field => {
-      if (field) {
-        field.addEventListener('input', () => this.updateLoginButtonState());
-      }
-    });
-
-    // Real-time button state management for register form
-    const registerFields = [
-      'register-voornaam', 'register-achternaam', 'register-email',
-      'register-password', 'register-postcode', 'register-huisnummer',
-      'register-straatnaam', 'register-plaats'
-    ];
-    
-    registerFields.forEach(fieldName => {
-      const field = document.querySelector(`[data-field-name="${fieldName}"]`);
-      if (field) {
-        field.addEventListener('input', () => this.updateRegisterButtonState());
-      }
-    });
-
     // Address lookup trigger (postcode + huisnummer)
     this.initAddressLookupTrigger();
 
@@ -263,28 +239,23 @@ class CheckoutPage {
   showLoginState() {
     if (this.loginState) this.loginState.style.display = 'block';
     if (this.registerState) this.registerState.style.display = 'none';
-    this.clearAuthErrors();
+    // Clear all modal errors
+    const errorContainers = this.modal?.querySelectorAll('[data-modal-error]');
+    errorContainers?.forEach(container => hideError(container));
   }
 
   showRegisterState() {
     if (this.loginState) this.loginState.style.display = 'none';
     if (this.registerState) this.registerState.style.display = 'block';
-    this.clearAuthErrors();
-  }
-
-  clearAuthErrors() {
+    // Clear all modal errors
     const errorContainers = this.modal?.querySelectorAll('[data-modal-error]');
-    errorContainers?.forEach(container => {
-      container.textContent = '';
-      container.classList.add('hide');
-    });
+    errorContainers?.forEach(container => hideError(container));
   }
 
   showModalError(field, message) {
     const errorContainer = this.modal?.querySelector(`[data-modal-error="${field}"]`);
     if (errorContainer) {
-      errorContainer.innerHTML = `<div>${message}</div>`;
-      errorContainer.classList.remove('hide');
+      showError(errorContainer, message);
     }
   }
 
@@ -307,26 +278,18 @@ class CheckoutPage {
 
   async handleLogin() {
     console.log('[CheckoutPage] Handling login...');
-    this.clearAuthErrors();
+    
+    // Clear all modal errors
+    const errorContainers = this.modal?.querySelectorAll('[data-modal-error]');
+    errorContainers?.forEach(container => hideError(container));
     
     const email = this.getFieldValue('login-email');
     const password = this.getFieldValue('login-password');
-    
-    // Client-side validation
-    if (!email || !password) {
-      this.showModalError('general', 'Vul alle velden in');
-      return;
-    }
-
-    if (!this.isValidEmail(email)) {
-      this.showModalError('login-email', 'Voer een geldig e-mailadres in');
-      return;
-    }
 
     try {
       showLoader(this.loginFormButton);
       
-      const result = await authClient.login(email, password);
+      await authClient.login(email, password);
       
       console.log('[CheckoutPage] Login successful');
       
@@ -348,7 +311,10 @@ class CheckoutPage {
 
   async handleRegister() {
     console.log('[CheckoutPage] Handling registration...');
-    this.clearAuthErrors();
+    
+    // Clear all modal errors
+    const errorContainers = this.modal?.querySelectorAll('[data-modal-error]');
+    errorContainers?.forEach(container => hideError(container));
     
     const voornaam = this.getFieldValue('register-voornaam');
     const achternaam = this.getFieldValue('register-achternaam');
@@ -359,32 +325,6 @@ class CheckoutPage {
     const toevoeging = this.getFieldValue('register-toevoeging');
     const straatnaam = this.getFieldValue('register-straatnaam');
     const plaats = this.getFieldValue('register-plaats');
-    
-    // Client-side validation
-    if (!voornaam) {
-      this.showModalError('register-voornaam', 'Voer je voornaam in');
-      return;
-    }
-    if (!achternaam) {
-      this.showModalError('register-achternaam', 'Voer je achternaam in');
-      return;
-    }
-    if (!email) {
-      this.showModalError('register-email', 'Voer je e-mailadres in');
-      return;
-    }
-    if (!this.isValidEmail(email)) {
-      this.showModalError('register-email', 'Voer een geldig e-mailadres in');
-      return;
-    }
-    if (!password || password.length < 6) {
-      this.showModalError('register-password', 'Wachtwoord moet minimaal 6 tekens bevatten');
-      return;
-    }
-    if (!postcode || !huisnummer || !straatnaam || !plaats) {
-      this.showModalError('general', 'Vul een geldig adres in');
-      return;
-    }
 
     try {
       showLoader(this.registerFormButton);
@@ -608,7 +548,10 @@ class CheckoutPage {
       
     } catch (error) {
       console.error('[CheckoutPage] Error initializing Stripe:', error);
-      this.showCheckoutError('Er is een probleem met het laden van de betaalmethodes. Probeer het later opnieuw.');
+      const errorContainer = document.querySelector('[data-checkout-error]');
+      if (errorContainer) {
+        showError(errorContainer, 'Er is een probleem met het laden van de betaalmethodes. Probeer het later opnieuw.');
+      }
     }
   }
 
@@ -619,7 +562,10 @@ class CheckoutPage {
     }
 
     console.log('[CheckoutPage] Handling payment...');
-    this.clearCheckoutErrors();
+    
+    const errorContainer = document.querySelector('[data-checkout-error]');
+    if (errorContainer) hideError(errorContainer);
+    
     this.isProcessing = true;
     
     try {
@@ -651,7 +597,10 @@ class CheckoutPage {
       
       if (error) {
         console.error('[CheckoutPage] Payment error:', error);
-        this.showCheckoutError(this.mapStripeError(error));
+        const errorContainer = document.querySelector('[data-checkout-error]');
+        if (errorContainer) {
+          showError(errorContainer, this.mapStripeError(error));
+        }
         this.isProcessing = false;
         return;
       }
@@ -665,7 +614,10 @@ class CheckoutPage {
       
     } catch (error) {
       console.error('[CheckoutPage] Payment error:', error);
-      this.showCheckoutError('Er is iets misgegaan bij het verwerken van je betaling. Probeer het opnieuw.');
+      const errorContainer = document.querySelector('[data-checkout-error]');
+      if (errorContainer) {
+        showError(errorContainer, 'Er is iets misgegaan bij het verwerken van je betaling. Probeer het opnieuw.');
+      }
       this.isProcessing = false;
     } finally {
       hideLoader(this.checkoutButton);
@@ -726,7 +678,10 @@ class CheckoutPage {
       
     } catch (error) {
       console.error('[CheckoutPage] Error creating order:', error);
-      this.showCheckoutError('Betaling geslaagd, maar er ging iets mis bij het aanmaken van je bestelling. Neem contact op met klantenservice.');
+      const errorContainer = document.querySelector('[data-checkout-error]');
+      if (errorContainer) {
+        showError(errorContainer, 'Betaling geslaagd, maar er ging iets mis bij het aanmaken van je bestelling. Neem contact op met klantenservice.');
+      }
     }
   }
 
@@ -741,68 +696,6 @@ class CheckoutPage {
     };
     
     return errorMessages[error.code] || error.message || 'Er is iets misgegaan bij de betaling';
-  }
-
-  showCheckoutError(message) {
-    const errorContainer = document.querySelector('[data-checkout-error]');
-    if (errorContainer) {
-      errorContainer.innerHTML = `<div>${message}</div>`;
-      errorContainer.classList.remove('hide');
-    }
-  }
-
-  clearCheckoutErrors() {
-    const errorContainer = document.querySelector('[data-checkout-error]');
-    if (errorContainer) {
-      errorContainer.textContent = '';
-      errorContainer.classList.add('hide');
-    }
-  }
-
-  isValidEmail(email) {
-    return /^[\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-  }
-
-  updateLoginButtonState() {
-    if (!this.loginFormButton) return;
-    
-    const email = this.getFieldValue('login-email');
-    const password = this.getFieldValue('login-password');
-    
-    const isValid = this.isValidEmail(email) && password.length >= 8;
-    
-    if (isValid) {
-      this.loginFormButton.disabled = false;
-      this.loginFormButton.classList.remove('is-disabled');
-    } else {
-      this.loginFormButton.disabled = true;
-      this.loginFormButton.classList.add('is-disabled');
-    }
-  }
-
-  updateRegisterButtonState() {
-    if (!this.registerFormButton) return;
-    
-    const voornaam = this.getFieldValue('register-voornaam');
-    const achternaam = this.getFieldValue('register-achternaam');
-    const email = this.getFieldValue('register-email');
-    const password = this.getFieldValue('register-password');
-    const postcode = this.getFieldValue('register-postcode');
-    const huisnummer = this.getFieldValue('register-huisnummer');
-    const straatnaam = this.getFieldValue('register-straatnaam');
-    const plaats = this.getFieldValue('register-plaats');
-    
-    const isValid = voornaam && achternaam && this.isValidEmail(email) && 
-                    password.length >= 8 && postcode && huisnummer && 
-                    straatnaam && plaats;
-    
-    if (isValid) {
-      this.registerFormButton.disabled = false;
-      this.registerFormButton.classList.remove('is-disabled');
-    } else {
-      this.registerFormButton.disabled = true;
-      this.registerFormButton.classList.add('is-disabled');
-    }
   }
 }
 
