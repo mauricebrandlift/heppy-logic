@@ -12,14 +12,14 @@ import { verifyAuth, checkRole } from '../checks/authCheck.js';
  */
 export function withAuth(handler, options = {}) {
   return async (req, res) => {
-    // CORS headers toevoegen
+    // CORS headers toevoegen - inclusief X-Correlation-ID
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, DELETE, PATCH');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Correlation-ID');
     
     // OPTIONS requests afhandelen
     if (req.method === 'OPTIONS') {
-      return res.status(204).end();
+      return res.status(200).end();
     }
 
     try {
