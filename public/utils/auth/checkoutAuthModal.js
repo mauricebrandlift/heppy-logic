@@ -8,9 +8,9 @@
  * - apiClient.js for registration
  */
 
-import { authClient } from '../utils/auth/authClient.js';
-import { apiClient } from '../utils/api/client.js';
-import { showLoader, hideLoader, showError, hideError } from '../forms/ui/formUi.js';
+import { authClient } from './authClient.js';
+import { apiClient } from '../api/client.js';
+import { showLoader, hideLoader, showError, hideError } from '../../forms/ui/formUi.js';
 
 /**
  * Initialize checkout auth modal functionality
@@ -27,7 +27,17 @@ export function initCheckoutAuthModal() {
     return;
   }
 
-  console.log('✅ [CheckoutAuthModal] Modal gevonden, setup event listeners...');
+  console.log('✅ [CheckoutAuthModal] Modal gevonden');
+  
+  // Check if user is already authenticated
+  if (authClient.isAuthenticated()) {
+    console.log('✅ [CheckoutAuthModal] User al ingelogd, modal verbergen');
+    modal.style.display = 'none';
+    return; // No need to setup event listeners
+  }
+  
+  console.log('🔓 [CheckoutAuthModal] User niet ingelogd, modal blijft zichtbaar');
+  console.log('✅ [CheckoutAuthModal] Setup event listeners...');
 
   // Close buttons
   const closeButtons = modal.querySelectorAll('[data-modal-close]');

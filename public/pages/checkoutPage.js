@@ -66,9 +66,10 @@ class CheckoutPage {
   }
 
   setupEventListeners() {
-    // Alternate address toggle
-    const alternateCheckbox = document.querySelector('[data-field-name="use-alternate-address"]');
+    // Alternate address toggle - matches HTML attribute data-toggle-address-form
+    const alternateCheckbox = document.querySelector('[data-toggle-address-form]');
     alternateCheckbox?.addEventListener('change', (e) => {
+      console.log('[CheckoutPage] Alternate address toggle:', e.target.checked);
       this.toggleAlternateAddress(e.target.checked);
     });
 
