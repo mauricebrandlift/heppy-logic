@@ -12,6 +12,14 @@ export const API_CONFIG = {
     PRICING: '/routes/pricing',
     CLEANERS: '/routes/cleaners',
     PROFILE: '/routes/profile',
+    CONFIG: {
+      PUBLIC: '/routes/config/public',
+    },
+    STRIPE: {
+      PUBLIC_CONFIG: '/routes/stripe/public-config',
+      CREATE_PAYMENT_INTENT: '/routes/stripe/create-payment-intent',
+      RETRIEVE_PAYMENT_INTENT: '/routes/stripe/retrieve-payment-intent',
+    },
     AUTH: {
       LOGIN: '/auth/login',
       LOGOUT: '/auth/logout',

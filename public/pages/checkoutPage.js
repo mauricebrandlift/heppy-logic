@@ -129,7 +129,7 @@ class CheckoutPage {
     try {
       if (!authClient.isAuthenticated()) return;
 
-      const response = await apiClient('/profile');
+      const response = await apiClient('/routes/profile');
       
       if (response.adres) {
         // Pre-fill delivery address display
@@ -226,7 +226,7 @@ class CheckoutPage {
       console.log('[CheckoutPage] Initializing Stripe Elements...');
       
       // Fetch Stripe public key
-      const config = await apiClient('/config/public');
+      const config = await apiClient('/routes/config/public');
       
       if (!config.stripePublicKey) {
         throw new Error('Stripe public key not configured');
