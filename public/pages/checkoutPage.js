@@ -1,9 +1,8 @@
 import { apiClient } from '../utils/api/client.js';
 import { authClient } from '../utils/auth/authClient.js';
 import { cart } from '../utils/cart.js';
-import { showLoader, hideLoader, showError, hideError } from '../forms/ui/formUi.js';
-import { initCheckoutLoginForm } from '../forms/checkout/checkoutLoginForm.js';
-import { initCheckoutRegisterForm } from '../forms/checkout/checkoutRegisterForm.js';
+import { showError, hideError } from '../forms/ui/formUi.js';
+import { initCheckoutAuthModal } from '../utils/auth/checkoutAuthModal.js';
 
 /**
  * Checkout Page Handler
@@ -17,11 +16,6 @@ import { initCheckoutRegisterForm } from '../forms/checkout/checkoutRegisterForm
 
 class CheckoutPage {
   constructor() {
-    this.modal = null;
-    this.loginState = null;
-    this.registerState = null;
-    this.loginFormButton = null;
-    this.registerFormButton = null;
     this.checkoutButton = null;
     this.stripeElements = null;
     this.paymentElement = null;
@@ -46,16 +40,16 @@ class CheckoutPage {
     // Initialize DOM references
     this.initDOMReferences();
     
-    // Initialize auth forms
-    this.initAuthForms();
+    // Initialize auth modal
+    initCheckoutAuthModal();
     
     // Check auth state
     if (authClient.isAuthenticated()) {
       console.log('[CheckoutPage] User authenticated, proceeding to checkout');
       await this.initCheckout();
     } else {
-      console.log('[CheckoutPage] User not authenticated, showing auth modal');
-      this.showAuthModal();
+      console.log('[CheckoutPage] User not authenticated, auth modal will handle login');
+      // checkoutAuthModal.js will show the modal automatically if needed
     }
     
     // Setup event listeners
@@ -67,126 +61,11 @@ class CheckoutPage {
   }
 
   initDOMReferences() {
-    // Modal
-    this.modal = document.querySelector('[data-checkout-auth-modal]');
-    this.loginState = document.querySelector('[data-auth-login-state]');
-    this.registerState = document.querySelector('[data-auth-register-state]');
-    
-    // Auth form buttons - using data-form-button pattern from HTML
-    this.loginFormButton = document.querySelector('[data-form-button="checkout-login"]');
-    this.registerFormButton = document.querySelector('[data-form-button="checkout-register"]');
-    
-    // Toggle buttons between login and register
-    this.showRegisterBtn = document.querySelector('[data-switch-to-register]');
-    this.showLoginBtn = document.querySelector('[data-switch-to-login]');
-    
-    // Checkout button
     this.checkoutButton = document.querySelector('[data-form-button="checkout-betaling"]');
-    
-    // Address wrapper
     this.alternateAddressWrapper = document.querySelector('[data-address-form-wrapper]');
-    
-    // Debug logging
-    console.log('[CheckoutPage] DOM References:', {
-      modal: !!this.modal,
-      loginState: !!this.loginState,
-      registerState: !!this.registerState,
-      loginFormButton: !!this.loginFormButton,
-      registerFormButton: !!this.registerFormButton,
-      checkoutButton: !!this.checkoutButton
-    });
-    
-    if (!this.modal) {
-      console.error('[CheckoutPage] Auth modal not found');
-    }
-    if (!this.loginFormButton) {
-      console.error('[CheckoutPage] Login button not found');
-    }
-    if (!this.registerFormButton) {
-      console.error('[CheckoutPage] Register button not found');
-    }
-  }
-
-  initAuthForms() {
-    console.log('[CheckoutPage] Initializing auth forms...');
-    
-    // Check if forms exist in DOM
-    const loginForm = document.querySelector('[data-form-name="checkout-login"]');
-    const registerForm = document.querySelector('[data-form-name="checkout-register"]');
-    
-    if (loginForm) {
-      initCheckoutLoginForm();
-      console.log('[CheckoutPage] ✅ Login form initialized');
-    } else {
-      console.warn('[CheckoutPage] ⚠️ Login form not found');
-    }
-    
-    if (registerForm) {
-      initCheckoutRegisterForm();
-      console.log('[CheckoutPage] ✅ Register form initialized');
-    } else {
-      console.warn('[CheckoutPage] ⚠️ Register form not found');
-    }
   }
 
   setupEventListeners() {
-    console.log('[CheckoutPage] Setting up event listeners...');
-    
-    // Backdrop click prevention - prevent modal close on backdrop click
-    const backdrop = document.querySelector('[data-modal-backdrop]');
-    const backgroundOverlay = this.modal?.querySelector('.contact-modal1_background-overlay');
-    
-    if (backdrop) {
-      backdrop.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }, true);
-      console.log('[CheckoutPage] ✅ Backdrop click prevented');
-    }
-    
-    if (backgroundOverlay) {
-      backgroundOverlay.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-      }, true);
-      console.log('[CheckoutPage] ✅ Background overlay click prevented');
-    }
-
-    // Close buttons (X)
-    const closeButtons = this.modal?.querySelectorAll('[data-modal-close]');
-    closeButtons?.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        this.handleModalClose();
-      });
-    });
-    console.log('[CheckoutPage] ✅ Close buttons:', closeButtons?.length || 0);
-
-    // Toggle between login and register
-    if (this.showRegisterBtn) {
-      this.showRegisterBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        console.log('[CheckoutPage] Show register clicked');
-        this.showRegisterState();
-      });
-      console.log('[CheckoutPage] ✅ Show register button listener added');
-    } else {
-      console.error('[CheckoutPage] ❌ Show register button not found');
-    }
-    
-    if (this.showLoginBtn) {
-      this.showLoginBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        console.log('[CheckoutPage] Show login clicked');
-        this.showLoginState();
-      });
-      console.log('[CheckoutPage] ✅ Show login button listener added');
-    } else {
-      console.error('[CheckoutPage] ❌ Show login button not found');
-    }
-
-    // Address lookup trigger (postcode + huisnummer) - now handled by checkoutRegisterForm
-
     // Alternate address toggle
     const alternateCheckbox = document.querySelector('[data-field-name="use-alternate-address"]');
     alternateCheckbox?.addEventListener('change', (e) => {
@@ -202,80 +81,9 @@ class CheckoutPage {
     // Listen for auth success from modal
     document.addEventListener('auth:success', async () => {
       console.log('[CheckoutPage] Auth success event received');
-      this.hideAuthModal();
+      // Modal is auto-closed by checkoutAuthModal.js
       await this.initCheckout();
     });
-  }
-
-  showAuthModal() {
-    if (!this.modal) return;
-    
-    this.modal.style.display = 'flex';
-    this.showLoginState();
-  }
-
-  hideAuthModal() {
-    if (!this.modal) return;
-    
-    this.modal.style.display = 'none';
-    this.clearAuthErrors();
-  }
-
-  handleModalClose() {
-    // Only allow close if not processing payment
-    if (this.isProcessing) {
-      console.log('[CheckoutPage] Cannot close modal during processing');
-      return;
-    }
-
-    // Check if user is authenticated - if not, they can't proceed
-    if (!authClient.isAuthenticated()) {
-      console.log('[CheckoutPage] User must login to checkout');
-      this.showModalError('general', 'Je moet inloggen om een bestelling te plaatsen');
-      return;
-    }
-
-    this.hideAuthModal();
-  }
-
-  showLoginState() {
-    if (this.loginState) this.loginState.style.display = 'block';
-    if (this.registerState) this.registerState.style.display = 'none';
-    // Clear all modal errors
-    const errorContainers = this.modal?.querySelectorAll('[data-modal-error]');
-    errorContainers?.forEach(container => hideError(container));
-  }
-
-  showRegisterState() {
-    if (this.loginState) this.loginState.style.display = 'none';
-    if (this.registerState) this.registerState.style.display = 'block';
-    // Clear all modal errors
-    const errorContainers = this.modal?.querySelectorAll('[data-modal-error]');
-    errorContainers?.forEach(container => hideError(container));
-  }
-
-  showModalError(field, message) {
-    const errorContainer = this.modal?.querySelector(`[data-modal-error="${field}"]`);
-    if (errorContainer) {
-      showError(errorContainer, message);
-    }
-  }
-
-  getFieldValue(fieldName) {
-    const field = document.querySelector(`[data-field-name="${fieldName}"]`);
-    if (!field) return '';
-    
-    if (field.type === 'checkbox') {
-      return field.checked;
-    }
-    return field.value?.trim() || '';
-  }
-
-  setFieldValue(fieldName, value) {
-    const field = document.querySelector(`[data-field-name="${fieldName}"]`);
-    if (field) {
-      field.value = value;
-    }
   }
 
   async initCheckout() {
@@ -341,6 +149,11 @@ class CheckoutPage {
     if (this.alternateAddressWrapper) {
       this.alternateAddressWrapper.style.display = useAlternate ? 'block' : 'none';
     }
+  }
+
+  getFieldValue(fieldName) {
+    const field = document.querySelector(`[data-field-name="${fieldName}"]`);
+    return field ? field.value?.trim() || '' : '';
   }
 
   displayOrderSummary() {
