@@ -36,6 +36,23 @@ import { supabaseConfig } from '../config/index.js';
  * Vereist authenticatie
  */
 async function profileHandler(req, res) {
+  // Set CORS headers for ALL responses
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Correlation-ID, Authorization');
+
+  // Handle OPTIONS preflight request
+  if (req.method === 'OPTIONS') {
+    res.status(204).end();
+    return;
+  }
+
+  // Echo correlationId if provided
+  const correlationId = req.headers['x-correlation-id'];
+  if (correlationId) {
+    res.setHeader('X-Correlation-ID', correlationId);
+  }
+
   const requestId = `profile-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const startTime = Date.now();
   
