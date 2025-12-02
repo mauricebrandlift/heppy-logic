@@ -225,15 +225,15 @@ class CheckoutPage {
     try {
       console.log('[CheckoutPage] Initializing Stripe Elements...');
       
-      // Fetch Stripe public key
-      const config = await apiClient('/routes/config/public');
+      // Fetch Stripe public key - gebruik bestaande endpoint zoals abbBetalingForm
+      const config = await apiClient('/routes/stripe/public-config');
       
-      if (!config.stripePublicKey) {
-        throw new Error('Stripe public key not configured');
+      if (!config.publishableKey) {
+        throw new Error('Stripe publishable key not configured');
       }
       
       // Initialize Stripe
-      this.stripe = window.Stripe(config.stripePublicKey);
+      this.stripe = window.Stripe(config.publishableKey);
       
       // Create Payment Intent
       const totals = cart.getTotals();
