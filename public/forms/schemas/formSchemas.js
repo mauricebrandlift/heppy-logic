@@ -416,6 +416,107 @@ export function getFormSchema(name) {
       // Submit logica wordt later toegevoegd in loginForm.js
     },
 
+  // Checkout login formulier (voor modal in checkout)
+  'checkout-login-form': {
+    name: 'checkout-login-form',
+    selector: '[data-form-name="checkout-login"]',
+    fields: {
+      'login-email': {
+        ...commonFields.email,
+        label: 'E-mailadres'
+      },
+      'login-password': {
+        label: 'Wachtwoord',
+        inputType: 'password',
+        sanitizers: ['trim'],
+        validators: ['required'],
+        persist: 'none',
+        messages: {
+          required: 'Wachtwoord is verplicht'
+        }
+      }
+    },
+    globalMessages: combineMessages(
+      commonMessages.general,
+      commonMessages.server,
+      {
+        AUTH_FAILED: 'E-mailadres of wachtwoord is onjuist.',
+        AUTH_ERROR: 'Er is een probleem opgetreden bij het inloggen. Probeer het later opnieuw.'
+      }
+    )
+  },
+
+  // Checkout registratie formulier (voor modal in checkout)
+  'checkout-register-form': {
+    name: 'checkout-register-form',
+    selector: '[data-form-name="checkout-register"]',
+    fields: {
+      'register-voornaam': {
+        ...commonFields.voornaam,
+        label: 'Voornaam'
+      },
+      'register-achternaam': {
+        ...commonFields.achternaam,
+        label: 'Achternaam'
+      },
+      'register-email': {
+        ...commonFields.email,
+        label: 'E-mailadres'
+      },
+      'register-password': {
+        label: 'Wachtwoord',
+        inputType: 'password',
+        sanitizers: ['trim'],
+        validators: ['required'],
+        persist: 'none',
+        messages: {
+          required: 'Wachtwoord is verplicht'
+        }
+      },
+      'register-postcode': {
+        ...commonFields.postcode,
+        label: 'Postcode'
+      },
+      'register-huisnummer': {
+        ...commonFields.huisnummer,
+        label: 'Huisnummer'
+      },
+      'register-toevoeging': {
+        ...commonFields.toevoeging,
+        label: 'Toevoeging'
+      },
+      'register-straatnaam': {
+        label: 'Straatnaam',
+        inputType: 'text',
+        sanitizers: ['trim'],
+        validators: ['required'],
+        readonly: true,
+        messages: {
+          required: 'Straatnaam is verplicht'
+        }
+      },
+      'register-plaats': {
+        label: 'Plaats',
+        inputType: 'text',
+        sanitizers: ['trim'],
+        validators: ['required'],
+        readonly: true,
+        messages: {
+          required: 'Plaats is verplicht'
+        }
+      }
+    },
+    globalMessages: combineMessages(
+      commonMessages.general,
+      commonMessages.server,
+      commonMessages.address,
+      {
+        EMAIL_EXISTS: 'Dit e-mailadres is al in gebruik.',
+        REGISTRATION_ERROR: 'Er is een probleem opgetreden bij het registreren. Probeer het later opnieuw.'
+      }
+    )
+  },
+
     // Sollicitatie formulier
     'soll_algemeen': {
       name: 'soll_algemeen',

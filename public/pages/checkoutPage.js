@@ -2,6 +2,8 @@ import { apiClient } from '../utils/api/client.js';
 import { authClient } from '../utils/auth/authClient.js';
 import { cart } from '../utils/cart.js';
 import { showLoader, hideLoader, showError, hideError } from '../forms/ui/formUi.js';
+import { initCheckoutLoginForm } from '../forms/checkout/checkoutLoginForm.js';
+import { initCheckoutRegisterForm } from '../forms/checkout/checkoutRegisterForm.js';
 
 /**
  * Checkout Page Handler
@@ -43,6 +45,9 @@ class CheckoutPage {
 
     // Initialize DOM references
     this.initDOMReferences();
+    
+    // Initialize auth forms
+    this.initAuthForms();
     
     // Check auth state
     if (authClient.isAuthenticated()) {
@@ -102,6 +107,28 @@ class CheckoutPage {
     }
   }
 
+  initAuthForms() {
+    console.log('[CheckoutPage] Initializing auth forms...');
+    
+    // Check if forms exist in DOM
+    const loginForm = document.querySelector('[data-form-name="checkout-login"]');
+    const registerForm = document.querySelector('[data-form-name="checkout-register"]');
+    
+    if (loginForm) {
+      initCheckoutLoginForm();
+      console.log('[CheckoutPage] ✅ Login form initialized');
+    } else {
+      console.warn('[CheckoutPage] ⚠️ Login form not found');
+    }
+    
+    if (registerForm) {
+      initCheckoutRegisterForm();
+      console.log('[CheckoutPage] ✅ Register form initialized');
+    } else {
+      console.warn('[CheckoutPage] ⚠️ Register form not found');
+    }
+  }
+
   setupEventListeners() {
     console.log('[CheckoutPage] Setting up event listeners...');
     
@@ -158,32 +185,7 @@ class CheckoutPage {
       console.error('[CheckoutPage] ❌ Show login button not found');
     }
 
-    // Login form submit
-    if (this.loginFormButton) {
-      this.loginFormButton.addEventListener('click', async (e) => {
-        e.preventDefault();
-        console.log('[CheckoutPage] Login button clicked');
-        await this.handleLogin();
-      });
-      console.log('[CheckoutPage] ✅ Login form button listener added');
-    } else {
-      console.error('[CheckoutPage] ❌ Login form button not found');
-    }
-
-    // Register form submit
-    if (this.registerFormButton) {
-      this.registerFormButton.addEventListener('click', async (e) => {
-        e.preventDefault();
-        console.log('[CheckoutPage] Register button clicked');
-        await this.handleRegister();
-      });
-      console.log('[CheckoutPage] ✅ Register form button listener added');
-    } else {
-      console.error('[CheckoutPage] ❌ Register form button not found');
-    }
-
-    // Address lookup trigger (postcode + huisnummer)
-    this.initAddressLookupTrigger();
+    // Address lookup trigger (postcode + huisnummer) - now handled by checkoutRegisterForm
 
     // Alternate address toggle
     const alternateCheckbox = document.querySelector('[data-field-name="use-alternate-address"]');
@@ -274,127 +276,6 @@ class CheckoutPage {
     if (field) {
       field.value = value;
     }
-  }
-
-  async handleLogin() {
-    console.log('[CheckoutPage] Handling login...');
-    
-    // Clear all modal errors
-    const errorContainers = this.modal?.querySelectorAll('[data-modal-error]');
-    errorContainers?.forEach(container => hideError(container));
-    
-    const email = this.getFieldValue('login-email');
-    const password = this.getFieldValue('login-password');
-
-    try {
-      showLoader(this.loginFormButton);
-      
-      await authClient.login(email, password);
-      
-      console.log('[CheckoutPage] Login successful');
-      
-      // Dispatch auth success event
-      document.dispatchEvent(new Event('auth:success'));
-      
-    } catch (error) {
-      console.error('[CheckoutPage] Login error:', error);
-      
-      if (error.message?.includes('Invalid credentials')) {
-        this.showModalError('general', 'Onjuist e-mailadres of wachtwoord');
-      } else {
-        this.showModalError('general', error.message || 'Er is iets misgegaan bij het inloggen');
-      }
-    } finally {
-      hideLoader(this.loginFormButton);
-    }
-  }
-
-  async handleRegister() {
-    console.log('[CheckoutPage] Handling registration...');
-    
-    // Clear all modal errors
-    const errorContainers = this.modal?.querySelectorAll('[data-modal-error]');
-    errorContainers?.forEach(container => hideError(container));
-    
-    const voornaam = this.getFieldValue('register-voornaam');
-    const achternaam = this.getFieldValue('register-achternaam');
-    const email = this.getFieldValue('register-email');
-    const password = this.getFieldValue('register-password');
-    const postcode = this.getFieldValue('register-postcode');
-    const huisnummer = this.getFieldValue('register-huisnummer');
-    const toevoeging = this.getFieldValue('register-toevoeging');
-    const straatnaam = this.getFieldValue('register-straatnaam');
-    const plaats = this.getFieldValue('register-plaats');
-
-    try {
-      showLoader(this.registerFormButton);
-      
-      const response = await apiClient('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({
-          voornaam,
-          achternaam,
-          email,
-          password,
-          adres: {
-            postcode,
-            huisnummer,
-            toevoeging: toevoeging || null,
-            straatnaam,
-            plaats
-          }
-        })
-      });
-      
-      console.log('[CheckoutPage] Registration successful');
-      
-      // Auto-login after registration
-      await authClient.login(email, password);
-      
-      // Dispatch auth success event
-      document.dispatchEvent(new Event('auth:success'));
-      
-    } catch (error) {
-      console.error('[CheckoutPage] Registration error:', error);
-      
-      if (error.message?.includes('already exists')) {
-        this.showModalError('register-email', 'Dit e-mailadres is al in gebruik');
-      } else {
-        this.showModalError('general', error.message || 'Er is iets misgegaan bij het registreren');
-      }
-    } finally {
-      hideLoader(this.registerFormButton);
-    }
-  }
-
-  initAddressLookupTrigger() {
-    const postcodeField = document.querySelector('[data-field-name="register-postcode"]');
-    const huisnummerField = document.querySelector('[data-field-name="register-huisnummer"]');
-    
-    if (!postcodeField || !huisnummerField) return;
-
-    const lookupAddress = async () => {
-      const postcode = this.getFieldValue('register-postcode');
-      const huisnummer = this.getFieldValue('register-huisnummer');
-      
-      if (!postcode || !huisnummer) return;
-
-      try {
-        const response = await apiClient(`/address?postcode=${encodeURIComponent(postcode)}&huisnummer=${encodeURIComponent(huisnummer)}`);
-        
-        if (response.straat && response.plaats) {
-          this.setFieldValue('register-straatnaam', response.straat);
-          this.setFieldValue('register-plaats', response.plaats);
-          this.clearAuthErrors();
-        }
-      } catch (error) {
-        console.error('[CheckoutPage] Address lookup error:', error);
-        this.showModalError('general', 'Adres niet gevonden. Controleer postcode en huisnummer.');
-      }
-    };
-
-    postcodeField.addEventListener('blur', lookupAddress);
-    huisnummerField.addEventListener('blur', lookupAddress);
   }
 
   async initCheckout() {
