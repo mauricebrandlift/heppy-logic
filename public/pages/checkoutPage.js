@@ -1,7 +1,7 @@
 import { apiClient } from '../utils/api/client.js';
 import { authClient } from '../utils/auth/authClient.js';
 import { cart } from '../utils/cart.js';
-import { showError, hideError } from '../forms/ui/formUi.js';
+import { showError, hideError, showLoader, hideLoader } from '../forms/ui/formUi.js';
 import { initCheckoutAuthModal, openCheckoutAuthModal } from '../utils/auth/checkoutAuthModal.js';
 
 /**
