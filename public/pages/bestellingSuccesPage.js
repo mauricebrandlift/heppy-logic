@@ -140,7 +140,7 @@ function displayOrderItems(items) {
     itemElement.style.display = '';
 
     // Set product image
-    const image = itemElement.querySelector('[data-order-item-image]');
+    const image = itemElement.querySelector('[data-order-item="image"]');
     if (image && item.product_afbeelding_url) {
       image.src = item.product_afbeelding_url;
       image.alt = item.product_naam;
