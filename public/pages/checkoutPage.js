@@ -252,6 +252,10 @@ class CheckoutPage {
     try {
       console.log('[CheckoutPage] Initializing Stripe Elements...');
       
+      // Show spinner
+      const spinner = document.querySelector('[data-stripe-loading-spinner]');
+      if (spinner) spinner.style.display = 'flex';
+      
       // Fetch Stripe public key - gebruik bestaande endpoint zoals abbBetalingForm
       const config = await apiClient('/routes/stripe/public-config');
       
@@ -292,12 +296,23 @@ class CheckoutPage {
       const paymentElementContainer = document.querySelector('[data-stripe-payment-element]');
       if (paymentElementContainer) {
         this.paymentElement.mount(paymentElementContainer);
+        
+        // Wait for Payment Element to be ready, then hide spinner
+        this.paymentElement.on('ready', () => {
+          console.log('[CheckoutPage] Stripe Payment Element ready');
+          if (spinner) spinner.style.display = 'none';
+        });
       }
       
       console.log('[CheckoutPage] Stripe Elements initialized');
       
     } catch (error) {
       console.error('[CheckoutPage] Error initializing Stripe:', error);
+      
+      // Hide spinner on error
+      const spinner = document.querySelector('[data-stripe-loading-spinner]');
+      if (spinner) spinner.style.display = 'none';
+      
       const errorContainer = document.querySelector('[data-checkout-error]');
       if (errorContainer) {
         showError(errorContainer, 'Er is een probleem met het laden van de betaalmethodes. Probeer het later opnieuw.');
