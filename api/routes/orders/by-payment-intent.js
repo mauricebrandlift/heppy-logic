@@ -89,9 +89,9 @@ export default async function handler(req, res) {
 
     const order = orders[0];
 
-    // Fetch order items
+    // Fetch order items with product details (LEFT JOIN voor afbeelding_url)
     const itemsResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/bestelling_items?bestelling_id=eq.${order.id}&select=*`,
+      `${supabaseConfig.url}/rest/v1/bestelling_items?bestelling_id=eq.${order.id}&select=*,producten(afbeelding_url)`,
       {
         method: 'GET',
         headers: {
@@ -103,7 +103,13 @@ export default async function handler(req, res) {
 
     let items = [];
     if (itemsResponse.ok) {
-      items = await itemsResponse.json();
+      const rawItems = await itemsResponse.json();
+      // Map producten.afbeelding_url to product_afbeelding_url for frontend
+      items = rawItems.map(item => ({
+        ...item,
+        product_afbeelding_url: item.producten?.afbeelding_url || null,
+        producten: undefined // Remove nested object
+      }));
     } else {
       console.warn(JSON.stringify({
         level: 'WARN',
