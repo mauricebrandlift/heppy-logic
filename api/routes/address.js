@@ -17,7 +17,7 @@ export default async function handler(req, res) {
 
   // Belangrijk: Handel de OPTIONS (preflight) request EERST af
   if (req.method === 'OPTIONS') {
-    res.status(204).end(); // HTTP 204 No Content
+    res.status(200).end(); // HTTP 200 OK for preflight
     return;
   }
 

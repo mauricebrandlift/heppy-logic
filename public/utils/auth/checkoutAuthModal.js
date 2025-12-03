@@ -291,13 +291,14 @@ async function handleRegister(modal) {
   
   try {
     // Register user
-    await apiClient('/auth/register', {
+    await apiClient('/routes/auth/register', {
       method: 'POST',
       body: JSON.stringify({
         voornaam: fields.voornaam,
         achternaam: fields.achternaam,
         email: fields.email,
         password: fields.password,
+        telefoon: null, // Optional - kan later toegevoegd worden
         adres: {
           postcode: fields.postcode,
           huisnummer: fields.huisnummer,
@@ -353,7 +354,7 @@ function initAddressLookup(modal) {
     if (!postcode || !huisnummer) return;
     
     try {
-      const response = await apiClient(`/address?postcode=${encodeURIComponent(postcode)}&huisnummer=${encodeURIComponent(huisnummer)}`);
+      const response = await apiClient(`/routes/address?postcode=${encodeURIComponent(postcode)}&huisnummer=${encodeURIComponent(huisnummer)}`);
       
       if (response.straat && response.plaats) {
         if (straatField) straatField.value = response.straat;

@@ -20,7 +20,7 @@ export default async function handler(req, res) {
 
   // OPTIONS (preflight) request afhandelen
   if (req.method === 'OPTIONS') {
-    res.status(204).end();
+    res.status(200).end();
     return;
   }
 
