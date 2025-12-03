@@ -134,6 +134,8 @@ function displayOrderItems(items) {
 
   // Clone and populate template for each item
   items.forEach(item => {
+    console.log('[BestellingSucces] Processing item:', item);
+    
     const itemElement = template.cloneNode(true);
     itemElement.removeAttribute('data-order-item-template');
     itemElement.classList.remove('cart_product-item-template'); // Remove template class!
@@ -141,9 +143,19 @@ function displayOrderItems(items) {
 
     // Set product image
     const image = itemElement.querySelector('[data-order-item="image"]');
-    if (image && item.product_afbeelding_url) {
-      image.src = item.product_afbeelding_url;
-      image.alt = item.product_naam;
+    console.log('[BestellingSucces] Image element found:', !!image);
+    console.log('[BestellingSucces] Image URL from item:', item.product_afbeelding_url);
+    
+    if (image) {
+      if (item.product_afbeelding_url) {
+        image.src = item.product_afbeelding_url;
+        image.alt = item.product_naam;
+        console.log('[BestellingSucces] ✅ Image src set to:', image.src);
+      } else {
+        console.warn('[BestellingSucces] ⚠️ No product_afbeelding_url in item data');
+      }
+    } else {
+      console.warn('[BestellingSucces] ⚠️ Image element not found with selector [data-order-item="image"]');
     }
 
     // Set item details
