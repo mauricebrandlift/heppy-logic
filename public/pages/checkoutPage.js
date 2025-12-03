@@ -238,10 +238,11 @@ class CheckoutPage {
     console.log('[CheckoutPage] Displaying order summary:', { itemCount: cartItems.length, totals });
     
     // Display cart items using template clone
-    const itemsContainer = document.querySelector('[data-cart-items-container]');
+    const itemsContainer = document.querySelector('[data-checkout-items-container]');
     const template = document.querySelector('[data-checkout-item]');
     
     if (itemsContainer && template) {
+      console.log('[CheckoutPage] Container and template found');
       // Clear existing items (except template)
       const existingItems = itemsContainer.querySelectorAll('[data-checkout-item]:not(.cart_product-item-template)');
       existingItems.forEach(item => item.remove());
@@ -267,6 +268,11 @@ class CheckoutPage {
       });
       
       console.log('[CheckoutPage] ✅ Cart items rendered:', cartItems.length);
+    } else {
+      console.warn('[CheckoutPage] ⚠️ Container or template not found', {
+        containerFound: !!itemsContainer,
+        templateFound: !!template
+      });
     }
     
     // Display totals (HTML already has € symbols)
