@@ -1,9 +1,10 @@
 // Handler: payment_intent.succeeded
-// Maps metadata and delegates to payment success flow (abonnement, dieptereiniging, or verhuis_opleverschoonmaak)
+// Maps metadata and delegates to payment success flow (abonnement, dieptereiniging, verhuis_opleverschoonmaak, or webshop)
 import { mapAndNormalizeMetadata, validateMetadata } from '../metadata.js';
 import { processSuccessfulPayment } from '../../../flows/payment/processSuccessfulPayment.js';
 import { processDieptereinigingPayment } from '../../../flows/payment/processDieptereinigingPayment.js';
 import { processVerhuisPayment } from '../../../flows/payment/processVerhuisPayment.js';
+import { processWebshopPayment } from '../../../flows/payment/processWebshopPayment.js';
 
 export async function handlePaymentIntentSucceeded(event, correlationId){
   const pi = event.data.object;
@@ -14,11 +15,10 @@ export async function handlePaymentIntentSucceeded(event, correlationId){
   
   console.log(`📦 [PaymentIntentSucceeded] Detected flow: ${flow} [${correlationId}]`);
   
-  // Webshop orders are handled entirely in frontend via /routes/orders/create
-  // Webhook is not needed - just acknowledge and skip
+  // Webshop orders - handle via dedicated processor
   if (flow === 'webshop') {
-    console.log(`🛒 [PaymentIntentSucceeded] Webshop order - handled by frontend, skipping webhook processing [${correlationId}]`);
-    return { handled: true, flow: 'webshop', note: 'Order created by frontend via /routes/orders/create' };
+    console.log(`🛒 [PaymentIntentSucceeded] Routing to webshop flow [${correlationId}]`);
+    return await processWebshopPayment({ paymentIntent: pi, metadata, correlationId, event });
   }
   
   // Validate metadata based on flow

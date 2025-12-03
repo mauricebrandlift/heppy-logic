@@ -304,6 +304,9 @@ class CheckoutPage {
       const cartItems = cart.getItems();
       const authState = authClient.getAuthState();
       
+      // Get delivery address for metadata
+      const deliveryAddress = await this.getDeliveryAddress();
+      
       const intentResponse = await apiClient('/routes/stripe/create-payment-intent', {
         method: 'POST',
         body: JSON.stringify({
@@ -316,10 +319,28 @@ class CheckoutPage {
           metadata: {
             flow: 'webshop',
             email: authState.user?.email || '',
-            item_count: cartItems.length.toString(),
+            
+            // Cart items as JSON string
+            items: JSON.stringify(cartItems.map(item => ({
+              id: item.id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity
+            }))),
+            
+            // Totals in cents
             subtotal_cents: Math.round(totals.subtotal * 100).toString(),
             shipping_cents: Math.round(totals.shipping * 100).toString(),
-            total_cents: Math.round(totals.total * 100).toString()
+            btw_cents: Math.round((totals.total * 0.21 / 1.21) * 100).toString(),
+            total_cents: Math.round(totals.total * 100).toString(),
+            
+            // Delivery address
+            bezorg_naam: deliveryAddress.name,
+            bezorg_straat: deliveryAddress.straatnaam,
+            bezorg_huisnummer: deliveryAddress.huisnummer,
+            bezorg_toevoeging: deliveryAddress.toevoeging || '',
+            bezorg_postcode: deliveryAddress.postcode,
+            bezorg_plaats: deliveryAddress.plaats
           }
         })
       });
@@ -461,10 +482,15 @@ class CheckoutPage {
         return;
       }
       
-      // If payment succeeded without redirect
+      // If payment succeeded without redirect (e.g., credit card)
       if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
         console.log('[CheckoutPage] Payment succeeded without redirect');
-        await this.handlePaymentSuccess(result.paymentIntent.id);
+        
+        // Clear cart (webhook will create order in background)
+        cart.clear();
+        
+        // Redirect to success page with payment intent ID
+        window.location.href = `/shop/bestelling-succes?payment_intent=${result.paymentIntent.id}`;
       } else {
         console.log('[CheckoutPage] Payment requires redirect or further action');
       }
