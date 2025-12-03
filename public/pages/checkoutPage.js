@@ -68,14 +68,8 @@ class CheckoutPage {
   }
 
   initDOMReferences() {
-    this.checkoutButton = document.querySelector('[data-form-button="checkout-betaling"]');
+    // Note: checkoutButton is in auth-required content, so it's referenced later in initCheckout
     this.alternateAddressWrapper = document.querySelector('[data-address-form-wrapper]');
-    
-    // Disable button initially (enabled when payment element ready)
-    if (this.checkoutButton) {
-      this.checkoutButton.disabled = true;
-      this.checkoutButton.classList.add('is-disabled');
-    }
   }
 
   setupEventListeners() {
@@ -121,6 +115,14 @@ class CheckoutPage {
     
     // Show auth-required content
     this.showAuthRequiredContent();
+    
+    // Get button reference AFTER content is shown
+    this.checkoutButton = document.querySelector('[data-form-button="checkout-betaling"]');
+    if (this.checkoutButton) {
+      this.checkoutButton.disabled = true;
+      this.checkoutButton.classList.add('is-disabled');
+      console.log('[CheckoutPage] Button found and disabled, waiting for payment element ready');
+    }
     
     // Load user profile and pre-fill delivery address
     await this.loadUserProfile();
