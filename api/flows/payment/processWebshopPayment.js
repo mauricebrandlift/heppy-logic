@@ -25,7 +25,8 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       ...logMeta,
       level: 'INFO',
       message: '🛒 Starting webshop order processing',
-      email: metadata.email
+      email: metadata.email,
+      metadata: metadata // Log hele metadata object
     }));
 
     // Parse items from JSON string
@@ -37,7 +38,9 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
         ...logMeta,
         level: 'ERROR',
         message: 'Failed to parse items JSON',
-        error: e.message
+        error: e.message,
+        rawItems: metadata.items,
+        allMetadata: metadata
       }));
       return { handled: false, error: 'invalid_items_json' };
     }
