@@ -301,12 +301,26 @@ class CheckoutPage {
       
       // Create Payment Intent
       const totals = cart.getTotals();
+      const cartItems = cart.getItems();
+      const authState = authClient.getAuthState();
+      
       const intentResponse = await apiClient('/routes/stripe/create-payment-intent', {
         method: 'POST',
         body: JSON.stringify({
           amount: Math.round(totals.total * 100), // Amount in cents
-          description: 'Webshop bestelling',
-          savePaymentMethod: true
+          description: `Webshop bestelling (${cartItems.length} product${cartItems.length > 1 ? 'en' : ''})`,
+          savePaymentMethod: true,
+          flowContext: {
+            flow: 'webshop'
+          },
+          metadata: {
+            flow: 'webshop',
+            email: authState.user?.email || '',
+            item_count: cartItems.length.toString(),
+            subtotal_cents: Math.round(totals.subtotal * 100).toString(),
+            shipping_cents: Math.round(totals.shipping * 100).toString(),
+            total_cents: Math.round(totals.total * 100).toString()
+          }
         })
       });
       
@@ -417,7 +431,7 @@ class CheckoutPage {
       const result = await this.stripe.confirmPayment({
         elements: this.stripeElements,
         confirmParams: {
-          return_url: `${window.location.origin}/shop/checkout/success`,
+          return_url: `${window.location.origin}/shop/bestelling-succes`,
           payment_method_data: {
             billing_details: {
               name: deliveryAddress.name,
