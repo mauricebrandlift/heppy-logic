@@ -191,10 +191,9 @@ export default async function handler(req, res) {
       }
       
       finalAmount = originalAmount;
-      flowContextDescription = `Webshop bestelling (${parsedItems.length} product${parsedItems.length > 1 ? 'en' : ''})`;
+      flowContextDescription = `Webshop bestelling (${parsedItems.length} product${parsedItems.length > 1 ? 'en' : ''}) items:${cartMetadata.items}`;
       
-      // Keep metadata WITHOUT items (due to Stripe 500-char limit)
-      // Items will be stored in description field as fallback
+      // Keep metadata WITHOUT items (stored in description instead)
       metadata = {
         flow: cartMetadata.flow,
         email: cartMetadata.email,
@@ -205,21 +204,6 @@ export default async function handler(req, res) {
         calc_source: 'server-validated',
         calc_item_count: parsedItems.length.toString()
       };
-      
-      // Store items in description (no size limit) as workaround
-      if (itemsJsonLength > 400) {
-        flowContextDescription += ` items:${cartMetadata.items}`;
-        console.log(JSON.stringify({
-          level: 'INFO',
-          correlationId,
-          route: 'stripe/create-payment-intent',
-          action: 'items_stored_in_description',
-          reason: 'metadata_size_limit'
-        }));
-      } else {
-        // If small enough, keep in metadata
-        metadata.items = cartMetadata.items;
-      }
       
       console.log(JSON.stringify({
         level: 'INFO',
