@@ -310,8 +310,7 @@ class CheckoutPage {
       const cartItems = cart.getItems();
       const authState = authClient.getAuthState();
       
-      // Get delivery address for metadata
-      const deliveryAddress = await this.getDeliveryAddress();
+      console.log('[CheckoutPage] Creating payment intent with cart:', cartItems);
       
       const intentResponse = await apiClient('/routes/stripe/create-payment-intent', {
         method: 'POST',
@@ -338,15 +337,10 @@ class CheckoutPage {
             subtotal_cents: Math.round(totals.subtotal * 100).toString(),
             shipping_cents: Math.round(totals.shipping * 100).toString(),
             btw_cents: Math.round((totals.total * 0.21 / 1.21) * 100).toString(),
-            total_cents: Math.round(totals.total * 100).toString(),
+            total_cents: Math.round(totals.total * 100).toString()
             
-            // Delivery address
-            bezorg_naam: deliveryAddress.name,
-            bezorg_straat: deliveryAddress.straatnaam,
-            bezorg_huisnummer: deliveryAddress.huisnummer,
-            bezorg_toevoeging: deliveryAddress.toevoeging || '',
-            bezorg_postcode: deliveryAddress.postcode,
-            bezorg_plaats: deliveryAddress.plaats
+            // Note: Delivery address will be added during confirmPayment
+            // We'll retrieve it from user profile in the webhook
           }
         })
       });
@@ -449,9 +443,24 @@ class CheckoutPage {
       console.log('[CheckoutPage] Getting delivery address...');
       const deliveryAddress = await this.getDeliveryAddress();
       console.log('[CheckoutPage] Delivery address:', deliveryAddress);
+      console.log('[CheckoutPage] Using alternate address:', this.useAlternateAddress);
       
       const authState = authClient.getAuthState();
       console.log('[CheckoutPage] User email:', authState.user?.email);
+      
+      // Prepare metadata for alternate address (if used)
+      const paymentMetadata = {};
+      if (this.useAlternateAddress && deliveryAddress) {
+        paymentMetadata.alternate_address = JSON.stringify({
+          naam: deliveryAddress.name,
+          straat: deliveryAddress.straatnaam,
+          huisnummer: deliveryAddress.huisnummer,
+          toevoeging: deliveryAddress.toevoeging || '',
+          postcode: deliveryAddress.postcode,
+          plaats: deliveryAddress.plaats
+        });
+        console.log('[CheckoutPage] Alternate address will be saved in payment intent metadata');
+      }
       
       // Confirm payment with Stripe
       console.log('[CheckoutPage] Confirming payment with Stripe...');
@@ -470,7 +479,10 @@ class CheckoutPage {
                 country: 'NL'
               }
             }
-          }
+          },
+          ...(Object.keys(paymentMetadata).length > 0 && {
+            metadata: paymentMetadata
+          })
         },
         redirect: 'if_required'
       });

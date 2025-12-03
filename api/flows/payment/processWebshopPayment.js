@@ -42,9 +42,9 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       return { handled: false, error: 'invalid_items_json' };
     }
 
-    // Stap 1: Haal klant op via email
+    // Stap 1: Haal klant op via email (met adres)
     const userResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/user_profiles?email=eq.${encodeURIComponent(metadata.email)}&select=id,voornaam,achternaam,email`,
+      `${supabaseConfig.url}/rest/v1/user_profiles?email=eq.${encodeURIComponent(metadata.email)}&select=id,voornaam,achternaam,email,adres_id,adres:adressen(*)`,
       {
         method: 'GET',
         headers: {
@@ -79,8 +79,42 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       ...logMeta,
       level: 'INFO',
       message: 'User found',
-      userId: user.id
+      userId: user.id,
+      hasAddress: !!user.adres
     }));
+
+    // Check for alternate delivery address in metadata
+    let deliveryAddress;
+    if (metadata.alternate_address) {
+      try {
+        deliveryAddress = JSON.parse(metadata.alternate_address);
+        console.info(JSON.stringify({
+          ...logMeta,
+          level: 'INFO',
+          message: 'Using alternate delivery address from metadata'
+        }));
+      } catch (e) {
+        console.warn(JSON.stringify({
+          ...logMeta,
+          level: 'WARN',
+          message: 'Failed to parse alternate_address, falling back to user profile address',
+          error: e.message
+        }));
+        deliveryAddress = null;
+      }
+    }
+    
+    // Fallback to user profile address if no alternate address
+    if (!deliveryAddress) {
+      deliveryAddress = {
+        naam: `${user.voornaam} ${user.achternaam}`,
+        straat: user.adres?.straat || '',
+        huisnummer: user.adres?.huisnummer || '',
+        toevoeging: user.adres?.toevoeging || '',
+        postcode: user.adres?.postcode || '',
+        plaats: user.adres?.plaats || ''
+      };
+    }
 
     // Stap 2: Check of order al bestaat (idempotency)
     const existingOrderResponse = await httpClient(
@@ -131,13 +165,13 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       // Status
       status: 'nieuw',
       
-      // Bezorgadres (denormalized from metadata)
-      bezorg_naam: metadata.bezorg_naam,
-      bezorg_straat: metadata.bezorg_straat,
-      bezorg_huisnummer: metadata.bezorg_huisnummer,
-      bezorg_toevoeging: metadata.bezorg_toevoeging || null,
-      bezorg_postcode: metadata.bezorg_postcode,
-      bezorg_plaats: metadata.bezorg_plaats
+      // Bezorgadres (from alternate address if provided, else user profile)
+      bezorg_naam: deliveryAddress.naam,
+      bezorg_straat: deliveryAddress.straat,
+      bezorg_huisnummer: deliveryAddress.huisnummer,
+      bezorg_toevoeging: deliveryAddress.toevoeging || null,
+      bezorg_postcode: deliveryAddress.postcode,
+      bezorg_plaats: deliveryAddress.plaats
     };
 
     const bestellingResponse = await httpClient(
