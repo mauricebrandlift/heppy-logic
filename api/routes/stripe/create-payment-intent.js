@@ -1,7 +1,6 @@
 // api/routes/stripe/create-payment-intent.js
 // Maakt een Stripe PaymentIntent aan en retourneert de client_secret
 
-import Stripe from 'stripe';
 import { stripeConfig } from '../../config/index.js';
 import { handleErrorResponse } from '../../utils/errorHandler.js';
 import { createPaymentIntent } from '../../intents/stripePaymentIntent.js';
@@ -157,125 +156,21 @@ export default async function handler(req, res) {
         throw err;
       }
       
-      // Validate prices against Stripe Product/Price API
-      console.log(JSON.stringify({
-        level: 'INFO',
-        correlationId,
-        route: 'stripe/create-payment-intent',
-        action: 'validating_prices_with_stripe',
-        itemCount: parsedItems.length
-      }));
-      
-      const stripe = new Stripe(secretKey, { apiVersion: '2023-10-16' });
-      
-      let calculatedSubtotal = 0;
-      const validatedItems = [];
-      
-      for (const item of parsedItems) {
-        if (!item.id) {
-          console.error(JSON.stringify({
-            level: 'ERROR',
-            correlationId,
-            route: 'stripe/create-payment-intent',
-            action: 'missing_price_id',
-            item: item
-          }));
-          const err = new Error(`Item missing Stripe price ID`);
-          err.code = 400;
-          throw err;
-        }
-        
-        // Fetch actual price from Stripe
-        let stripePrice;
-        try {
-          stripePrice = await stripe.prices.retrieve(item.id);
-        } catch (stripeError) {
-          console.error(JSON.stringify({
-            level: 'ERROR',
-            correlationId,
-            route: 'stripe/create-payment-intent',
-            action: 'stripe_price_fetch_failed',
-            priceId: item.id,
-            error: stripeError.message,
-            errorType: stripeError.type,
-            statusCode: stripeError.statusCode
-          }));
-          const err = new Error(`Invalid price ID: ${item.id}`);
-          err.code = 400;
-          throw err;
-        }
-        
-        // Verify price is active
-        if (!stripePrice.active) {
-          const err = new Error(`Price ${item.id} is not active`);
-          err.code = 400;
-          throw err;
-        }
-        
-        // Use actual price from Stripe (NOT from client)
-        const actualPriceCents = stripePrice.unit_amount;
-        const quantity = parseInt(item.quantity) || 1;
-        const itemTotal = actualPriceCents * quantity;
-        
-        calculatedSubtotal += itemTotal;
-        
-        validatedItems.push({
-          stripe_price_id: item.id,
-          name: item.name, // Keep name for display, but price comes from Stripe
-          quantity: quantity,
-          unit_price_cents: actualPriceCents,
-          subtotal_cents: itemTotal
-        });
-        
-        // Log if client price doesn't match Stripe price
-        const clientPriceCents = Math.round((item.price || 0) * 100);
-        if (clientPriceCents !== actualPriceCents) {
-          console.warn(JSON.stringify({
-            level: 'WARN',
-            correlationId,
-            route: 'stripe/create-payment-intent',
-            action: 'price_mismatch_detected',
-            priceId: item.id,
-            clientPrice: clientPriceCents,
-            stripePrice: actualPriceCents,
-            difference: actualPriceCents - clientPriceCents
-          }));
-        }
-      }
-      
-      // Calculate totals (server-validated)
-      const shippingCents = 595; // Fixed €5.95 shipping
-      const totalCents = calculatedSubtotal + shippingCents;
-      const btwCents = Math.round((totalCents * 21) / 121); // 21% BTW included
-      
-      // Check if client-calculated total matches server-calculated total
-      if (originalAmount !== totalCents) {
-        console.warn(JSON.stringify({
-          level: 'WARN',
-          correlationId,
-          route: 'stripe/create-payment-intent',
-          action: 'total_mismatch',
-          clientTotal: originalAmount,
-          serverTotal: totalCents,
-          difference: totalCents - originalAmount
-        }));
-      }
-      
-      // Use server-calculated amount (SECURITY: ignore client amount)
-      finalAmount = totalCents;
-      flowContextDescription = `Webshop bestelling (${parsedItems.length} product${parsedItems.length > 1 ? 'en' : ''}) items:${JSON.stringify(validatedItems)}`;
+      // Use client-provided amount for now
+      // TODO: Add Stripe Price API validation in future iteration
+      finalAmount = originalAmount;
+      flowContextDescription = `Webshop bestelling (${parsedItems.length} product${parsedItems.length > 1 ? 'en' : ''}) items:${cartMetadata.items}`;
       
       // Keep metadata WITHOUT items (stored in description instead)
       metadata = {
         flow: cartMetadata.flow,
         email: cartMetadata.email,
-        subtotal_cents: calculatedSubtotal.toString(),
-        shipping_cents: shippingCents.toString(),
-        btw_cents: btwCents.toString(),
-        total_cents: totalCents.toString(),
-        calc_source: 'server-validated',
-        calc_item_count: parsedItems.length.toString(),
-        price_validation: 'stripe-api'
+        subtotal_cents: cartMetadata.subtotal_cents,
+        shipping_cents: cartMetadata.shipping_cents,
+        btw_cents: cartMetadata.btw_cents,
+        total_cents: cartMetadata.total_cents,
+        calc_source: 'client-provided', // TODO: Change to 'server-validated' after implementing price validation
+        calc_item_count: parsedItems.length.toString()
       };
       
       console.log(JSON.stringify({
@@ -284,12 +179,7 @@ export default async function handler(req, res) {
         route: 'stripe/create-payment-intent',
         action: 'webshop_validated',
         itemCount: parsedItems.length,
-        subtotalCents: calculatedSubtotal,
-        shippingCents: shippingCents,
-        totalCents: totalCents,
-        clientAmount: originalAmount,
-        serverAmount: finalAmount,
-        priceSource: 'stripe-api'
+        totalCents: finalAmount
       }));
     }
 
