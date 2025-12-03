@@ -184,9 +184,17 @@ export default async function handler(req, res) {
       
       // Keep all cart metadata (items, totals, email, flow)
       metadata = {
-        ...cartMetadata,
+        flow: cartMetadata.flow,
+        email: cartMetadata.email,
+        subtotal_cents: cartMetadata.subtotal_cents,
+        shipping_cents: cartMetadata.shipping_cents,
+        btw_cents: cartMetadata.btw_cents,
+        total_cents: cartMetadata.total_cents,
         calc_source: 'server-validated',
-        calc_item_count: parsedItems.length.toString()
+        calc_item_count: parsedItems.length.toString(),
+        // NOTE: items JSON is stored separately due to Stripe 500-char limit
+        // Items will be passed via update-payment-intent or retrieved from client
+        items_stored: 'client' // Indicator that items are not in metadata
       };
       
       console.log(JSON.stringify({

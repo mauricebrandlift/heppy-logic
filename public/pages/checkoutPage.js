@@ -452,33 +452,42 @@ class CheckoutPage {
       const cartItems = cart.getItems();
       const totals = cart.getTotals();
       
-      // Only update metadata if alternate address is used
-      // (items/totals metadata was already set during payment intent creation)
+      // Update payment intent metadata with items (too large for initial creation due to Stripe 500-char limit)
+      console.log('[CheckoutPage] Updating payment intent with cart items...');
+      const paymentIntentId = this.clientSecret.split('_secret_')[0];
+      
+      const updateMetadata = {
+        // Cart items as JSON string - sent separately due to size limit
+        items: JSON.stringify(cartItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        })))
+      };
+      
+      // Add alternate address if used
       if (this.useAlternateAddress && deliveryAddress) {
-        console.log('[CheckoutPage] Updating payment intent with alternate address...');
-        const paymentIntentId = this.clientSecret.split('_secret_')[0];
-        
-        const alternateAddressMetadata = {
-          alternate_address: JSON.stringify({
-            naam: deliveryAddress.name,
-            straat: deliveryAddress.straatnaam,
-            huisnummer: deliveryAddress.huisnummer,
-            toevoeging: deliveryAddress.toevoeging || '',
-            postcode: deliveryAddress.postcode,
-            plaats: deliveryAddress.plaats
-          })
-        };
-        
-        await apiClient('/routes/stripe/update-payment-intent', {
-          method: 'POST',
-          body: JSON.stringify({
-            paymentIntentId,
-            metadata: alternateAddressMetadata
-          })
+        updateMetadata.alternate_address = JSON.stringify({
+          naam: deliveryAddress.name,
+          straat: deliveryAddress.straatnaam,
+          huisnummer: deliveryAddress.huisnummer,
+          toevoeging: deliveryAddress.toevoeging || '',
+          postcode: deliveryAddress.postcode,
+          plaats: deliveryAddress.plaats
         });
-        
-        console.log('[CheckoutPage] Alternate address metadata updated');
+        console.log('[CheckoutPage] Alternate address will be saved in payment intent metadata');
       }
+      
+      await apiClient('/routes/stripe/update-payment-intent', {
+        method: 'POST',
+        body: JSON.stringify({
+          paymentIntentId,
+          metadata: updateMetadata
+        })
+      });
+      
+      console.log('[CheckoutPage] Payment intent metadata updated');
       
       // Confirm payment with Stripe
       console.log('[CheckoutPage] Confirming payment with Stripe...');
