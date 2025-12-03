@@ -154,7 +154,7 @@ class CheckoutPage {
         }
         if (streetDisplay) {
           const toevoeging = response.adres.toevoeging ? ` ${response.adres.toevoeging}` : '';
-          streetDisplay.textContent = `${response.adres.straatnaam} ${response.adres.huisnummer}${toevoeging}`;
+          streetDisplay.textContent = `${response.adres.straat} ${response.adres.huisnummer}${toevoeging}`;
         }
         if (postalDisplay) {
           postalDisplay.textContent = response.adres.postcode;
