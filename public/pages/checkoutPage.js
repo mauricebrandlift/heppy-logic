@@ -2,7 +2,7 @@ import { apiClient } from '../utils/api/client.js';
 import { authClient } from '../utils/auth/authClient.js';
 import { cart } from '../utils/cart.js';
 import { showError, hideError } from '../forms/ui/formUi.js';
-import { initCheckoutAuthModal } from '../utils/auth/checkoutAuthModal.js';
+import { initCheckoutAuthModal, openCheckoutAuthModal } from '../utils/auth/checkoutAuthModal.js';
 
 /**
  * Checkout Page Handler
@@ -97,11 +97,8 @@ class CheckoutPage {
       // Hide auth-required content
       this.hideAuthRequiredContent();
       
-      // Open login modal
-      const loginModalWrapper = document.querySelector('[data-modal-wrapper="checkout-auth"]');
-      if (loginModalWrapper) {
-        loginModalWrapper.style.display = 'flex';
-      }
+      // Open login modal using exported function
+      openCheckoutAuthModal();
     });
 
     // Listen for auth success from modal

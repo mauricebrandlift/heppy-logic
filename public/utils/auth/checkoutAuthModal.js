@@ -503,3 +503,21 @@ function updateRegisterButton(modal) {
   button.disabled = !isValid;
   button.classList.toggle('is-disabled', !isValid);
 }
+
+/**
+ * Open checkout auth modal (for switching accounts)
+ */
+export function openCheckoutAuthModal() {
+  const modal = document.querySelector('[data-checkout-auth-modal]');
+  if (modal) {
+    console.log('🔓 [CheckoutAuthModal] Opening modal...');
+    modal.style.display = 'flex';
+    
+    // Show login state by default
+    const loginState = document.querySelector('[data-auth-login-state]');
+    const registerState = document.querySelector('[data-auth-register-state]');
+    if (loginState && registerState) {
+      showLoginState(modal, loginState, registerState);
+    }
+  }
+}
