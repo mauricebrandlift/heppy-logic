@@ -259,10 +259,35 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       bestelNummer: bestelling.bestel_nummer
     }));
 
-    // Stap 4: Maak bestelling items aan
+    // Stap 4: Lookup product UUIDs from Stripe Price IDs
+    const stripePriceIds = items.map(item => item.id).filter(Boolean);
+    let productMap = {};
+    
+    if (stripePriceIds.length > 0) {
+      const productsResponse = await httpClient(
+        `${supabaseConfig.url}/rest/v1/producten?stripe_price_id=in.(${stripePriceIds.join(',')})&select=id,stripe_price_id`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+          }
+        }
+      );
+
+      if (productsResponse.ok) {
+        const products = await productsResponse.json();
+        productMap = products.reduce((map, product) => {
+          map[product.stripe_price_id] = product.id;
+          return map;
+        }, {});
+      }
+    }
+
+    // Stap 5: Maak bestelling items aan
     const itemsData = items.map(item => ({
       bestelling_id: bestelling.id,
-      product_id: item.id || null,
+      product_id: productMap[item.id] || null,  // Use mapped UUID or null
       product_naam: item.name,
       prijs_per_stuk_cents: Math.round(item.price * 100),
       aantal: item.quantity,
