@@ -448,8 +448,30 @@ class CheckoutPage {
       const authState = authClient.getAuthState();
       console.log('[CheckoutPage] User email:', authState.user?.email);
       
-      // Prepare metadata for alternate address (if used)
-      const paymentMetadata = {};
+      // Prepare complete metadata (including cart items)
+      const cartItems = cart.getItems();
+      const totals = cart.getTotals();
+      
+      const paymentMetadata = {
+        flow: 'webshop',
+        email: authState.user?.email || '',
+        
+        // Cart items as JSON string
+        items: JSON.stringify(cartItems.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        }))),
+        
+        // Totals in cents
+        subtotal_cents: Math.round(totals.subtotal * 100).toString(),
+        shipping_cents: Math.round(totals.shipping * 100).toString(),
+        btw_cents: Math.round((totals.total * 0.21 / 1.21) * 100).toString(),
+        total_cents: Math.round(totals.total * 100).toString()
+      };
+      
+      // Add alternate address if used
       if (this.useAlternateAddress && deliveryAddress) {
         paymentMetadata.alternate_address = JSON.stringify({
           naam: deliveryAddress.name,
