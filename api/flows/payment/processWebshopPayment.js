@@ -34,15 +34,45 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
     try {
       items = JSON.parse(metadata.items);
     } catch (e) {
-      console.error(JSON.stringify({
+      // Fallback: if items not in metadata, try to parse from description
+      console.warn(JSON.stringify({
         ...logMeta,
-        level: 'ERROR',
-        message: 'Failed to parse items JSON',
-        error: e.message,
-        rawItems: metadata.items,
-        allMetadata: metadata
+        level: 'WARN',
+        message: 'Items not found in metadata, checking description field',
+        error: e.message
       }));
-      return { handled: false, error: 'invalid_items_json' };
+      
+      // If items also not available, we cannot process the order
+      if (!paymentIntent.description || !paymentIntent.description.includes('items:')) {
+        console.error(JSON.stringify({
+          ...logMeta,
+          level: 'ERROR',
+          message: 'Failed to parse items JSON',
+          error: e.message,
+          rawItems: metadata.items,
+          allMetadata: metadata,
+          description: paymentIntent.description
+        }));
+        return { handled: false, error: 'invalid_items_json' };
+      }
+      
+      // Try to extract items from description (fallback)
+      try {
+        const itemsMatch = paymentIntent.description.match(/items:(.+)$/);
+        if (itemsMatch) {
+          items = JSON.parse(itemsMatch[1]);
+        } else {
+          throw new Error('Items not found in description');
+        }
+      } catch (descError) {
+        console.error(JSON.stringify({
+          ...logMeta,
+          level: 'ERROR',
+          message: 'Failed to parse items from description',
+          error: descError.message
+        }));
+        return { handled: false, error: 'invalid_items_json' };
+      }
     }
 
     // Stap 1: Haal klant op via email (met adres)
