@@ -452,52 +452,33 @@ class CheckoutPage {
       const cartItems = cart.getItems();
       const totals = cart.getTotals();
       
-      const paymentMetadata = {
-        flow: 'webshop',
-        email: authState.user?.email || '',
-        
-        // Cart items as JSON string
-        items: JSON.stringify(cartItems.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity
-        }))),
-        
-        // Totals in cents
-        subtotal_cents: Math.round(totals.subtotal * 100).toString(),
-        shipping_cents: Math.round(totals.shipping * 100).toString(),
-        btw_cents: Math.round((totals.total * 0.21 / 1.21) * 100).toString(),
-        total_cents: Math.round(totals.total * 100).toString()
-      };
-      
-      // Add alternate address if used
+      // Only update metadata if alternate address is used
+      // (items/totals metadata was already set during payment intent creation)
       if (this.useAlternateAddress && deliveryAddress) {
-        paymentMetadata.alternate_address = JSON.stringify({
-          naam: deliveryAddress.name,
-          straat: deliveryAddress.straatnaam,
-          huisnummer: deliveryAddress.huisnummer,
-          toevoeging: deliveryAddress.toevoeging || '',
-          postcode: deliveryAddress.postcode,
-          plaats: deliveryAddress.plaats
+        console.log('[CheckoutPage] Updating payment intent with alternate address...');
+        const paymentIntentId = this.clientSecret.split('_secret_')[0];
+        
+        const alternateAddressMetadata = {
+          alternate_address: JSON.stringify({
+            naam: deliveryAddress.name,
+            straat: deliveryAddress.straatnaam,
+            huisnummer: deliveryAddress.huisnummer,
+            toevoeging: deliveryAddress.toevoeging || '',
+            postcode: deliveryAddress.postcode,
+            plaats: deliveryAddress.plaats
+          })
+        };
+        
+        await apiClient('/routes/stripe/update-payment-intent', {
+          method: 'POST',
+          body: JSON.stringify({
+            paymentIntentId,
+            metadata: alternateAddressMetadata
+          })
         });
-        console.log('[CheckoutPage] Alternate address will be saved in payment intent metadata');
+        
+        console.log('[CheckoutPage] Alternate address metadata updated');
       }
-      
-      // Update payment intent metadata BEFORE confirming
-      // (confirmPayment doesn't support metadata updates)
-      console.log('[CheckoutPage] Updating payment intent metadata...');
-      const paymentIntentId = this.clientSecret.split('_secret_')[0];
-      
-      await apiClient('/routes/stripe/update-payment-intent', {
-        method: 'POST',
-        body: JSON.stringify({
-          paymentIntentId,
-          metadata: paymentMetadata
-        })
-      });
-      
-      console.log('[CheckoutPage] Metadata updated successfully');
       
       // Confirm payment with Stripe
       console.log('[CheckoutPage] Confirming payment with Stripe...');
