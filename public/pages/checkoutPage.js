@@ -85,6 +85,25 @@ class CheckoutPage {
       await this.handlePayment();
     });
 
+    // Switch account button - logout and reopen modal
+    const switchAccountButton = document.querySelector('[data-action="checkout-switch-account"]');
+    switchAccountButton?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      console.log('[CheckoutPage] Switch account clicked - logging out');
+      
+      // Logout
+      await authClient.logout();
+      
+      // Hide auth-required content
+      this.hideAuthRequiredContent();
+      
+      // Open login modal
+      const loginModalWrapper = document.querySelector('[data-modal-wrapper="checkout-auth"]');
+      if (loginModalWrapper) {
+        loginModalWrapper.style.display = 'flex';
+      }
+    });
+
     // Listen for auth success from modal
     document.addEventListener('auth:success', async () => {
       console.log('[CheckoutPage] Auth success event received');
