@@ -421,10 +421,15 @@ class CheckoutPage {
       };
     } else {
       // Get primary address from user profile
-      const profile = await apiClient('/profile');
+      const authState = authClient.getAuthState();
+      const profile = await apiClient('/routes/profile', {
+        headers: {
+          Authorization: `Bearer ${authState.access_token}`
+        }
+      });
       return {
         name: `${profile.voornaam} ${profile.achternaam}`,
-        straatnaam: profile.adres.straatnaam,
+        straatnaam: profile.adres.straat,
         huisnummer: profile.adres.huisnummer,
         toevoeging: profile.adres.toevoeging,
         postcode: profile.adres.postcode,
@@ -441,9 +446,15 @@ class CheckoutPage {
       const totals = cart.getTotals();
       const deliveryAddress = await this.getDeliveryAddress();
       
+      // Get auth token
+      const authState = authClient.getAuthState();
+      
       // Create order in backend
-      const order = await apiClient('/orders/create', {
+      const order = await apiClient('/routes/orders/create', {
         method: 'POST',
+        headers: {
+          Authorization: `Bearer ${authState.access_token}`
+        },
         body: JSON.stringify({
           paymentIntentId,
           items: cartItems,
@@ -452,13 +463,13 @@ class CheckoutPage {
         })
       });
       
-      console.log('[CheckoutPage] Order created:', order.id);
+      console.log('[CheckoutPage] Order created:', order.order.id);
       
       // Clear cart
       cart.clear();
       
       // Redirect to success page
-      window.location.href = `/shop/checkout/success?order=${order.id}`;
+      window.location.href = `/shop/checkout/success?order=${order.order.bestelNummer}`;
       
     } catch (error) {
       console.error('[CheckoutPage] Error creating order:', error);
