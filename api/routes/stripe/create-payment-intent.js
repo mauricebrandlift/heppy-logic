@@ -112,6 +112,70 @@ export default async function handler(req, res) {
         calc_price_per_hour: pricePerHour.toFixed(2),
         calc_total_amount_eur: totalAmountEur.toFixed(2),
       };
+    } else if (payload.flowContext?.flow === 'webshop') {
+      // Webshop: validate and process cart items
+      const cartMetadata = payload.metadata || {};
+      
+      // Validate required webshop metadata
+      if (!cartMetadata.items) {
+        const err = new Error('Cart items metadata is required for webshop flow');
+        err.code = 400;
+        throw err;
+      }
+      
+      if (!cartMetadata.email) {
+        const err = new Error('Customer email is required for webshop flow');
+        err.code = 400;
+        throw err;
+      }
+      
+      // Parse and validate items
+      let parsedItems;
+      try {
+        parsedItems = JSON.parse(cartMetadata.items);
+      } catch (e) {
+        const err = new Error('Invalid items JSON in metadata');
+        err.code = 400;
+        throw err;
+      }
+      
+      if (!Array.isArray(parsedItems) || parsedItems.length === 0) {
+        const err = new Error('Cart must contain at least one item');
+        err.code = 400;
+        throw err;
+      }
+      
+      // Verify amount matches cart total
+      const cartTotalCents = parseInt(cartMetadata.total_cents || '0', 10);
+      if (cartTotalCents !== originalAmount) {
+        console.warn(JSON.stringify({
+          level: 'WARN',
+          correlationId,
+          route: 'stripe/create-payment-intent',
+          msg: 'Cart total mismatch',
+          cartTotal: cartTotalCents,
+          requestedAmount: originalAmount
+        }));
+      }
+      
+      finalAmount = originalAmount;
+      flowContextDescription = `Webshop bestelling (${parsedItems.length} product${parsedItems.length > 1 ? 'en' : ''})`;
+      
+      // Keep all cart metadata (items, totals, email, flow)
+      metadata = {
+        ...cartMetadata,
+        calc_source: 'server-validated',
+        calc_item_count: parsedItems.length.toString()
+      };
+      
+      console.log(JSON.stringify({
+        level: 'INFO',
+        correlationId,
+        route: 'stripe/create-payment-intent',
+        action: 'webshop_validated',
+        itemCount: parsedItems.length,
+        totalCents: finalAmount
+      }));
     }
 
     if (!finalAmount) {
