@@ -69,13 +69,21 @@ class CheckoutPage {
 
   initDOMReferences() {
     // Button should be placed OUTSIDE [data-auth-required] in Webflow
-    this.checkoutButton = document.querySelector('[data-form-button="checkout-betaling"]');
+    this.checkoutButton = document.querySelector('[data-form-button="checkout-payment"]');
     if (this.checkoutButton) {
       this.checkoutButton.disabled = true;
       this.checkoutButton.classList.add('is-disabled');
       console.log('[CheckoutPage] Button found and disabled initially');
+      
+      // Add click listener immediately
+      this.checkoutButton.addEventListener('click', async (e) => {
+        e.preventDefault();
+        console.log('[CheckoutPage] Payment button clicked');
+        await this.handlePayment();
+      });
+      console.log('[CheckoutPage] Payment button click listener added');
     } else {
-      console.warn('[CheckoutPage] Button not found - make sure it is OUTSIDE [data-auth-required]');
+      console.warn('[CheckoutPage] Button not found with [data-form-button="checkout-payment"] - check HTML');
     }
     
     this.alternateAddressWrapper = document.querySelector('[data-address-form-wrapper]');
@@ -89,11 +97,7 @@ class CheckoutPage {
       this.toggleAlternateAddress(e.target.checked);
     });
 
-    // Checkout/payment button
-    this.checkoutButton?.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await this.handlePayment();
-    });
+    // Payment button listener is added in initDOMReferences() after button is found
 
     // Switch account button - logout and reopen modal
     const switchAccountButton = document.querySelector('[data-action="checkout-switch-account"]');
