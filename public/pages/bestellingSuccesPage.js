@@ -136,7 +136,15 @@ function displayOrderItems(items) {
   items.forEach(item => {
     const itemElement = template.cloneNode(true);
     itemElement.removeAttribute('data-order-item-template');
+    itemElement.classList.remove('cart_product-item-template'); // Remove template class!
     itemElement.style.display = '';
+
+    // Set product image
+    const image = itemElement.querySelector('[data-order-item-image]');
+    if (image && item.product_afbeelding_url) {
+      image.src = item.product_afbeelding_url;
+      image.alt = item.product_naam;
+    }
 
     // Set item details
     setOrderItemDetail(itemElement, 'name', item.product_naam);

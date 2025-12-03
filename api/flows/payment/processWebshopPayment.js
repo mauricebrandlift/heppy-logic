@@ -289,6 +289,7 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       bestelling_id: bestelling.id,
       product_id: productMap[item.id] || null,  // Use mapped UUID or null
       product_naam: item.name,
+      product_afbeelding_url: item.image || null,  // Store image URL from Webflow
       prijs_per_stuk_cents: Math.round(item.price * 100),
       aantal: item.quantity,
       btw_percentage: 21,
