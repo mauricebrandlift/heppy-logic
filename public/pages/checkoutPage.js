@@ -22,6 +22,7 @@ class CheckoutPage {
     this.stripe = null;
     this.clientSecret = null;
     this.isProcessing = false;
+    this.paymentReady = false;
     
     // Address form state
     this.useAlternateAddress = false;
@@ -69,6 +70,12 @@ class CheckoutPage {
   initDOMReferences() {
     this.checkoutButton = document.querySelector('[data-form-button="checkout-betaling"]');
     this.alternateAddressWrapper = document.querySelector('[data-address-form-wrapper]');
+    
+    // Disable button initially (enabled when payment element ready)
+    if (this.checkoutButton) {
+      this.checkoutButton.disabled = true;
+      this.checkoutButton.classList.add('is-disabled');
+    }
   }
 
   setupEventListeners() {
@@ -316,9 +323,23 @@ class CheckoutPage {
       if (paymentElementContainer) {
         this.paymentElement.mount(paymentElementContainer);
         
-        // Wait for Payment Element to be ready, then hide spinner
+        // Wait for Payment Element to be ready, then hide spinner and enable button
         this.paymentElement.on('ready', () => {
           console.log('[CheckoutPage] Stripe Payment Element ready');
+          if (spinner) spinner.style.display = 'none';
+          
+          // Enable payment button
+          this.paymentReady = true;
+          if (this.checkoutButton) {
+            this.checkoutButton.disabled = false;
+            this.checkoutButton.classList.remove('is-disabled');
+            console.log('[CheckoutPage] ✅ Payment button enabled');
+          }
+        });
+        
+        // Handle load errors
+        this.paymentElement.on('loaderror', (e) => {
+          console.error('[CheckoutPage] Payment Element loaderror:', e);
           if (spinner) spinner.style.display = 'none';
         });
       }
@@ -342,6 +363,15 @@ class CheckoutPage {
   async handlePayment() {
     if (this.isProcessing) {
       console.log('[CheckoutPage] Payment already processing');
+      return;
+    }
+    
+    if (!this.paymentReady || !this.stripe || !this.stripeElements) {
+      console.warn('[CheckoutPage] Payment blocked: element not ready', {
+        paymentReady: this.paymentReady,
+        stripe: !!this.stripe,
+        elements: !!this.stripeElements
+      });
       return;
     }
 
