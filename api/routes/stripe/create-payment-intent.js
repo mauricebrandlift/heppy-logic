@@ -173,6 +173,13 @@ export default async function handler(req, res) {
       
       for (const item of parsedItems) {
         if (!item.id) {
+          console.error(JSON.stringify({
+            level: 'ERROR',
+            correlationId,
+            route: 'stripe/create-payment-intent',
+            action: 'missing_price_id',
+            item: item
+          }));
           const err = new Error(`Item missing Stripe price ID`);
           err.code = 400;
           throw err;
@@ -189,7 +196,9 @@ export default async function handler(req, res) {
             route: 'stripe/create-payment-intent',
             action: 'stripe_price_fetch_failed',
             priceId: item.id,
-            error: stripeError.message
+            error: stripeError.message,
+            errorType: stripeError.type,
+            statusCode: stripeError.statusCode
           }));
           const err = new Error(`Invalid price ID: ${item.id}`);
           err.code = 400;
