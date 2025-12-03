@@ -6,6 +6,7 @@ import { handleErrorResponse } from '../../utils/errorHandler.js';
 import { createPaymentIntent } from '../../intents/stripePaymentIntent.js';
 import { fetchPricingConfiguration, formatPricingConfiguration } from '../../services/configService.js';
 import { calculateAbonnementPricing } from '../../services/pricingCalculator.js';
+import { validateAndCalculateWebshopPricing } from '../../services/webshopPricingService.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -156,20 +157,32 @@ export default async function handler(req, res) {
         throw err;
       }
       
-      // Use client-provided amount for now
-      // TODO: Add Stripe Price API validation in future iteration
-      finalAmount = originalAmount;
+      // Validate items and calculate server-side pricing
+      console.log(JSON.stringify({
+        level: 'INFO',
+        correlationId,
+        route: 'stripe/create-payment-intent',
+        action: 'validating_webshop_pricing',
+        itemCount: parsedItems.length
+      }));
+      
+      const validatedPricing = await validateAndCalculateWebshopPricing(parsedItems, correlationId);
+      
+      // Use server-validated amount
+      finalAmount = validatedPricing.total_cents;
       flowContextDescription = `Webshop bestelling (${parsedItems.length} product${parsedItems.length > 1 ? 'en' : ''}) items:${cartMetadata.items}`;
+      
+      pricingDetails = validatedPricing; // Store for response
       
       // Keep metadata WITHOUT items (stored in description instead)
       metadata = {
         flow: cartMetadata.flow,
         email: cartMetadata.email,
-        subtotal_cents: cartMetadata.subtotal_cents,
-        shipping_cents: cartMetadata.shipping_cents,
-        btw_cents: cartMetadata.btw_cents,
-        total_cents: cartMetadata.total_cents,
-        calc_source: 'client-provided', // TODO: Change to 'server-validated' after implementing price validation
+        subtotal_cents: validatedPricing.subtotal_cents.toString(),
+        shipping_cents: validatedPricing.verzendkosten_cents.toString(),
+        btw_cents: validatedPricing.btw_cents.toString(),
+        total_cents: validatedPricing.total_cents.toString(),
+        calc_source: 'server-validated',
         calc_item_count: parsedItems.length.toString()
       };
       
