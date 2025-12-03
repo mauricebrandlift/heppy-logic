@@ -152,7 +152,13 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       };
     }
 
-    // Stap 2: Check of order al bestaat (idempotency)
+    // Stap 2: Genereer bestelnummer
+    const now = new Date();
+    const dateStr = now.toISOString().slice(0, 10).replace(/-/g, ''); // YYYYMMDD
+    const randomNum = Math.floor(1000 + Math.random() * 9000); // 4-digit random
+    const bestelNummer = `WS-${dateStr}-${randomNum}`;
+
+    // Stap 3: Check of order al bestaat (idempotency)
     const existingOrderResponse = await httpClient(
       `${supabaseConfig.url}/rest/v1/bestellingen?stripe_payment_intent_id=eq.${paymentIntent.id}`,
       {
@@ -184,19 +190,27 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
     }
 
     // Stap 3: Maak bestelling aan
+    // Calculate totals from payment intent amount (metadata may be incomplete due to Stripe limits)
+    const totalAmount = paymentIntent.amount; // Already in cents
+    const shippingCents = parseInt(metadata.shipping_cents) || 595; // Default €5.95
+    const subtotalCents = totalAmount - shippingCents;
+    const btwCents = Math.round((totalAmount * 21) / 121); // 21% BTW
+    
     const bestellingData = {
       klant_id: user.id,
+      bestel_nummer: bestelNummer,
       
-      // Totalen in cents
-      subtotaal_cents: parseInt(metadata.subtotal_cents),
-      verzendkosten_cents: parseInt(metadata.shipping_cents),
-      btw_cents: parseInt(metadata.btw_cents),
-      totaal_cents: parseInt(metadata.total_cents),
+      // Totalen in cents (calculated from payment intent amount)
+      subtotaal_cents: subtotalCents,
+      verzendkosten_cents: shippingCents,
+      btw_cents: btwCents,
+      totaal_bedrag_cents: totalAmount,
       
       // Betaling
       stripe_payment_intent_id: paymentIntent.id,
       betaal_status: 'paid',
       betaald_op: new Date().toISOString(),
+      betaalmethode: 'stripe',
       
       // Status
       status: 'nieuw',

@@ -24,9 +24,9 @@ export const cart = {
   /**
    * Add item to cart
    * @param {Object} product - Product to add
-   * @param {string} product.id - Stripe product ID
+   * @param {string} product.id - Stripe Price ID (e.g., price_xxx)
    * @param {string} product.name - Product name
-   * @param {number} product.price - Product price
+   * @param {number} product.price - Product price (for display only, server validates)
    * @param {string} product.slug - Product slug
    * @param {number} quantity - Quantity to add (default: 1)
    * @returns {Object} Updated cart item
@@ -41,9 +41,9 @@ export const cart = {
     } else {
       // New product
       items.push({
-        id: product.id,
+        id: product.id, // Stripe Price ID
         name: product.name,
-        price: parseFloat(product.price),
+        price: parseFloat(product.price), // Display price only, server validates
         slug: product.slug,
         image: product.image || '',
         quantity: quantity,
