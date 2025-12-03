@@ -368,7 +368,22 @@ function initAddressLookup(modal) {
     } catch (error) {
       console.error('❌ [CheckoutAuthModal] Address lookup error:', error);
       const globalError = modal.querySelector('[data-modal-error="general"]');
-      showError(globalError, 'Adres niet gevonden. Controleer postcode en huisnummer.');
+      
+      if (!globalError) {
+        console.warn('⚠️ [CheckoutAuthModal] Global error element not found in modal');
+        // Try to find it in register state
+        const registerState = document.querySelector('[data-auth-register-state]');
+        const registerError = registerState?.querySelector('[data-modal-error="general"]');
+        if (registerError) {
+          console.log('✅ [CheckoutAuthModal] Found error element in register state');
+          showError(registerError, 'Adres niet gevonden. Controleer postcode en huisnummer.');
+        } else {
+          console.error('❌ [CheckoutAuthModal] Error element not found anywhere');
+        }
+      } else {
+        console.log('✅ [CheckoutAuthModal] Showing error on global error element');
+        showError(globalError, 'Adres niet gevonden. Controleer postcode en huisnummer.');
+      }
     }
   };
   
