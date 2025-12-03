@@ -405,17 +405,23 @@ class CheckoutPage {
       showLoader(this.checkoutButton);
       
       // Get delivery address
+      console.log('[CheckoutPage] Getting delivery address...');
       const deliveryAddress = await this.getDeliveryAddress();
+      console.log('[CheckoutPage] Delivery address:', deliveryAddress);
+      
+      const authState = authClient.getAuthState();
+      console.log('[CheckoutPage] User email:', authState.user?.email);
       
       // Confirm payment with Stripe
-      const { error, paymentIntent } = await this.stripe.confirmPayment({
+      console.log('[CheckoutPage] Confirming payment with Stripe...');
+      const result = await this.stripe.confirmPayment({
         elements: this.stripeElements,
         confirmParams: {
           return_url: `${window.location.origin}/shop/checkout/success`,
           payment_method_data: {
             billing_details: {
               name: deliveryAddress.name,
-              email: authClient.getAuthState().user?.email,
+              email: authState.user?.email,
               address: {
                 line1: `${deliveryAddress.straatnaam} ${deliveryAddress.huisnummer}`,
                 postal_code: deliveryAddress.postcode,
@@ -428,19 +434,25 @@ class CheckoutPage {
         redirect: 'if_required'
       });
       
-      if (error) {
-        console.error('[CheckoutPage] Payment error:', error);
+      console.log('[CheckoutPage] Stripe confirmPayment result:', result);
+      
+      if (result.error) {
+        console.error('[CheckoutPage] Payment error:', result.error);
         const errorContainer = document.querySelector('[data-checkout-error]');
         if (errorContainer) {
-          showError(errorContainer, this.mapStripeError(error));
+          showError(errorContainer, this.mapStripeError(result.error));
         }
+        hideLoader(this.checkoutButton);
         this.isProcessing = false;
         return;
       }
       
       // If payment succeeded without redirect
-      if (paymentIntent && paymentIntent.status === 'succeeded') {
-        await this.handlePaymentSuccess(paymentIntent.id);
+      if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
+        console.log('[CheckoutPage] Payment succeeded without redirect');
+        await this.handlePaymentSuccess(result.paymentIntent.id);
+      } else {
+        console.log('[CheckoutPage] Payment requires redirect or further action');
       }
       
       // If redirect happened, success page will handle it
