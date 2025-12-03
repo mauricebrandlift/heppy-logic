@@ -145,10 +145,18 @@ class CheckoutPage {
     try {
       if (!authClient.isAuthenticated()) return;
 
+      // Show spinner, hide address block
+      const adresBlock = document.querySelector('[data-adres]');
+      const adresSpinner = document.querySelector('[data-adres-loading-spinner]');
+      
+      if (adresBlock) adresBlock.style.display = 'none';
+      if (adresSpinner) adresSpinner.style.display = 'flex';
+
       // Get auth token for protected route
       const authState = authClient.getAuthState();
       if (!authState?.access_token) {
         console.warn('[CheckoutPage] No access token available');
+        if (adresSpinner) adresSpinner.style.display = 'none';
         return;
       }
 
@@ -178,10 +186,21 @@ class CheckoutPage {
         if (cityDisplay) {
           cityDisplay.textContent = response.adres.plaats;
         }
+        
+        // Hide spinner, show address block
+        if (adresSpinner) adresSpinner.style.display = 'none';
+        if (adresBlock) adresBlock.style.display = 'block';
+      } else {
+        // No address found - hide spinner
+        if (adresSpinner) adresSpinner.style.display = 'none';
       }
       
     } catch (error) {
       console.error('[CheckoutPage] Error loading user profile:', error);
+      
+      // Hide spinner on error
+      const adresSpinner = document.querySelector('[data-adres-loading-spinner]');
+      if (adresSpinner) adresSpinner.style.display = 'none';
     }
   }
 
