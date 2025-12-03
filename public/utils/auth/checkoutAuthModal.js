@@ -340,6 +340,7 @@ async function handleRegister(modal) {
  * Initialize address lookup
  */
 function initAddressLookup(modal) {
+  const registerState = document.querySelector('[data-auth-register-state]');
   const postcodeField = document.querySelector('[data-field-name="register-postcode"]');
   const huisnummerField = document.querySelector('[data-field-name="register-huisnummer"]');
   const straatField = document.querySelector('[data-field-name="register-straatnaam"]');
@@ -362,32 +363,27 @@ function initAddressLookup(modal) {
         
         console.log('✅ [CheckoutAuthModal] Adres gevonden:', response.straat, response.plaats);
         
-        clearFieldError(modal, 'general');
+        // Clear error in REGISTER state
+        if (registerState) {
+          const registerError = registerState.querySelector('[data-modal-error="general"]');
+          if (registerError) hideError(registerError);
+        }
         updateRegisterButton(modal);
       }
     } catch (error) {
       console.error('❌ [CheckoutAuthModal] Address lookup error:', error);
-      console.log('🔍 [CheckoutAuthModal] Modal element:', modal);
       
-      const globalError = modal?.querySelector('[data-modal-error="general"]');
-      console.log('🔍 [CheckoutAuthModal] Global error element found:', !!globalError);
-      
-      if (!globalError) {
-        console.warn('⚠️ [CheckoutAuthModal] Global error element not found in modal, trying register state');
-        const registerState = document.querySelector('[data-auth-register-state]');
-        console.log('🔍 [CheckoutAuthModal] Register state:', registerState);
-        const registerError = registerState?.querySelector('[data-modal-error="general"]');
+      // Show error in REGISTER state
+      if (registerState) {
+        const registerError = registerState.querySelector('[data-modal-error="general"]');
         console.log('🔍 [CheckoutAuthModal] Register error element:', registerError);
         
         if (registerError) {
-          console.log('✅ [CheckoutAuthModal] Showing error in register state');
+          console.log('🔍 [CheckoutAuthModal] Error element classes before:', registerError.className);
           showError(registerError, 'Adres niet gevonden. Controleer postcode en huisnummer.');
-        } else {
-          console.error('❌ [CheckoutAuthModal] Error element not found anywhere');
+          console.log('🔍 [CheckoutAuthModal] Error element classes after:', registerError.className);
+          console.log('🔍 [CheckoutAuthModal] Error element text:', registerError.textContent);
         }
-      } else {
-        console.log('✅ [CheckoutAuthModal] Showing error on modal global error element');
-        showError(globalError, 'Adres niet gevonden. Controleer postcode en huisnummer.');
       }
     }
   };
