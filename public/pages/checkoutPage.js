@@ -91,8 +91,8 @@ class CheckoutPage {
       e.preventDefault();
       console.log('[CheckoutPage] Switch account clicked - logging out');
       
-      // Logout
-      await authClient.logout();
+      // Logout WITHOUT redirect (reason !== 'manual')
+      await authClient.logout('switch-account');
       
       // Hide auth-required content
       this.hideAuthRequiredContent();
