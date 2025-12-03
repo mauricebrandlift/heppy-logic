@@ -145,6 +145,27 @@ export default async function handler(req, res) {
         throw err;
       }
       
+      // Check Stripe metadata size limits (500 chars per value)
+      const itemsJsonLength = cartMetadata.items.length;
+      console.log(JSON.stringify({
+        level: 'INFO',
+        correlationId,
+        route: 'stripe/create-payment-intent',
+        action: 'metadata_size_check',
+        itemsJsonLength,
+        itemCount: parsedItems.length
+      }));
+      
+      if (itemsJsonLength > 500) {
+        console.warn(JSON.stringify({
+          level: 'WARN',
+          correlationId,
+          route: 'stripe/create-payment-intent',
+          msg: 'Items JSON exceeds Stripe metadata limit (500 chars), will be truncated',
+          actualLength: itemsJsonLength
+        }));
+      }
+      
       // Verify amount matches cart total
       const cartTotalCents = parseInt(cartMetadata.total_cents || '0', 10);
       if (cartTotalCents !== originalAmount) {
