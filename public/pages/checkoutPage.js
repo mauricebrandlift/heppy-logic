@@ -330,17 +330,29 @@ class CheckoutPage {
       if (paymentElementContainer) {
         this.paymentElement.mount(paymentElementContainer);
         
-        // Wait for Payment Element to be ready, then hide spinner and enable button
+        // Wait for Payment Element to be ready, then hide spinner
         this.paymentElement.on('ready', () => {
           console.log('[CheckoutPage] Stripe Payment Element ready');
           if (spinner) spinner.style.display = 'none';
-          
-          // Enable payment button
           this.paymentReady = true;
-          if (this.checkoutButton) {
-            this.checkoutButton.disabled = false;
-            this.checkoutButton.classList.remove('is-disabled');
-            console.log('[CheckoutPage] ✅ Payment button enabled');
+        });
+        
+        // Listen for changes to enable/disable button based on completion
+        this.paymentElement.on('change', (event) => {
+          console.log('[CheckoutPage] Payment Element change:', event.complete);
+          
+          if (this.checkoutButton && this.paymentReady) {
+            if (event.complete) {
+              // Payment details are complete and valid
+              this.checkoutButton.disabled = false;
+              this.checkoutButton.classList.remove('is-disabled');
+              console.log('[CheckoutPage] ✅ Payment button enabled - form complete');
+            } else {
+              // Payment details are incomplete
+              this.checkoutButton.disabled = true;
+              this.checkoutButton.classList.add('is-disabled');
+              console.log('[CheckoutPage] ⏸️ Payment button disabled - form incomplete');
+            }
           }
         });
         
