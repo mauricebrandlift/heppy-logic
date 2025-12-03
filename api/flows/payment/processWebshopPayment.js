@@ -204,7 +204,7 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       subtotaal_cents: subtotalCents,
       verzendkosten_cents: shippingCents,
       btw_cents: btwCents,
-      totaal_bedrag_cents: totalAmount,
+      totaal_cents: totalAmount,
       
       // Betaling
       stripe_payment_intent_id: paymentIntent.id,
