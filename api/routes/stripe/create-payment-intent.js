@@ -38,6 +38,16 @@ export default async function handler(req, res) {
     let pricingDetails = null;
     let flowContextDescription = payload.description;
     let metadata = payload.metadata || {};
+    
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'stripe/create-payment-intent',
+      action: 'received_metadata',
+      flow: payload.flowContext?.flow,
+      metadataKeys: Object.keys(metadata),
+      metadataSize: JSON.stringify(metadata).length
+    }));
 
     if (payload.flowContext?.flow === 'abonnement') {
       const pricingRows = await fetchPricingConfiguration(correlationId, 'abonnement');
