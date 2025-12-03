@@ -210,7 +210,6 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       stripe_payment_intent_id: paymentIntent.id,
       betaal_status: 'paid',
       betaald_op: new Date().toISOString(),
-      betaalmethode: 'stripe',
       
       // Status
       status: 'nieuw',
