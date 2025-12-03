@@ -1,6 +1,7 @@
 // api/routes/stripe/create-payment-intent.js
 // Maakt een Stripe PaymentIntent aan en retourneert de client_secret
 
+import Stripe from 'stripe';
 import { stripeConfig } from '../../config/index.js';
 import { handleErrorResponse } from '../../utils/errorHandler.js';
 import { createPaymentIntent } from '../../intents/stripePaymentIntent.js';
@@ -165,7 +166,6 @@ export default async function handler(req, res) {
         itemCount: parsedItems.length
       }));
       
-      const Stripe = (await import('stripe')).default;
       const stripe = new Stripe(secretKey, { apiVersion: '2023-10-16' });
       
       let calculatedSubtotal = 0;
