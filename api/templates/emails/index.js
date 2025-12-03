@@ -32,6 +32,10 @@ export { bankReinigingBevestigingKlant } from './bankReinigingBevestigingKlant.j
 export { nieuweTapijtReinigingAdmin } from './nieuweTapijtReinigingAdmin.js';
 export { tapijtReinigingBevestigingKlant } from './tapijtReinigingBevestigingKlant.js';
 
+// Webshop Templates
+export { webshopBestellingKlant } from './webshopBestellingKlant.js';
+export { nieuweWebshopBestellingAdmin } from './nieuweWebshopBestellingAdmin.js';
+
 // Approve/Reject Flow Templates
 export { matchGoedgekeurdKlant } from './matchGoedgekeurdKlant.js';
 export { matchAfgewezenAdmin } from './matchAfgewezenAdmin.js';

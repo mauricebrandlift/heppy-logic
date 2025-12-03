@@ -7,11 +7,13 @@
  * 2. Haal klant op via email
  * 3. Maak bestelling aan
  * 4. Maak bestelling items aan
- * 5. Verstuur bevestigingsmail (toekomstig)
+ * 5. Verstuur bevestigingsmail (klant + admin)
  */
 
-import { supabaseConfig } from '../../config/index.js';
+import { supabaseConfig, emailConfig } from '../../config/index.js';
 import { httpClient } from '../../utils/apiClient.js';
+import { sendEmail } from '../../services/emailService.js';
+import { webshopBestellingKlant, nieuweWebshopBestellingAdmin } from '../../templates/emails/index.js';
 
 export async function processWebshopPayment({ paymentIntent, metadata, correlationId, event }) {
   const logMeta = {
@@ -337,7 +339,90 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       itemCount: createdItems.length
     }));
 
-    // TODO: Verstuur bevestigingsmail
+    // Stap 6: Verstuur bevestigingsmail naar klant
+    try {
+      const klantEmailHtml = webshopBestellingKlant({
+        klantNaam: `${klant.voornaam} ${klant.achternaam}`,
+        bestelNummer: bestelling.bestel_nummer,
+        items: createdItems,
+        subtotaalCents: bestelling.subtotaal_cents,
+        verzendkostenCents: bestelling.verzendkosten_cents,
+        btwCents: bestelling.btw_cents,
+        totaalCents: bestelling.totaal_cents,
+        bezorgNaam: bestelling.bezorg_naam,
+        bezorgStraat: bestelling.bezorg_straat,
+        bezorgHuisnummer: bestelling.bezorg_huisnummer,
+        bezorgToevoeging: bestelling.bezorg_toevoeging,
+        bezorgPostcode: bestelling.bezorg_postcode,
+        bezorgPlaats: bestelling.bezorg_plaats,
+        bestellingDatum: bestelling.aangemaakt_op
+      });
+
+      await sendEmail({
+        to: klant.email,
+        subject: `Orderbevestiging ${bestelling.bestel_nummer} - Heppy`,
+        html: klantEmailHtml
+      }, correlationId);
+
+      console.info(JSON.stringify({
+        ...logMeta,
+        level: 'INFO',
+        message: '✅ Confirmation email sent to customer',
+        to: klant.email
+      }));
+
+    } catch (emailError) {
+      // Log maar gooi geen error - bestelling is al aangemaakt
+      console.error(JSON.stringify({
+        ...logMeta,
+        level: 'ERROR',
+        message: 'Failed to send customer confirmation email',
+        error: emailError.message,
+        to: klant.email
+      }));
+    }
+
+    // Stap 7: Verstuur notificatie naar admin
+    try {
+      const adminEmailHtml = nieuweWebshopBestellingAdmin({
+        klantNaam: `${klant.voornaam} ${klant.achternaam}`,
+        klantEmail: klant.email,
+        bestelNummer: bestelling.bestel_nummer,
+        items: createdItems,
+        totaalCents: bestelling.totaal_cents,
+        bezorgNaam: bestelling.bezorg_naam,
+        bezorgStraat: bestelling.bezorg_straat,
+        bezorgHuisnummer: bestelling.bezorg_huisnummer,
+        bezorgToevoeging: bestelling.bezorg_toevoeging,
+        bezorgPostcode: bestelling.bezorg_postcode,
+        bezorgPlaats: bestelling.bezorg_plaats,
+        bestellingDatum: bestelling.aangemaakt_op,
+        bestellingId: bestelling.id
+      });
+
+      await sendEmail({
+        to: emailConfig.notificationsEmail,
+        subject: `🛒 Nieuwe Webshop Bestelling: ${bestelling.bestel_nummer}`,
+        html: adminEmailHtml
+      }, correlationId);
+
+      console.info(JSON.stringify({
+        ...logMeta,
+        level: 'INFO',
+        message: '✅ Admin notification email sent',
+        to: emailConfig.notificationsEmail
+      }));
+
+    } catch (emailError) {
+      // Log maar gooi geen error - bestelling is al aangemaakt
+      console.error(JSON.stringify({
+        ...logMeta,
+        level: 'ERROR',
+        message: 'Failed to send admin notification email',
+        error: emailError.message,
+        to: emailConfig.notificationsEmail
+      }));
+    }
 
     return {
       handled: true,
