@@ -88,10 +88,13 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
     );
 
     if (!userResponse.ok) {
+      const errorText = await userResponse.text();
       console.error(JSON.stringify({
         ...logMeta,
         level: 'ERROR',
-        message: 'Failed to fetch user profile'
+        message: 'Failed to fetch user profile',
+        status: userResponse.status,
+        error: errorText
       }));
       return { handled: false, error: 'user_fetch_failed' };
     }
