@@ -116,6 +116,17 @@ export default async function handler(req, res) {
       // Webshop: validate and process cart items
       const cartMetadata = payload.metadata || {};
       
+      console.log(JSON.stringify({
+        level: 'INFO',
+        correlationId,
+        route: 'stripe/create-payment-intent',
+        action: 'webshop_metadata_received',
+        metadataKeys: Object.keys(cartMetadata),
+        hasItems: !!cartMetadata.items,
+        itemsType: typeof cartMetadata.items,
+        itemsLength: cartMetadata.items ? cartMetadata.items.length : 0
+      }));
+      
       // Validate required webshop metadata
       if (!cartMetadata.items) {
         const err = new Error('Cart items metadata is required for webshop flow');
