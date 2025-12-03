@@ -14,6 +14,13 @@ export async function handlePaymentIntentSucceeded(event, correlationId){
   
   console.log(`📦 [PaymentIntentSucceeded] Detected flow: ${flow} [${correlationId}]`);
   
+  // Webshop orders are handled entirely in frontend via /routes/orders/create
+  // Webhook is not needed - just acknowledge and skip
+  if (flow === 'webshop') {
+    console.log(`🛒 [PaymentIntentSucceeded] Webshop order - handled by frontend, skipping webhook processing [${correlationId}]`);
+    return { handled: true, flow: 'webshop', note: 'Order created by frontend via /routes/orders/create' };
+  }
+  
   // Validate metadata based on flow
   const val = validateMetadata(metadata, flow);
   if(!val.valid){

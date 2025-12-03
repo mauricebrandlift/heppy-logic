@@ -544,7 +544,7 @@ class CheckoutPage {
       cart.clear();
       
       // Redirect to success page
-      window.location.href = `/shop/checkout/success?order=${order.order.bestelNummer}`;
+      window.location.href = `/shop/bestelling-succes?order=${order.order.bestelNummer}`;
       
     } catch (error) {
       console.error('[CheckoutPage] Error creating order:', error);
