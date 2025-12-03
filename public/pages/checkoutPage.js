@@ -484,6 +484,21 @@ class CheckoutPage {
         console.log('[CheckoutPage] Alternate address will be saved in payment intent metadata');
       }
       
+      // Update payment intent metadata BEFORE confirming
+      // (confirmPayment doesn't support metadata updates)
+      console.log('[CheckoutPage] Updating payment intent metadata...');
+      const paymentIntentId = this.clientSecret.split('_secret_')[0];
+      
+      await apiClient('/routes/stripe/update-payment-intent', {
+        method: 'POST',
+        body: JSON.stringify({
+          paymentIntentId,
+          metadata: paymentMetadata
+        })
+      });
+      
+      console.log('[CheckoutPage] Metadata updated successfully');
+      
       // Confirm payment with Stripe
       console.log('[CheckoutPage] Confirming payment with Stripe...');
       const result = await this.stripe.confirmPayment({
@@ -501,10 +516,7 @@ class CheckoutPage {
                 country: 'NL'
               }
             }
-          },
-          ...(Object.keys(paymentMetadata).length > 0 && {
-            metadata: paymentMetadata
-          })
+          }
         },
         redirect: 'if_required'
       });
