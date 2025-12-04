@@ -14,6 +14,9 @@ import { baseLayout, formatDatum, formatBedrag } from './baseLayout.js';
  * @param {string} data.klantEmail - Email van de klant
  * @param {string} data.bestelNummer - Bestelnummer
  * @param {Array} data.items - Bestelde items
+ * @param {number} data.subtotaalCents - Subtotaal in centen
+ * @param {number} data.verzendkostenCents - Verzendkosten in centen
+ * @param {number} data.btwCents - BTW in centen
  * @param {number} data.totaalCents - Totaalbedrag in centen
  * @param {string} data.bezorgNaam - Naam voor bezorging
  * @param {string} data.bezorgStraat - Straat bezorgadres
@@ -31,6 +34,9 @@ export function nieuweWebshopBestellingAdmin(data) {
     klantEmail,
     bestelNummer,
     items,
+    subtotaalCents,
+    verzendkostenCents,
+    btwCents,
     totaalCents,
     bezorgNaam,
     bezorgStraat,
@@ -90,9 +96,27 @@ export function nieuweWebshopBestellingAdmin(data) {
           ${itemsHtml}
         </tbody>
       </table>
-      <p style="margin-top: 16px; text-align: right; font-size: 16px;">
-        <strong>Totaal:</strong> ${formatBedrag(totaalCents / 100)}
-      </p>
+      
+      <div style="margin-top: 16px; padding-top: 16px; border-top: 2px solid #e5e7eb;">
+        <table style="width: 100%; font-size: 14px;">
+          <tr>
+            <td style="padding: 4px 0; text-align: right;">Subtotaal:</td>
+            <td style="padding: 4px 0; text-align: right; width: 100px;">${formatBedrag(subtotaalCents / 100)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; text-align: right;">Verzendkosten:</td>
+            <td style="padding: 4px 0; text-align: right;">${formatBedrag(verzendkostenCents / 100)}</td>
+          </tr>
+          <tr style="font-size: 16px; border-top: 2px solid #e5e7eb;">
+            <td style="padding: 8px 0; text-align: right;"><strong>Totaal:</strong></td>
+            <td style="padding: 8px 0; text-align: right;"><strong>${formatBedrag(totaalCents / 100)}</strong></td>
+          </tr>
+          <tr style="font-size: 12px; color: #6b7280;">
+            <td style="padding: 0; text-align: right;">waarvan BTW (21%):</td>
+            <td style="padding: 0; text-align: right;">${formatBedrag(btwCents / 100)}</td>
+          </tr>
+        </table>
+      </div>
     </div>
     
     <div class="info-box">

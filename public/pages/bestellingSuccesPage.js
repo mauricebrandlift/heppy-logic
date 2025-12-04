@@ -5,6 +5,7 @@
  */
 
 import { apiClient } from '../utils/api/client.js';
+import { cart } from '../utils/cart.js';
 
 /**
  * Initialize success page
@@ -36,6 +37,10 @@ export async function initBestellingSuccesPage() {
 
     // Display order confirmation
     displayOrderConfirmation(orderData);
+
+    // Clear cart after successful order
+    cart.clear();
+    console.log('[BestellingSucces] ✅ Cart cleared after successful order');
 
     // Hide loading, show content
     hideLoading();

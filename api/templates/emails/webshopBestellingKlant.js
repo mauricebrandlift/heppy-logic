@@ -92,20 +92,20 @@ export function webshopBestellingKlant(data) {
       <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
         <table style="width: 100%; font-size: 14px;">
           <tr>
-            <td style="padding: 6px 0; text-align: right;"><strong>Subtotaal:</strong></td>
+            <td style="padding: 6px 0; text-align: right;">Subtotaal:</td>
             <td style="padding: 6px 0; text-align: right; width: 120px;">${formatBedrag(subtotaalCents / 100)}</td>
           </tr>
           <tr>
-            <td style="padding: 6px 0; text-align: right;"><strong>Verzendkosten:</strong></td>
+            <td style="padding: 6px 0; text-align: right;">Verzendkosten:</td>
             <td style="padding: 6px 0; text-align: right;">${formatBedrag(verzendkostenCents / 100)}</td>
-          </tr>
-          <tr>
-            <td style="padding: 6px 0; text-align: right;"><strong>BTW (21%):</strong></td>
-            <td style="padding: 6px 0; text-align: right;">${formatBedrag(btwCents / 100)}</td>
           </tr>
           <tr style="font-size: 16px; border-top: 2px solid #e5e7eb;">
             <td style="padding: 12px 0; text-align: right;"><strong>Totaal:</strong></td>
             <td style="padding: 12px 0; text-align: right;"><strong>${formatBedrag(totaalCents / 100)}</strong></td>
+          </tr>
+          <tr style="font-size: 12px; color: #6b7280;">
+            <td style="padding: 0 0 6px 0; text-align: right;">waarvan BTW (21%):</td>
+            <td style="padding: 0 0 6px 0; text-align: right;">${formatBedrag(btwCents / 100)}</td>
           </tr>
         </table>
       </div>
@@ -126,7 +126,7 @@ export function webshopBestellingKlant(data) {
     
     <p style="margin-top: 30px; padding: 16px; background: #f0fdf4; border-left: 4px solid #22c55e; border-radius: 4px;">
       <strong>✓ Volgende stappen:</strong><br>
-      We verwerken je bestelling en sturen je een track & trace code zodra je pakket onderweg is.
+      We verwerken je bestelling zo snel mogelijk en houden je op de hoogte van de voortgang.
     </p>
     
     <p style="margin-top: 30px;">Vragen over je bestelling? Neem gerust contact met ons op!</p>
