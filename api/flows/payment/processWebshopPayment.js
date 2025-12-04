@@ -342,7 +342,7 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
     // Stap 6: Verstuur bevestigingsmail naar klant
     try {
       const klantEmailHtml = webshopBestellingKlant({
-        klantNaam: `${klant.voornaam} ${klant.achternaam}`,
+        klantNaam: `${user.voornaam} ${user.achternaam}`,
         bestelNummer: bestelling.bestel_nummer,
         items: createdItems,
         subtotaalCents: bestelling.subtotaal_cents,
@@ -359,7 +359,7 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       });
 
       await sendEmail({
-        to: klant.email,
+        to: user.email,
         subject: `Orderbevestiging ${bestelling.bestel_nummer} - Heppy`,
         html: klantEmailHtml
       }, correlationId);
@@ -368,7 +368,7 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
         ...logMeta,
         level: 'INFO',
         message: '✅ Confirmation email sent to customer',
-        to: klant.email
+        to: user.email
       }));
 
     } catch (emailError) {
@@ -378,15 +378,15 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
         level: 'ERROR',
         message: 'Failed to send customer confirmation email',
         error: emailError.message,
-        to: klant.email
+        to: user.email
       }));
     }
 
     // Stap 7: Verstuur notificatie naar admin
     try {
       const adminEmailHtml = nieuweWebshopBestellingAdmin({
-        klantNaam: `${klant.voornaam} ${klant.achternaam}`,
-        klantEmail: klant.email,
+        klantNaam: `${user.voornaam} ${user.achternaam}`,
+        klantEmail: user.email,
         bestelNummer: bestelling.bestel_nummer,
         items: createdItems,
         totaalCents: bestelling.totaal_cents,
