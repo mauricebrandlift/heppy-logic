@@ -41,6 +41,9 @@ export async function initBestellingSuccesPage() {
     // Clear cart after successful order
     cart.clear();
     console.log('[BestellingSucces] ✅ Cart cleared after successful order');
+    
+    // Trigger cart update event to refresh UI
+    window.dispatchEvent(new Event('cartUpdated'));
 
     // Hide loading, show content
     hideLoading();
