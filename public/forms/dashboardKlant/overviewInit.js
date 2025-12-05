@@ -67,11 +67,57 @@ function formatDatum(dateString) {
 }
 
 /**
+ * Haal jaar uit datum
+ */
+function getJaarFromDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.getFullYear();
+}
+
+/**
+ * Haal weeknummer uit datum (ISO week)
+ */
+function getWeeknummerFromDate(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  
+  // ISO week berekening
+  const tempDate = new Date(date.valueOf());
+  const dayNum = (date.getDay() + 6) % 7;
+  tempDate.setDate(tempDate.getDate() - dayNum + 3);
+  const firstThursday = tempDate.valueOf();
+  tempDate.setMonth(0, 1);
+  if (tempDate.getDay() !== 4) {
+    tempDate.setMonth(0, 1 + ((4 - tempDate.getDay()) + 7) % 7);
+  }
+  return 1 + Math.ceil((firstThursday - tempDate) / 604800000);
+}
+
+/**
  * Formatteer bedrag in centen naar euros
  */
 function formatBedrag(cents) {
   if (!cents && cents !== 0) return '-';
   return `€${(cents / 100).toFixed(2).replace('.', ',')}`;
+}
+
+/**
+ * Voeg status class toe aan element
+ */
+function addStatusClass(element, status) {
+  if (!element) return;
+  
+  // Mapping van status naar class
+  const statusClassMap = {
+    'actief': 'is-active',
+    'wachtrij': 'is-pending',
+    'gepauzeerd': 'is-unactive',
+    'gestopt': 'is-unactive'
+  };
+  
+  const statusClass = statusClassMap[status] || 'is-pending';
+  element.classList.add(statusClass);
 }
 
 /**
@@ -116,11 +162,18 @@ function populateAbonnementen(abonnementen) {
     const frequentieEl = clone.querySelector('[data-abo-frequentie]');
     const urenEl = clone.querySelector('[data-abo-uren]');
     const statusEl = clone.querySelector('[data-abo-status]');
+    const startJaarEl = clone.querySelector('[data-abo-start-jaar]');
+    const startWeekEl = clone.querySelector('[data-abo-start-week]');
     const detailBtn = clone.querySelector('[data-abo-detail-btn]');
 
     if (frequentieEl) frequentieEl.textContent = formatFrequentie(abo.frequentie);
     if (urenEl) urenEl.textContent = `${abo.uren} uur`;
-    if (statusEl) statusEl.textContent = formatStatus(abo.status);
+    if (statusEl) {
+      statusEl.textContent = formatStatus(abo.status);
+      addStatusClass(statusEl, abo.status);
+    }
+    if (startJaarEl) startJaarEl.textContent = getJaarFromDate(abo.startdatum);
+    if (startWeekEl) startWeekEl.textContent = `Week ${getWeeknummerFromDate(abo.startdatum)}`;
     
     if (detailBtn) {
       detailBtn.addEventListener('click', (e) => {
