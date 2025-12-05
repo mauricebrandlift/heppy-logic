@@ -23,6 +23,11 @@ export const API_CONFIG = {
       ME: '/auth/me',
       CHECK_EMAIL: '/routes/auth/check-email',
     },
+    DASHBOARD: {
+      KLANT: {
+        OVERVIEW: '/routes/dashboard/klant/overview',
+      },
+    },
   },
   // Je kunt hier later andere API-gerelateerde configuraties toevoegen,
   // zoals timeouts, retry-instellingen, etc.

@@ -4,8 +4,9 @@
  * Zorgt voor authenticatie en laadt relevante functies
  */
 import { initDashboardAuth } from '../utils/auth/dashboardAuth.js';
+import { initDashboardOverview } from '../forms/dashboardKlant/overviewInit.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏠 [KlantDashboard] Pagina geladen');
 
   // Initialiseer authenticatie met rol controle
@@ -18,24 +19,26 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!user) return;
 
   // Initialiseer dashboard specifieke functies
-  // Dit is waar je de verschillende functies voor het klant dashboard initialiseert
-  initKlantDashboardFuncties();
+  await initKlantDashboardFuncties();
 
   console.log('✅ [KlantDashboard] Initialisatie voltooid');
 });
 
 /**
  * Initialisatie van klant dashboard functies
- * Dit kan later worden uitgebreid met specifieke functionaliteiten
+ * Detecteert welke pagina actief is en laadt de juiste functionaliteit
  */
-function initKlantDashboardFuncties() {
-  // Deze functie kan later worden uitgebreid wanneer er meer 
-  // klant-specifieke functionaliteit moet worden geïnitialiseerd
+async function initKlantDashboardFuncties() {
+  // Check welke pagina we hebben
+  const overviewPage = document.querySelector('[data-dashboard-page="overview"]');
   
-  // Voorbeeld: data ophalen voor klantdashboard
-  const dashboardContent = document.querySelector('[data-dashboard="klant-content"]');
-  if (dashboardContent) {
-    // Hier kan je bijvoorbeeld een API call doen om klantgegevens op te halen
-    // en deze in het dashboard te tonen
+  if (overviewPage) {
+    console.log('📊 [KlantDashboard] Overview pagina gedetecteerd');
+    await initDashboardOverview();
   }
+  
+  // Hier komen later andere pagina checks:
+  // const beherenPage = document.querySelector('[data-dashboard-page="beheren"]');
+  // const facturenPage = document.querySelector('[data-dashboard-page="facturen"]');
+  // etc.
 }

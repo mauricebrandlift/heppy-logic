@@ -1,0 +1,307 @@
+// public/forms/dashboardKlant/overviewInit.js
+/**
+ * Dashboard Overview initialisatie voor klanten
+ * Haalt alle dashboard data op en populateert de DOM
+ */
+import { apiClient } from '../../utils/api/client.js';
+import { authClient } from '../../utils/auth/authClient.js';
+
+/**
+ * Formatteer frequentie voor weergave
+ */
+function formatFrequentie(frequentie) {
+  const mapping = {
+    'perweek': '1x per week',
+    'pertweeweek': '1x per 2 weken',
+    'eenmalig': 'Eenmalig'
+  };
+  return mapping[frequentie] || frequentie;
+}
+
+/**
+ * Formatteer status voor weergave
+ */
+function formatStatus(status) {
+  const mapping = {
+    'wachtrij': 'Wachtrij',
+    'actief': 'Actief',
+    'gepauzeerd': 'Gepauzeerd',
+    'gestopt': 'Gestopt',
+    'aangevraagd': 'Aangevraagd',
+    'gepland': 'Gepland',
+    'voltooid': 'Voltooid',
+    'geannuleerd': 'Geannuleerd',
+    'nieuw': 'Nieuw',
+    'verwerkt': 'Verwerkt',
+    'verzonden': 'Verzonden',
+    'afgeleverd': 'Afgeleverd'
+  };
+  return mapping[status] || status;
+}
+
+/**
+ * Formatteer type opdracht voor weergave
+ */
+function formatType(type) {
+  const mapping = {
+    'dieptereiniging': 'Dieptereiniging',
+    'verhuis': 'Verhuisschoonmaak',
+    'tapijt': 'Tapijtreiniging',
+    'bankreiniging': 'Bankreiniging',
+    'vloer': 'Vloerreiniging'
+  };
+  return mapping[type] || type;
+}
+
+/**
+ * Formatteer datum naar NL formaat
+ */
+function formatDatum(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('nl-NL', { 
+    day: 'numeric', 
+    month: 'long', 
+    year: 'numeric' 
+  });
+}
+
+/**
+ * Formatteer bedrag in centen naar euros
+ */
+function formatBedrag(cents) {
+  if (!cents && cents !== 0) return '-';
+  return `€${(cents / 100).toFixed(2).replace('.', ',')}`;
+}
+
+/**
+ * Populeer abonnementen sectie
+ */
+function populateAbonnementen(abonnementen) {
+  const containerWithItems = document.querySelector('[data-abonnementen-state="heeft-items"]');
+  const containerNoItems = document.querySelector('[data-abonnementen-state="geen-items"]');
+  const template = document.querySelector('[data-abonnement-item][data-abonnement-item-id]');
+
+  if (!containerWithItems || !containerNoItems || !template) {
+    console.error('[Overview] Abonnementen containers of template niet gevonden');
+    return;
+  }
+
+  // Toggle states
+  if (abonnementen.length === 0) {
+    containerWithItems.style.display = 'none';
+    containerNoItems.style.display = 'block';
+    // Hide template
+    template.style.display = 'none';
+    return;
+  }
+
+  containerWithItems.style.display = 'block';
+  containerNoItems.style.display = 'none';
+
+  // Clear bestaande items (behalve template)
+  const parent = template.parentElement;
+  const existingItems = parent.querySelectorAll('[data-abonnement-item]:not([data-abonnement-item-id=""])');
+  existingItems.forEach(item => item.remove());
+
+  // Render abonnementen
+  abonnementen.forEach(abo => {
+    const clone = template.cloneNode(true);
+    clone.setAttribute('data-abonnement-item-id', abo.id);
+    
+    // Verwijder combo class 'abonnement-item-template' van clone
+    clone.classList.remove('abonnement-item-template');
+
+    // Vul data in
+    const frequentieEl = clone.querySelector('[data-abo-frequentie]');
+    const urenEl = clone.querySelector('[data-abo-uren]');
+    const statusEl = clone.querySelector('[data-abo-status]');
+    const detailBtn = clone.querySelector('[data-abo-detail-btn]');
+
+    if (frequentieEl) frequentieEl.textContent = formatFrequentie(abo.frequentie);
+    if (urenEl) urenEl.textContent = `${abo.uren} uur`;
+    if (statusEl) statusEl.textContent = formatStatus(abo.status);
+    
+    if (detailBtn) {
+      detailBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.href = `/dashboard/klant/schoonmaak-abonnement?id=${abo.id}`;
+      });
+    }
+
+    parent.appendChild(clone);
+  });
+  
+  // Hide template na renderen
+  template.style.display = 'none';
+}
+
+/**
+ * Populeer eenmalige opdrachten sectie
+ */
+function populateEenmaligeOpdrachten(opdrachten) {
+  const containerWithItems = document.querySelector('[data-eenmalig-state="heeft-items"]');
+  const containerNoItems = document.querySelector('[data-eenmalig-state="geen-items"]');
+  const template = document.querySelector('[data-eenmalig-template]');
+
+  if (!containerWithItems || !containerNoItems || !template) {
+    console.error('[Overview] Eenmalige opdrachten containers of template niet gevonden');
+    return;
+  }
+
+  // Toggle states
+  if (opdrachten.length === 0) {
+    containerWithItems.style.display = 'none';
+    containerNoItems.style.display = 'block';
+    return;
+  }
+
+  containerWithItems.style.display = 'block';
+  containerNoItems.style.display = 'none';
+
+  // Clear bestaande items (behalve template)
+  const parent = template.parentElement;
+  const existingItems = parent.querySelectorAll('[data-eenmalig-item]');
+  existingItems.forEach(item => item.remove());
+
+  // Render opdrachten
+  opdrachten.forEach(opr => {
+    const clone = template.cloneNode(true);
+    clone.removeAttribute('data-eenmalig-template');
+    clone.setAttribute('data-eenmalig-item', '');
+    clone.style.display = 'block';
+
+    // Vul data in
+    const typeEl = clone.querySelector('[data-eenmalig-type]');
+    const datumEl = clone.querySelector('[data-eenmalig-datum]');
+    const statusEl = clone.querySelector('[data-eenmalig-status]');
+    const detailBtn = clone.querySelector('[data-eenmalig-detail-btn]');
+
+    if (typeEl) typeEl.textContent = formatType(opr.type);
+    if (datumEl) datumEl.textContent = formatDatum(opr.gewenste_datum);
+    if (statusEl) statusEl.textContent = formatStatus(opr.status);
+    
+    if (detailBtn) {
+      detailBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.href = `/dashboard/klant/eenmalige-schoonmaak?id=${opr.id}`;
+      });
+    }
+
+    parent.appendChild(clone);
+  });
+}
+
+/**
+ * Populeer bestellingen sectie
+ */
+function populateBestellingen(bestellingen) {
+  const containerWithItems = document.querySelector('[data-bestellingen-state="heeft-items"]');
+  const containerNoItems = document.querySelector('[data-bestellingen-state="geen-items"]');
+  const template = document.querySelector('[data-bestelling-template]');
+
+  if (!containerWithItems || !containerNoItems || !template) {
+    console.error('[Overview] Bestellingen containers of template niet gevonden');
+    return;
+  }
+
+  // Toggle states
+  if (bestellingen.length === 0) {
+    containerWithItems.style.display = 'none';
+    containerNoItems.style.display = 'block';
+    return;
+  }
+
+  containerWithItems.style.display = 'block';
+  containerNoItems.style.display = 'none';
+
+  // Clear bestaande items (behalve template)
+  const parent = template.parentElement;
+  const existingItems = parent.querySelectorAll('[data-bestelling-item]');
+  existingItems.forEach(item => item.remove());
+
+  // Render bestellingen
+  bestellingen.forEach(best => {
+    const clone = template.cloneNode(true);
+    clone.removeAttribute('data-bestelling-template');
+    clone.setAttribute('data-bestelling-item', '');
+    clone.style.display = 'block';
+
+    // Vul data in
+    const nummerEl = clone.querySelector('[data-bestelling-nummer]');
+    const datumEl = clone.querySelector('[data-bestelling-datum]');
+    const bedragEl = clone.querySelector('[data-bestelling-bedrag]');
+    const detailBtn = clone.querySelector('[data-bestelling-detail-btn]');
+
+    if (nummerEl) nummerEl.textContent = best.bestel_nummer || '-';
+    if (datumEl) datumEl.textContent = formatDatum(best.aangemaakt_op);
+    if (bedragEl) bedragEl.textContent = formatBedrag(best.totaal_cents);
+    
+    if (detailBtn) {
+      detailBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.location.href = `/dashboard/klant/bestellingen?id=${best.id}`;
+      });
+    }
+
+    parent.appendChild(clone);
+  });
+}
+
+/**
+ * Initialiseer dashboard overview
+ */
+export async function initDashboardOverview() {
+  console.log('📊 [Dashboard Overview] Initialiseren...');
+
+  try {
+    // Haal auth token op
+    const authState = authClient.getAuthState();
+    if (!authState || !authState.access_token) {
+      throw new Error('Geen authenticatie gevonden');
+    }
+
+    // Haal dashboard data op
+    console.log('🔄 [Dashboard Overview] Fetching data...');
+    const data = await apiClient('/routes/dashboard/klant/overview', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authState.access_token}`
+      }
+    });
+
+    console.log('✅ [Dashboard Overview] Data opgehaald:', data);
+
+    // Vul gebruikersnaam in
+    const nameEl = document.querySelector('[data-user-naam]');
+    if (nameEl && data.user) {
+      nameEl.textContent = data.user.voornaam || 'daar';
+    }
+
+    // Populeer secties
+    if (data.abonnementen) {
+      populateAbonnementen(data.abonnementen);
+    }
+
+    // COMMENTED OUT - TESTEN WE LATER
+    // if (data.eenmalige_opdrachten) {
+    //   populateEenmaligeOpdrachten(data.eenmalige_opdrachten);
+    // }
+
+    // if (data.bestellingen) {
+    //   populateBestellingen(data.bestellingen);
+    // }
+
+    console.log('✅ [Dashboard Overview] Initialisatie voltooid');
+
+  } catch (error) {
+    console.error('❌ [Dashboard Overview] Fout bij ophalen data:', error);
+    
+    // Toon error message
+    const errorContainer = document.querySelector('[data-dashboard-error]');
+    if (errorContainer) {
+      errorContainer.textContent = 'Er ging iets mis bij het laden van je dashboard. Probeer de pagina te verversen.';
+      errorContainer.style.display = 'block';
+    }
+  }
+}
