@@ -2,6 +2,7 @@
 import { STRIPE_EVENTS } from './events.js';
 import { handlePaymentIntentSucceeded } from './handlers/paymentIntentSucceeded.js';
 import { handlePaymentIntentFailed } from './handlers/paymentIntentFailed.js';
+import { handleInvoicePaid } from './handlers/invoicePaid.js';
 
 export async function dispatchStripeEvent({ event, correlationId }) {
   console.log(`📨 [Dispatcher] Routing event type: ${event.type} [${correlationId}]`);
@@ -16,6 +17,10 @@ export async function dispatchStripeEvent({ event, correlationId }) {
       case STRIPE_EVENTS.PAYMENT_INTENT_FAILED:
         console.log(`⚠️ [Dispatcher] Handling PAYMENT_INTENT_FAILED [${correlationId}]`);
         result = await handlePaymentIntentFailed(event, correlationId);
+        break;
+      case STRIPE_EVENTS.INVOICE_PAID:
+        console.log(`💳 [Dispatcher] Handling INVOICE_PAID [${correlationId}]`);
+        result = await handleInvoicePaid(event, correlationId);
         break;
       default:
         console.log(`ℹ️ [Dispatcher] Unhandled event type: ${event.type} [${correlationId}]`);

@@ -295,7 +295,7 @@ class CheckoutPage {
       const spinner = document.querySelector('[data-stripe-loading-spinner]');
       if (spinner) spinner.style.display = 'flex';
       
-      // Fetch Stripe public key - gebruik bestaande endpoint zoals abbBetalingForm
+      // Fetch Stripe public key
       const config = await apiClient('/routes/stripe/public-config');
       
       if (!config.publishableKey) {
@@ -338,9 +338,6 @@ class CheckoutPage {
             shipping_cents: Math.round(totals.shipping * 100).toString(),
             btw_cents: Math.round((totals.total * 0.21 / 1.21) * 100).toString(),
             total_cents: Math.round(totals.total * 100).toString()
-            
-            // Note: Delivery address will be added during confirmPayment
-            // We'll retrieve it from user profile in the webhook
           }
         })
       });
@@ -365,28 +362,24 @@ class CheckoutPage {
       if (paymentElementContainer) {
         this.paymentElement.mount(paymentElementContainer);
         
-        // Wait for Payment Element to be ready, then hide spinner
+        // Wait for Payment Element to be ready
         this.paymentElement.on('ready', () => {
           console.log('[CheckoutPage] Stripe Payment Element ready');
           if (spinner) spinner.style.display = 'none';
           this.paymentReady = true;
         });
         
-        // Listen for changes to enable/disable button based on completion
+        // Listen for changes to enable/disable button
         this.paymentElement.on('change', (event) => {
-          console.log('[CheckoutPage] Payment Element change:', event.complete);
-          
           if (this.checkoutButton && this.paymentReady) {
             if (event.complete) {
-              // Payment details are complete and valid
               this.checkoutButton.disabled = false;
               this.checkoutButton.classList.remove('is-disabled');
-              console.log('[CheckoutPage] ✅ Payment button enabled - form complete');
+              console.log('[CheckoutPage] ✅ Payment button enabled');
             } else {
-              // Payment details are incomplete
               this.checkoutButton.disabled = true;
               this.checkoutButton.classList.add('is-disabled');
-              console.log('[CheckoutPage] ⏸️ Payment button disabled - form incomplete');
+              console.log('[CheckoutPage] ⏸️ Payment button disabled');
             }
           }
         });
@@ -403,7 +396,6 @@ class CheckoutPage {
     } catch (error) {
       console.error('[CheckoutPage] Error initializing Stripe:', error);
       
-      // Hide spinner on error
       const spinner = document.querySelector('[data-stripe-loading-spinner]');
       if (spinner) spinner.style.display = 'none';
       
@@ -421,11 +413,7 @@ class CheckoutPage {
     }
     
     if (!this.paymentReady || !this.stripe || !this.stripeElements) {
-      console.warn('[CheckoutPage] Payment blocked: element not ready', {
-        paymentReady: this.paymentReady,
-        stripe: !!this.stripe,
-        elements: !!this.stripeElements
-      });
+      console.warn('[CheckoutPage] Payment blocked: element not ready');
       return;
     }
 
@@ -440,21 +428,8 @@ class CheckoutPage {
       showLoader(this.checkoutButton);
       
       // Get delivery address
-      console.log('[CheckoutPage] Getting delivery address...');
       const deliveryAddress = await this.getDeliveryAddress();
-      console.log('[CheckoutPage] Delivery address:', deliveryAddress);
-      console.log('[CheckoutPage] Using alternate address:', this.useAlternateAddress);
-      
       const authState = authClient.getAuthState();
-      console.log('[CheckoutPage] User email:', authState.user?.email);
-      
-      // Prepare complete metadata (including cart items)
-      const cartItems = cart.getItems();
-      const totals = cart.getTotals();
-      
-      // TEMPORARY: Skip update-payment-intent until CORS is resolved
-      // Store items in description field as fallback
-      console.log('[CheckoutPage] Items will be retrieved from payment intent description (fallback mode)');
       
       // Confirm payment with Stripe
       console.log('[CheckoutPage] Confirming payment with Stripe...');
@@ -478,11 +453,8 @@ class CheckoutPage {
         redirect: 'if_required'
       });
       
-      console.log('[CheckoutPage] Stripe confirmPayment result:', result);
-      
       if (result.error) {
         console.error('[CheckoutPage] Payment error:', result.error);
-        const errorContainer = document.querySelector('[data-checkout-error]');
         if (errorContainer) {
           showError(errorContainer, this.mapStripeError(result.error));
         }
@@ -491,31 +463,39 @@ class CheckoutPage {
         return;
       }
       
-      // If payment succeeded without redirect (e.g., credit card)
+      // If payment succeeded without redirect
       if (result.paymentIntent && result.paymentIntent.status === 'succeeded') {
-        console.log('[CheckoutPage] Payment succeeded without redirect');
+        console.log('[CheckoutPage] Payment succeeded');
         
-        // Clear cart (webhook will create order in background)
+        // Clear cart
         cart.clear();
         
-        // Redirect to success page with payment intent ID
+        // Redirect to success page
         window.location.href = `/shop/bestelling-succes?payment_intent=${result.paymentIntent.id}`;
-      } else {
-        console.log('[CheckoutPage] Payment requires redirect or further action');
       }
-      
-      // If redirect happened, success page will handle it
       
     } catch (error) {
       console.error('[CheckoutPage] Payment error:', error);
-      const errorContainer = document.querySelector('[data-checkout-error]');
       if (errorContainer) {
-        showError(errorContainer, 'Er is iets misgegaan bij het verwerken van je betaling. Probeer het opnieuw.');
+        showError(errorContainer, 'Er is iets misgegaan bij het verwerken van je betaling.');
       }
       this.isProcessing = false;
     } finally {
       hideLoader(this.checkoutButton);
     }
+  }
+
+  mapStripeError(error) {
+    const errorMessages = {
+      'card_declined': 'Je betaling is geweigerd. Probeer een andere betaalmethode.',
+      'insufficient_funds': 'Onvoldoende saldo.',
+      'incorrect_cvc': 'Onjuiste CVC-code.',
+      'expired_card': 'Je kaart is verlopen.',
+      'processing_error': 'Er ging iets mis bij het verwerken.',
+      'incorrect_number': 'Onjuist kaartnummer.'
+    };
+    
+    return errorMessages[error.code] || error.message || 'Er is iets misgegaan bij de betaling';
   }
 
   async getDeliveryAddress() {
@@ -546,61 +526,6 @@ class CheckoutPage {
         plaats: profile.adres.plaats
       };
     }
-  }
-
-  async handlePaymentSuccess(paymentIntentId) {
-    try {
-      console.log('[CheckoutPage] Payment successful, creating order...');
-      
-      const cartItems = cart.getItems();
-      const totals = cart.getTotals();
-      const deliveryAddress = await this.getDeliveryAddress();
-      
-      // Get auth token
-      const authState = authClient.getAuthState();
-      
-      // Create order in backend
-      const order = await apiClient('/routes/orders/create', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${authState.access_token}`
-        },
-        body: JSON.stringify({
-          paymentIntentId,
-          items: cartItems,
-          totals,
-          deliveryAddress
-        })
-      });
-      
-      console.log('[CheckoutPage] Order created:', order.order.id);
-      
-      // Clear cart
-      cart.clear();
-      
-      // Redirect to success page
-      window.location.href = `/shop/bestelling-succes?order=${order.order.bestelNummer}`;
-      
-    } catch (error) {
-      console.error('[CheckoutPage] Error creating order:', error);
-      const errorContainer = document.querySelector('[data-checkout-error]');
-      if (errorContainer) {
-        showError(errorContainer, 'Betaling geslaagd, maar er ging iets mis bij het aanmaken van je bestelling. Neem contact op met klantenservice.');
-      }
-    }
-  }
-
-  mapStripeError(error) {
-    const errorMessages = {
-      'card_declined': 'Je betaling is geweigerd. Probeer een andere betaalmethode.',
-      'insufficient_funds': 'Onvoldoende saldo. Probeer een andere betaalmethode.',
-      'incorrect_cvc': 'Onjuiste CVC-code. Controleer je gegevens.',
-      'expired_card': 'Je kaart is verlopen. Gebruik een andere kaart.',
-      'processing_error': 'Er ging iets mis bij het verwerken. Probeer het opnieuw.',
-      'incorrect_number': 'Onjuist kaartnummer. Controleer je gegevens.'
-    };
-    
-    return errorMessages[error.code] || error.message || 'Er is iets misgegaan bij de betaling';
   }
 }
 
