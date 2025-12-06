@@ -316,7 +316,7 @@ function populateBestellingen(bestellingen) {
     if (detailBtn) {
       detailBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        window.location.href = `/dashboard/klant/bestellingen?id=${best.id}`;
+        window.location.href = `/dashboard/klant/bestelling-detail?id=${best.id}`;
       });
     }
 
