@@ -224,59 +224,111 @@ async function fetchPricesFromDatabase(stripePriceIds, correlationId) {
 }
 
 /**
- * Haal prijzen op van Stripe Price API (fallback)
+ * Haal prijzen op van Stripe API (fallback)
+ * Ondersteunt zowel Price IDs (price_xxx) als Product IDs (prod_xxx)
+ * Voor Product IDs wordt de default price opgehaald
  * 
- * @param {Array<string>} stripePriceIds - Array van Stripe Price IDs
+ * @param {Array<string>} stripeIds - Array van Stripe Price of Product IDs
  * @param {string} correlationId
- * @returns {Promise<Object>} Map van price_id -> {unit_amount, product_name, source}
+ * @returns {Promise<Object>} Map van id -> {unit_amount, product_name, source}
  */
-async function fetchPricesFromStripe(stripePriceIds, correlationId) {
-  if (stripePriceIds.length === 0) return {};
+async function fetchPricesFromStripe(stripeIds, correlationId) {
+  if (stripeIds.length === 0) return {};
 
   const priceMap = {};
 
-  for (const priceId of stripePriceIds) {
+  for (const id of stripeIds) {
     try {
+      // Check of het een Product ID of Price ID is
+      const isProductId = id.startsWith('prod_');
+      
       console.log(JSON.stringify({
         level: 'INFO',
         correlationId,
         service: 'webshopPricingService',
         action: 'fetch_stripe_price',
-        priceId
+        id,
+        type: isProductId ? 'product' : 'price'
       }));
 
-      const response = await fetch(
-        `https://api.stripe.com/v1/prices/${encodeURIComponent(priceId)}?expand[]=product`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${stripeConfig.secretKey}`
-          }
-        }
-      );
+      let priceData;
+      let productName;
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error(JSON.stringify({
-          level: 'ERROR',
-          correlationId,
-          service: 'webshopPricingService',
-          action: 'stripe_price_fetch_failed',
-          priceId,
-          status: response.status,
-          error: errorData?.error?.message
-        }));
-        
-        const err = new Error(`Stripe Price API error voor ${priceId}: ${errorData?.error?.message || 'Unknown error'}`);
-        err.code = 400;
-        throw err;
+      if (isProductId) {
+        // Haal product op met default_price expanded
+        const productResponse = await fetch(
+          `https://api.stripe.com/v1/products/${encodeURIComponent(id)}?expand[]=default_price`,
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${stripeConfig.secretKey}`
+            }
+          }
+        );
+
+        if (!productResponse.ok) {
+          const errorData = await productResponse.json();
+          console.error(JSON.stringify({
+            level: 'ERROR',
+            correlationId,
+            service: 'webshopPricingService',
+            action: 'stripe_product_fetch_failed',
+            productId: id,
+            status: productResponse.status,
+            error: errorData?.error?.message
+          }));
+          
+          const err = new Error(`Stripe Product API error voor ${id}: ${errorData?.error?.message || 'Unknown error'}`);
+          err.code = 400;
+          throw err;
+        }
+
+        const productData = await productResponse.json();
+        priceData = productData.default_price;
+        productName = productData.name;
+
+        if (!priceData || typeof priceData !== 'object') {
+          const err = new Error(`Product ${id} heeft geen default_price ingesteld`);
+          err.code = 400;
+          throw err;
+        }
+
+      } else {
+        // Haal price op met product expanded
+        const priceResponse = await fetch(
+          `https://api.stripe.com/v1/prices/${encodeURIComponent(id)}?expand[]=product`,
+          {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${stripeConfig.secretKey}`
+            }
+          }
+        );
+
+        if (!priceResponse.ok) {
+          const errorData = await priceResponse.json();
+          console.error(JSON.stringify({
+            level: 'ERROR',
+            correlationId,
+            service: 'webshopPricingService',
+            action: 'stripe_price_fetch_failed',
+            priceId: id,
+            status: priceResponse.status,
+            error: errorData?.error?.message
+          }));
+          
+          const err = new Error(`Stripe Price API error voor ${id}: ${errorData?.error?.message || 'Unknown error'}`);
+          err.code = 400;
+          throw err;
+        }
+
+        priceData = await priceResponse.json();
+        productName = priceData.product?.name;
       }
 
-      const priceData = await response.json();
-
-      priceMap[priceId] = {
+      priceMap[id] = {
         unit_amount: priceData.unit_amount,
-        product_name: priceData.product?.name || 'Unknown Product',
+        product_name: productName || 'Unknown Product',
         source: 'stripe_api'
       };
 
@@ -285,9 +337,10 @@ async function fetchPricesFromStripe(stripePriceIds, correlationId) {
         correlationId,
         service: 'webshopPricingService',
         action: 'stripe_price_fetched',
-        priceId,
+        id,
+        type: isProductId ? 'product' : 'price',
         unitAmount: priceData.unit_amount,
-        productName: priceData.product?.name
+        productName
       }));
 
     } catch (error) {
@@ -296,7 +349,7 @@ async function fetchPricesFromStripe(stripePriceIds, correlationId) {
         correlationId,
         service: 'webshopPricingService',
         action: 'stripe_fetch_error',
-        priceId,
+        id,
         error: error.message
       }));
       throw error; // Re-throw om validatie te laten falen
