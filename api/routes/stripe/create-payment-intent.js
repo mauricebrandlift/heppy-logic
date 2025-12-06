@@ -174,7 +174,7 @@ export default async function handler(req, res) {
       
       pricingDetails = validatedPricing; // Store for response
       
-      // Keep metadata WITHOUT items (stored in description instead)
+      // Keep metadata WITHOUT items (stored in description instead due to Stripe metadata size limits)
       metadata = {
         flow: cartMetadata.flow,
         email: cartMetadata.email,

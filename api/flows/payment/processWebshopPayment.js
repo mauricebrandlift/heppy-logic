@@ -14,6 +14,7 @@ import { supabaseConfig, emailConfig } from '../../config/index.js';
 import { httpClient } from '../../utils/apiClient.js';
 import { sendEmail } from '../../services/emailService.js';
 import { webshopBestellingKlant, nieuweWebshopBestellingAdmin } from '../../templates/emails/index.js';
+import { createPaidInvoice } from '../../services/invoiceService.js';
 
 export async function processWebshopPayment({ paymentIntent, metadata, correlationId, event }) {
   const logMeta = {
@@ -31,50 +32,44 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       metadata: metadata // Log hele metadata object
     }));
 
-    // Parse items from JSON string
+    // Parse items from JSON string (from description, not metadata due to size limits)
     let items;
-    try {
-      items = JSON.parse(metadata.items);
-    } catch (e) {
-      // Fallback: if items not in metadata, try to parse from description
-      console.warn(JSON.stringify({
+    
+    // Items are stored in description field as "items:{json}"
+    if (!paymentIntent.description || !paymentIntent.description.includes('items:')) {
+      console.error(JSON.stringify({
         ...logMeta,
-        level: 'WARN',
-        message: 'Items not found in metadata, checking description field',
-        error: e.message
+        level: 'ERROR',
+        message: 'Items not found in payment intent description',
+        description: paymentIntent.description
+      }));
+      return { handled: false, error: 'items_not_found' };
+    }
+    
+    try {
+      const itemsMatch = paymentIntent.description.match(/items:(.+)$/);
+      if (!itemsMatch) {
+        throw new Error('Items pattern not found in description');
+      }
+      
+      items = JSON.parse(itemsMatch[1]);
+      
+      console.info(JSON.stringify({
+        ...logMeta,
+        level: 'INFO',
+        message: 'Items parsed from description',
+        itemCount: items.length
       }));
       
-      // If items also not available, we cannot process the order
-      if (!paymentIntent.description || !paymentIntent.description.includes('items:')) {
-        console.error(JSON.stringify({
-          ...logMeta,
-          level: 'ERROR',
-          message: 'Failed to parse items JSON',
-          error: e.message,
-          rawItems: metadata.items,
-          allMetadata: metadata,
-          description: paymentIntent.description
-        }));
-        return { handled: false, error: 'invalid_items_json' };
-      }
-      
-      // Try to extract items from description (fallback)
-      try {
-        const itemsMatch = paymentIntent.description.match(/items:(.+)$/);
-        if (itemsMatch) {
-          items = JSON.parse(itemsMatch[1]);
-        } else {
-          throw new Error('Items not found in description');
-        }
-      } catch (descError) {
-        console.error(JSON.stringify({
-          ...logMeta,
-          level: 'ERROR',
-          message: 'Failed to parse items from description',
-          error: descError.message
-        }));
-        return { handled: false, error: 'invalid_items_json' };
-      }
+    } catch (e) {
+      console.error(JSON.stringify({
+        ...logMeta,
+        level: 'ERROR',
+        message: 'Failed to parse items from description',
+        error: e.message,
+        description: paymentIntent.description
+      }));
+      return { handled: false, error: 'invalid_items_json' };
     }
 
     // Stap 1: Haal klant op via email (met adres)
@@ -338,6 +333,138 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
       message: '✅ Order items created',
       itemCount: createdItems.length
     }));
+
+    // Stap 5a: Maak Stripe Invoice aan (betaald) voor factuur
+    let stripeInvoiceId = null;
+    try {
+      // Haal of maak Stripe customer aan
+      let customerId = null;
+      
+      // Check of user al een stripe_customer_id heeft
+      if (user.stripe_customer_id) {
+        customerId = user.stripe_customer_id;
+        console.info(JSON.stringify({
+          ...logMeta,
+          level: 'INFO',
+          message: 'Using existing Stripe customer',
+          customerId
+        }));
+      } else {
+        // Maak nieuwe Stripe customer aan
+        const customerResponse = await fetch('https://api.stripe.com/v1/customers', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${process.env.STRIPE_SECRET_KEY}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            email: user.email,
+            name: `${user.voornaam} ${user.achternaam}`,
+            'metadata[user_id]': user.id
+          })
+        });
+
+        if (customerResponse.ok) {
+          const customer = await customerResponse.json();
+          customerId = customer.id;
+
+          // Update user profile met stripe_customer_id
+          await httpClient(
+            `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${user.id}`,
+            {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': supabaseConfig.anonKey,
+                'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+              },
+              body: JSON.stringify({ stripe_customer_id: customerId })
+            }
+          );
+
+          console.info(JSON.stringify({
+            ...logMeta,
+            level: 'INFO',
+            message: '✅ Created new Stripe customer',
+            customerId
+          }));
+        } else {
+          const errorText = await customerResponse.text();
+          console.warn(JSON.stringify({
+            ...logMeta,
+            level: 'WARN',
+            message: 'Failed to create Stripe customer for invoice',
+            error: errorText
+          }));
+        }
+      }
+
+      // Maak invoice alleen als we een customer hebben
+      if (customerId) {
+        const invoiceLineItems = createdItems.map(item => ({
+          description: item.product_naam,
+          quantity: item.aantal,
+          unit_amount: item.prijs_per_stuk_cents
+        }));
+
+        // Voeg verzendkosten toe als aparte line item
+        if (bestelling.verzendkosten_cents > 0) {
+          invoiceLineItems.push({
+            description: 'Verzendkosten',
+            quantity: 1,
+            unit_amount: bestelling.verzendkosten_cents
+          });
+        }
+
+        const invoice = await createPaidInvoice({
+          customerId,
+          paymentIntentId: paymentIntent.id,
+          lineItems: invoiceLineItems,
+          metadata: {
+            bestelling_id: bestelling.id,
+            bestel_nummer: bestelling.bestel_nummer,
+            flow: 'webshop'
+          },
+          customText: {
+            footer: 'Betaling reeds ontvangen via Stripe. Bedankt voor je bestelling!'
+          }
+        });
+
+        stripeInvoiceId = invoice.id;
+
+        // Update bestelling met stripe_invoice_id
+        await httpClient(
+          `${supabaseConfig.url}/rest/v1/bestellingen?id=eq.${bestelling.id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': supabaseConfig.anonKey,
+              'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+            },
+            body: JSON.stringify({ stripe_invoice_id: stripeInvoiceId })
+          }
+        );
+
+        console.info(JSON.stringify({
+          ...logMeta,
+          level: 'INFO',
+          message: '✅ Stripe Invoice created and linked to order',
+          invoiceId: stripeInvoiceId,
+          invoiceUrl: invoice.invoice_pdf
+        }));
+      }
+
+    } catch (invoiceError) {
+      // Log maar gooi geen error - bestelling is al aangemaakt
+      console.error(JSON.stringify({
+        ...logMeta,
+        level: 'ERROR',
+        message: 'Failed to create Stripe Invoice',
+        error: invoiceError.message,
+        stack: invoiceError.stack
+      }));
+    }
 
     // Stap 6: Verstuur bevestigingsmail naar klant
     try {
