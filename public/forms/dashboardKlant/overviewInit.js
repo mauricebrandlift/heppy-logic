@@ -195,7 +195,7 @@ function populateAbonnementen(abonnementen) {
 function populateEenmaligeOpdrachten(opdrachten) {
   const containerWithItems = document.querySelector('[data-eenmalig-state="heeft-items"]');
   const containerNoItems = document.querySelector('[data-eenmalig-state="geen-items"]');
-  const template = document.querySelector('[data-eenmalig-template]');
+  const template = document.querySelector('[data-eenmalig-item][data-eenmalig-item-id]');
 
   if (!containerWithItems || !containerNoItems || !template) {
     console.error('[Overview] Eenmalige opdrachten containers of template niet gevonden');
@@ -206,6 +206,8 @@ function populateEenmaligeOpdrachten(opdrachten) {
   if (opdrachten.length === 0) {
     containerWithItems.style.display = 'none';
     containerNoItems.style.display = 'block';
+    // Hide template
+    template.style.display = 'none';
     return;
   }
 
@@ -214,15 +216,16 @@ function populateEenmaligeOpdrachten(opdrachten) {
 
   // Clear bestaande items (behalve template)
   const parent = template.parentElement;
-  const existingItems = parent.querySelectorAll('[data-eenmalig-item]');
+  const existingItems = parent.querySelectorAll('[data-eenmalig-item]:not([data-eenmalig-item-id=""])');
   existingItems.forEach(item => item.remove());
 
   // Render opdrachten
   opdrachten.forEach(opr => {
     const clone = template.cloneNode(true);
-    clone.removeAttribute('data-eenmalig-template');
-    clone.setAttribute('data-eenmalig-item', '');
-    clone.style.display = 'block';
+    clone.setAttribute('data-eenmalig-item-id', opr.id);
+    
+    // Verwijder combo class 'eenmalig-item-template' van clone
+    clone.classList.remove('eenmalig-item-template');
 
     // Vul data in
     const typeEl = clone.querySelector('[data-eenmalig-type]');
@@ -232,7 +235,10 @@ function populateEenmaligeOpdrachten(opdrachten) {
 
     if (typeEl) typeEl.textContent = formatType(opr.type);
     if (datumEl) datumEl.textContent = formatDatum(opr.gewenste_datum);
-    if (statusEl) statusEl.textContent = formatStatus(opr.status);
+    if (statusEl) {
+      statusEl.textContent = formatStatus(opr.status);
+      addStatusClass(statusEl, opr.status);
+    }
     
     if (detailBtn) {
       detailBtn.addEventListener('click', (e) => {
@@ -243,6 +249,9 @@ function populateEenmaligeOpdrachten(opdrachten) {
 
     parent.appendChild(clone);
   });
+  
+  // Hide template na renderen
+  template.style.display = 'none';
 }
 
 /**
@@ -251,7 +260,7 @@ function populateEenmaligeOpdrachten(opdrachten) {
 function populateBestellingen(bestellingen) {
   const containerWithItems = document.querySelector('[data-bestellingen-state="heeft-items"]');
   const containerNoItems = document.querySelector('[data-bestellingen-state="geen-items"]');
-  const template = document.querySelector('[data-bestelling-template]');
+  const template = document.querySelector('[data-bestelling-item][data-bestelling-item-id]');
 
   if (!containerWithItems || !containerNoItems || !template) {
     console.error('[Overview] Bestellingen containers of template niet gevonden');
@@ -262,6 +271,8 @@ function populateBestellingen(bestellingen) {
   if (bestellingen.length === 0) {
     containerWithItems.style.display = 'none';
     containerNoItems.style.display = 'block';
+    // Hide template
+    template.style.display = 'none';
     return;
   }
 
@@ -270,25 +281,31 @@ function populateBestellingen(bestellingen) {
 
   // Clear bestaande items (behalve template)
   const parent = template.parentElement;
-  const existingItems = parent.querySelectorAll('[data-bestelling-item]');
+  const existingItems = parent.querySelectorAll('[data-bestelling-item]:not([data-bestelling-item-id=""])');
   existingItems.forEach(item => item.remove());
 
   // Render bestellingen
   bestellingen.forEach(best => {
     const clone = template.cloneNode(true);
-    clone.removeAttribute('data-bestelling-template');
-    clone.setAttribute('data-bestelling-item', '');
-    clone.style.display = 'block';
+    clone.setAttribute('data-bestelling-item-id', best.id);
+    
+    // Verwijder combo class 'bestelling-item-template' van clone
+    clone.classList.remove('bestelling-item-template');
 
     // Vul data in
     const nummerEl = clone.querySelector('[data-bestelling-nummer]');
     const datumEl = clone.querySelector('[data-bestelling-datum]');
     const bedragEl = clone.querySelector('[data-bestelling-bedrag]');
+    const statusEl = clone.querySelector('[data-bestelling-status]');
     const detailBtn = clone.querySelector('[data-bestelling-detail-btn]');
 
     if (nummerEl) nummerEl.textContent = best.bestel_nummer || '-';
     if (datumEl) datumEl.textContent = formatDatum(best.aangemaakt_op);
     if (bedragEl) bedragEl.textContent = formatBedrag(best.totaal_cents);
+    if (statusEl) {
+      statusEl.textContent = formatStatus(best.status);
+      addStatusClass(statusEl, best.status);
+    }
     
     if (detailBtn) {
       detailBtn.addEventListener('click', (e) => {
@@ -299,6 +316,9 @@ function populateBestellingen(bestellingen) {
 
     parent.appendChild(clone);
   });
+  
+  // Hide template na renderen
+  template.style.display = 'none';
 }
 
 /**
@@ -336,14 +356,13 @@ export async function initDashboardOverview() {
       populateAbonnementen(data.abonnementen);
     }
 
-    // COMMENTED OUT - TESTEN WE LATER
-    // if (data.eenmalige_opdrachten) {
-    //   populateEenmaligeOpdrachten(data.eenmalige_opdrachten);
-    // }
+    if (data.eenmalige_opdrachten) {
+      populateEenmaligeOpdrachten(data.eenmalige_opdrachten);
+    }
 
-    // if (data.bestellingen) {
-    //   populateBestellingen(data.bestellingen);
-    // }
+    if (data.bestellingen) {
+      populateBestellingen(data.bestellingen);
+    }
 
     console.log('✅ [Dashboard Overview] Initialisatie voltooid');
 

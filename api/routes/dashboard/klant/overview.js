@@ -63,34 +63,40 @@ async function overviewHandler(req, res) {
 
     const abonnementen = await abonnementenResponse.json();
 
-    // === EENMALIGE OPDRACHTEN === (COMMENTED OUT - TESTEN LATER)
-    // console.log('🔄 [Dashboard Overview] Fetching eenmalige opdrachten...');
-    // const eenmaligeTypes = ['dieptereiniging', 'verhuis', 'tapijt', 'bankreiniging', 'vloer'];
-    // const opdrachtUrl = `${supabaseConfig.url}/rest/v1/opdrachten?gebruiker_id=eq.${userId}&type=in.(${eenmaligeTypes.join(',')})&select=id,type,status,gewenste_datum,totaalbedrag,gegevens&order=aangemaakt_op.desc&limit=10`;
-    // const opdrachtResponse = await httpClient(opdrachtUrl, {
-    //   headers: {
-    //     'apikey': supabaseConfig.anonKey,
-    //     'Authorization': `Bearer ${authToken}`,
-    //   }
-    // });
-    // if (!opdrachtResponse.ok) {
-    //   throw new Error('Kan opdrachten niet ophalen');
-    // }
-    // const opdrachten = await opdrachtResponse.json();
+    // === EENMALIGE OPDRACHTEN ===
+    console.log('🔄 [Dashboard Overview] Fetching eenmalige opdrachten...');
+    const eenmaligeTypes = ['dieptereiniging', 'verhuis', 'tapijt', 'bankreiniging', 'vloer'];
+    const opdrachtUrl = `${supabaseConfig.url}/rest/v1/opdrachten?gebruiker_id=eq.${userId}&type=in.(${eenmaligeTypes.join(',')})&select=id,type,status,gewenste_datum,totaalbedrag,gegevens&order=aangemaakt_op.desc&limit=10`;
+    
+    const opdrachtResponse = await httpClient(opdrachtUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`,
+      }
+    });
 
-    // === BESTELLINGEN === (COMMENTED OUT - TESTEN LATER)
-    // console.log('🔄 [Dashboard Overview] Fetching bestellingen...');
-    // const bestellingenUrl = `${supabaseConfig.url}/rest/v1/bestellingen?klant_id=eq.${userId}&select=id,bestel_nummer,totaal_cents,status,aangemaakt_op&order=aangemaakt_op.desc&limit=10`;
-    // const bestellingenResponse = await httpClient(bestellingenUrl, {
-    //   headers: {
-    //     'apikey': supabaseConfig.anonKey,
-    //     'Authorization': `Bearer ${authToken}`,
-    //   }
-    // });
-    // if (!bestellingenResponse.ok) {
-    //   throw new Error('Kan bestellingen niet ophalen');
-    // }
-    // const bestellingen = await bestellingenResponse.json();
+    if (!opdrachtResponse.ok) {
+      throw new Error('Kan opdrachten niet ophalen');
+    }
+
+    const opdrachten = await opdrachtResponse.json();
+
+    // === BESTELLINGEN ===
+    console.log('🔄 [Dashboard Overview] Fetching bestellingen...');
+    const bestellingenUrl = `${supabaseConfig.url}/rest/v1/bestellingen?klant_id=eq.${userId}&select=id,bestel_nummer,totaal_cents,status,aangemaakt_op&order=aangemaakt_op.desc&limit=10`;
+    
+    const bestellingenResponse = await httpClient(bestellingenUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`,
+      }
+    });
+
+    if (!bestellingenResponse.ok) {
+      throw new Error('Kan bestellingen niet ophalen');
+    }
+
+    const bestellingen = await bestellingenResponse.json();
 
     // === RESPONSE SAMENSTELLEN ===
     const responseData = {
@@ -107,25 +113,24 @@ async function overviewHandler(req, res) {
         startdatum: abo.startdatum,
         heeft_schoonmaker: !!abo.schoonmaker?.id
       })),
-      // COMMENTED OUT - TESTEN LATER
-      // eenmalige_opdrachten: opdrachten.map(opr => ({
-      //   id: opr.id,
-      //   type: opr.type,
-      //   status: opr.status,
-      //   gewenste_datum: opr.gewenste_datum,
-      //   totaalbedrag: opr.totaalbedrag,
-      //   gegevens: opr.gegevens
-      // })),
-      // bestellingen: bestellingen.map(best => ({
-      //   id: best.id,
-      //   bestel_nummer: best.bestel_nummer,
-      //   totaal_cents: best.totaal_cents,
-      //   status: best.status,
-      //   aangemaakt_op: best.aangemaakt_op
-      // }))
+      eenmalige_opdrachten: opdrachten.map(opr => ({
+        id: opr.id,
+        type: opr.type,
+        status: opr.status,
+        gewenste_datum: opr.gewenste_datum,
+        totaalbedrag: opr.totaalbedrag,
+        gegevens: opr.gegevens
+      })),
+      bestellingen: bestellingen.map(best => ({
+        id: best.id,
+        bestel_nummer: best.bestel_nummer,
+        totaal_cents: best.totaal_cents,
+        status: best.status,
+        aangemaakt_op: best.aangemaakt_op
+      }))
     };
 
-    console.log(`✅ [Dashboard Overview] Succesvol - ${abonnementen.length} abonnementen`);
+    console.log(`✅ [Dashboard Overview] Succesvol - ${abonnementen.length} abonnementen, ${opdrachten.length} opdrachten, ${bestellingen.length} bestellingen`);
     console.log(`⏱️ [Dashboard Overview] Duration: ${Date.now() - startTime}ms`);
 
     return res.status(200).json(responseData);
