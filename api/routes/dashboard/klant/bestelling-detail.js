@@ -8,9 +8,10 @@ import { supabaseConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { withAuth } from '../../../utils/authMiddleware.js';
 
-async function bestellingDetailHandler(req, res, context) {
+async function bestellingDetailHandler(req, res) {
   const correlationId = req.headers['x-correlation-id'] || `bestelling-detail-${Date.now()}`;
-  const { userId } = context;
+  const userId = req.user.id;
+  const authToken = req.headers.authorization?.split(' ')[1];
 
   try {
     // Get bestelling ID from query params
@@ -38,7 +39,7 @@ async function bestellingDetailHandler(req, res, context) {
     const bestellingResponse = await httpClient(bestellingUrl, {
       headers: {
         'apikey': supabaseConfig.anonKey,
-        'Authorization': `Bearer ${context.token}`,
+        'Authorization': `Bearer ${authToken}`,
       }
     });
 
@@ -71,7 +72,7 @@ async function bestellingDetailHandler(req, res, context) {
     const itemsResponse = await httpClient(itemsUrl, {
       headers: {
         'apikey': supabaseConfig.anonKey,
-        'Authorization': `Bearer ${context.token}`,
+        'Authorization': `Bearer ${authToken}`,
       }
     });
 
