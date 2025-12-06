@@ -82,8 +82,15 @@ function hideLoading() {
  * Toon error message
  */
 function showError(message) {
-  hideLoading();
+  const loadingState = document.querySelector('[data-loading-state]');
+  const contentState = document.querySelector('[data-content-state]');
   const errorContainer = document.querySelector('[data-dashboard-error]');
+  
+  // Verberg loading en content
+  if (loadingState) loadingState.style.display = 'none';
+  if (contentState) contentState.style.display = 'none';
+  
+  // Toon error
   if (errorContainer) {
     errorContainer.textContent = message;
     errorContainer.style.display = 'block';
