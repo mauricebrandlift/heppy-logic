@@ -31,7 +31,7 @@ function formatStatus(status) {
     'gepland': 'Gepland',
     'voltooid': 'Voltooid',
     'geannuleerd': 'Geannuleerd',
-    'nieuw': 'Nieuw',
+    'nieuw': 'In behandeling',
     'verwerkt': 'Verwerkt',
     'verzonden': 'Verzonden',
     'afgeleverd': 'Afgeleverd'
@@ -99,7 +99,7 @@ function getWeeknummerFromDate(dateString) {
  */
 function formatBedrag(cents) {
   if (!cents && cents !== 0) return '-';
-  return `€${(cents / 100).toFixed(2).replace('.', ',')}`;
+  return `${(cents / 100).toFixed(2).replace('.', ',')}`;
 }
 
 /**
@@ -113,7 +113,13 @@ function addStatusClass(element, status) {
     'actief': 'is-active',
     'wachtrij': 'is-pending',
     'gepauzeerd': 'is-unactive',
-    'gestopt': 'is-unactive'
+    'gestopt': 'is-unactive',
+    'verzonden': 'is-active',
+    'afgeleverd': 'is-active',
+    'nieuw': 'is-pending',
+    'gepland': 'is-pending',
+    'in_behandeling': 'is-pending',
+    'geannuleerd': 'is-unactive'
   };
   
   const statusClass = statusClassMap[status] || 'is-pending';
