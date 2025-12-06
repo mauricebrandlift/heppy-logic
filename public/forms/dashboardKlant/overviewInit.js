@@ -328,10 +328,36 @@ function populateBestellingen(bestellingen) {
 }
 
 /**
+ * Toon/verberg loading state
+ */
+function showLoading() {
+  const loadingState = document.querySelector('[data-loading-state]');
+  const contentState = document.querySelector('[data-content-state]');
+  
+  if (loadingState) loadingState.style.display = 'block';
+  if (contentState) contentState.style.display = 'none';
+}
+
+function hideLoading() {
+  const loadingState = document.querySelector('[data-loading-state]');
+  const contentState = document.querySelector('[data-content-state]');
+  
+  if (loadingState) loadingState.style.display = 'none';
+  if (contentState) contentState.style.display = 'block';
+}
+
+/**
  * Initialiseer dashboard overview
  */
 export async function initDashboardOverview() {
   console.log('📊 [Dashboard Overview] Initialiseren...');
+
+  // Zet content direct op display none (ongeacht Webflow instellingen)
+  const contentState = document.querySelector('[data-content-state]');
+  if (contentState) contentState.style.display = 'none';
+
+  // Toon loading state
+  showLoading();
 
   try {
     // Haal auth token op
@@ -371,9 +397,15 @@ export async function initDashboardOverview() {
     }
 
     console.log('✅ [Dashboard Overview] Initialisatie voltooid');
+    
+    // Verberg loading, toon content
+    hideLoading();
 
   } catch (error) {
     console.error('❌ [Dashboard Overview] Fout bij ophalen data:', error);
+    
+    // Verberg loading
+    hideLoading();
     
     // Toon error message
     const errorContainer = document.querySelector('[data-dashboard-error]');
