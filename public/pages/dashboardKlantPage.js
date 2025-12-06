@@ -5,6 +5,7 @@
  */
 import { initDashboardAuth } from '../utils/auth/dashboardAuth.js';
 import { initDashboardOverview } from '../forms/dashboardKlant/overviewInit.js';
+import { initBestellingDetail } from '../forms/dashboardKlant/bestellingDetailInit.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏠 [KlantDashboard] Pagina geladen');
@@ -31,10 +32,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function initKlantDashboardFuncties() {
   // Check welke pagina we hebben
   const overviewPage = document.querySelector('[data-dashboard-page="overview"]');
+  const bestellingDetailPage = document.querySelector('[data-dashboard-page="bestelling-detail"]');
   
   if (overviewPage) {
     console.log('📊 [KlantDashboard] Overview pagina gedetecteerd');
     await initDashboardOverview();
+  }
+  
+  if (bestellingDetailPage) {
+    console.log('📦 [KlantDashboard] Bestelling detail pagina gedetecteerd');
+    await initBestellingDetail();
   }
   
   // Hier komen later andere pagina checks:
