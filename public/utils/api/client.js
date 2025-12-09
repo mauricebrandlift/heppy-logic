@@ -53,13 +53,18 @@ export async function apiClient(endpoint, options = {}, timeout = 5000) {
   };
 
   // Voor GET requests, body is niet toegestaan.
+  // Voor andere methods, serialize body naar JSON
   const fetchOptions = {
     ...options,
     headers: defaultHeaders,
     signal: controller.signal,
   };
+  
   if (options.method === 'GET' || !options.method) {
     delete fetchOptions.body;
+  } else if (options.body && typeof options.body === 'object') {
+    // Serialize body naar JSON voor POST/PATCH/PUT/DELETE
+    fetchOptions.body = JSON.stringify(options.body);
   }
 
 
