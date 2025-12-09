@@ -1,71 +1,19 @@
 // public/forms/dashboardKlant/accountBeherenInit.js
 /**
- * Account Beheren - Klant Dashboard
- * 
- * 5 aparte formulieren:
- * 1. Profiel (voornaam + achternaam)
- * 2. Email
- * 3. Telefoonnummer
- * 4. Adresgegevens (met postcode check)
- * 5. Wachtwoord wijzigen
+ * Account beheren initialisatie voor klanten
+ * Bevat 5 aparte formulieren: profiel, email, telefoon, adres, wachtwoord
  */
-
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
 import { checkAddress } from '../../utils/api/address.js';
 
 /**
- * Toon/verberg loading state op button
+ * UI Helper: Show field error
  */
-function setButtonLoading(button, isLoading) {
-  if (isLoading) {
-    button.classList.add('is-loading');
-    button.disabled = true;
-  } else {
-    button.classList.remove('is-loading');
-    button.disabled = false;
-  }
-}
-
-/**
- * Toon success boodschap
- */
-function showSuccess(formElement, message = 'Wijzigingen opgeslagen!') {
-  const successWrapper = formElement.querySelector('.form_message-success-wrapper');
-  const successDiv = formElement.querySelector('.form_message-success div');
-  
-  if (successWrapper && successDiv) {
-    successDiv.textContent = message;
-    successWrapper.style.display = 'block';
-    
-    setTimeout(() => {
-      successWrapper.style.display = 'none';
-    }, 3000);
-  }
-}
-
-/**
- * Toon error boodschap
- */
-function showError(formElement, message = 'Er ging iets mis. Probeer het opnieuw.') {
-  const errorWrapper = formElement.querySelector('.form_message-error-wrapper');
-  const errorDiv = formElement.querySelector('.form_message-error div');
-  
-  if (errorWrapper && errorDiv) {
-    errorDiv.textContent = message;
-    errorWrapper.style.display = 'block';
-    
-    setTimeout(() => {
-      errorWrapper.style.display = 'none';
-    }, 5000);
-  }
-}
-
-/**
- * Toon field-level error
- */
-function showFieldError(fieldName, message) {
-  const errorEl = document.querySelector(`[data-error-for="${fieldName}"]`);
+function showFieldError(formName, fieldName, message) {
+  const errorEl = document.querySelector(
+    `[data-account-form="${formName}"] [data-error-for="${fieldName}"]`
+  );
   if (errorEl) {
     errorEl.textContent = message;
     errorEl.classList.remove('hide');
@@ -73,384 +21,463 @@ function showFieldError(fieldName, message) {
 }
 
 /**
- * Verberg field-level error
+ * UI Helper: Clear field error
  */
-function hideFieldError(fieldName) {
-  const errorEl = document.querySelector(`[data-error-for="${fieldName}"]`);
+function clearFieldError(formName, fieldName) {
+  const errorEl = document.querySelector(
+    `[data-account-form="${formName}"] [data-error-for="${fieldName}"]`
+  );
   if (errorEl) {
+    errorEl.textContent = '';
     errorEl.classList.add('hide');
   }
 }
 
 /**
- * Verberg alle field errors
+ * UI Helper: Clear all errors for a form
  */
-function hideAllFieldErrors() {
-  document.querySelectorAll('[data-error-for]').forEach(el => {
-    el.classList.add('hide');
+function clearAllErrors(formName) {
+  const form = document.querySelector(`[data-account-form="${formName}"]`);
+  if (!form) return;
+
+  const allErrors = form.querySelectorAll('[data-error-for]');
+  allErrors.forEach(errorEl => {
+    errorEl.textContent = '';
+    errorEl.classList.add('hide');
   });
 }
 
-// =============================================================================
-// 1. PROFIEL FORMULIER (Voornaam + Achternaam)
-// =============================================================================
+/**
+ * UI Helper: Show success message (Webflow native)
+ */
+function showSuccess(formName, message) {
+  const formWrapper = document.querySelector(`[data-account-form="${formName}"]`).parentElement;
+  if (!formWrapper) return;
 
-function initProfielForm() {
-  const form = document.querySelector('[data-account-form="profiel"]');
-  const button = document.querySelector('[data-account-save="profiel"]');
-  
-  if (!form || !button) {
-    console.warn('[Account] Profiel form of button niet gevonden');
-    return;
+  // Toon success wrapper
+  const successWrapper = formWrapper.querySelector('.form_message-success-wrapper');
+  if (successWrapper) {
+    const messageDiv = successWrapper.querySelector('.form_message-success div');
+    if (messageDiv) messageDiv.textContent = message;
+    successWrapper.style.display = 'block';
+
+    // Reset na 3 seconden
+    setTimeout(() => {
+      successWrapper.style.display = 'none';
+    }, 3000);
   }
+}
 
-  const voornaamInput = form.querySelector('[data-field-name="voornaam"]');
-  const achternaamInput = form.querySelector('[data-field-name="achternaam"]');
+/**
+ * UI Helper: Show global error message
+ */
+function showGlobalError(formName, message) {
+  const errorEl = document.querySelector(
+    `[data-account-form="${formName}"] [data-error-for="global"]`
+  );
+  if (errorEl) {
+    errorEl.textContent = message;
+    errorEl.classList.remove('hide');
+  }
+}
 
-  // Opslaan handler
-  button.addEventListener('click', async (e) => {
-    e.preventDefault();
-    hideAllFieldErrors();
+/**
+ * UI Helper: Set button loading state
+ */
+function setButtonLoading(button, isLoading) {
+  if (isLoading) {
+    button.classList.add('is-loading');
+    button.style.pointerEvents = 'none';
+  } else {
+    button.classList.remove('is-loading');
+    button.style.pointerEvents = '';
+  }
+}
 
-    const voornaam = voornaamInput?.value.trim();
-    const achternaam = achternaamInput?.value.trim();
+/**
+ * Get field value by name within a form
+ */
+function getFieldValue(formName, fieldName) {
+  const field = document.querySelector(
+    `[data-account-form="${formName}"] [data-field-name="${fieldName}"]`
+  );
+  return field ? field.value.trim() : '';
+}
 
-    // Validatie
-    if (!voornaam || !achternaam) {
-      showError(form, 'Vul alle velden in.');
-      return;
-    }
-
-    setButtonLoading(button, true);
-
-    try {
-      const authState = authClient.getAuthState();
-      await apiClient('/routes/dashboard/klant/update-profiel', {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${authState.access_token}` },
-        body: JSON.stringify({ voornaam, achternaam })
-      });
-
-      showSuccess(form);
-      console.log('✅ Profiel bijgewerkt');
-
-    } catch (error) {
-      console.error('❌ Profiel update error:', error);
-      showError(form, error.message || 'Kon profiel niet bijwerken.');
-    } finally {
-      setButtonLoading(button, false);
-    }
-  });
-
-  console.log('✅ Profiel formulier geïnitialiseerd');
+/**
+ * Set field value by name within a form
+ */
+function setFieldValue(formName, fieldName, value) {
+  const field = document.querySelector(
+    `[data-account-form="${formName}"] [data-field-name="${fieldName}"]`
+  );
+  if (field) {
+    field.value = value || '';
+  }
 }
 
 // =============================================================================
-// 2. EMAIL FORMULIER
-// =============================================================================
-
-function initEmailForm() {
-  const form = document.querySelector('[data-account-form="email"]');
-  const button = document.querySelector('[data-account-save="email"]');
-  
-  if (!form || !button) {
-    console.warn('[Account] Email form of button niet gevonden');
-    return;
-  }
-
-  const emailInput = form.querySelector('[data-field-name="email"]');
-
-  button.addEventListener('click', async (e) => {
-    e.preventDefault();
-    hideAllFieldErrors();
-
-    const email = emailInput?.value.trim();
-
-    // Validatie
-    if (!email || !email.includes('@')) {
-      showError(form, 'Vul een geldig e-mailadres in.');
-      return;
-    }
-
-    setButtonLoading(button, true);
-
-    try {
-      const authState = authClient.getAuthState();
-      await apiClient('/routes/dashboard/klant/update-email', {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${authState.access_token}` },
-        body: JSON.stringify({ email })
-      });
-
-      showSuccess(form, 'E-mailadres bijgewerkt! Controleer je inbox voor bevestiging.');
-      console.log('✅ Email bijgewerkt');
-
-    } catch (error) {
-      console.error('❌ Email update error:', error);
-      showError(form, error.message || 'Kon e-mailadres niet bijwerken.');
-    } finally {
-      setButtonLoading(button, false);
-    }
-  });
-
-  console.log('✅ Email formulier geïnitialiseerd');
-}
-
-// =============================================================================
-// 3. TELEFOONNUMMER FORMULIER
-// =============================================================================
-
-function initTelefoonForm() {
-  const form = document.querySelector('[data-account-form="telefoon"]');
-  const button = document.querySelector('[data-account-save="telefoon"]');
-  
-  if (!form || !button) {
-    console.warn('[Account] Telefoon form of button niet gevonden');
-    return;
-  }
-
-  const telefoonInput = form.querySelector('[data-field-name="telefoon"]');
-
-  button.addEventListener('click', async (e) => {
-    e.preventDefault();
-    hideAllFieldErrors();
-
-    const telefoon = telefoonInput?.value.trim();
-
-    // Validatie
-    if (!telefoon || telefoon.length < 10) {
-      showError(form, 'Vul een geldig telefoonnummer in.');
-      return;
-    }
-
-    setButtonLoading(button, true);
-
-    try {
-      const authState = authClient.getAuthState();
-      await apiClient('/routes/dashboard/klant/update-telefoon', {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${authState.access_token}` },
-        body: JSON.stringify({ telefoon })
-      });
-
-      showSuccess(form);
-      console.log('✅ Telefoon bijgewerkt');
-
-    } catch (error) {
-      console.error('❌ Telefoon update error:', error);
-      showError(form, error.message || 'Kon telefoonnummer niet bijwerken.');
-    } finally {
-      setButtonLoading(button, false);
-    }
-  });
-
-  console.log('✅ Telefoon formulier geïnitialiseerd');
-}
-
-// =============================================================================
-// 4. ADRES FORMULIER (met postcode check)
-// =============================================================================
-
-function initAdresForm() {
-  const form = document.querySelector('[data-account-form="adres"]');
-  const button = document.querySelector('[data-account-save="adres"]');
-  
-  if (!form || !button) {
-    console.warn('[Account] Adres form of button niet gevonden');
-    return;
-  }
-
-  const postcodeInput = form.querySelector('[data-field-name="postcode"]');
-  const huisnummerInput = form.querySelector('[data-field-name="huisnummer"]');
-  const toevoegingInput = form.querySelector('[data-field-name="toevoeging"]');
-  const straatInput = form.querySelector('[data-field-name="straatnaam"]');
-  const plaatsInput = form.querySelector('[data-field-name="plaats"]');
-
-  // Postcode check bij blur op huisnummer
-  if (postcodeInput && huisnummerInput) {
-    const handleAddressCheck = async () => {
-      const postcode = postcodeInput.value.trim();
-      const huisnummer = huisnummerInput.value.trim();
-      
-      if (!postcode || !huisnummer) return;
-
-      hideFieldError('postcode');
-      hideFieldError('huisnummer');
-
-      try {
-        const addressData = await checkAddress(postcode, huisnummer);
-        
-        if (straatInput) straatInput.value = addressData.straat || '';
-        if (plaatsInput) plaatsInput.value = addressData.plaats || '';
-        
-      } catch (error) {
-        console.error('Adres check error:', error);
-        showFieldError('global', 'Kon adres niet ophalen. Controleer postcode en huisnummer.');
-      }
-    };
-
-    huisnummerInput.addEventListener('blur', handleAddressCheck);
-    postcodeInput.addEventListener('blur', handleAddressCheck);
-  }
-
-  // Opslaan handler
-  button.addEventListener('click', async (e) => {
-    e.preventDefault();
-    hideAllFieldErrors();
-
-    const postcode = postcodeInput?.value.trim();
-    const huisnummer = huisnummerInput?.value.trim();
-    const toevoeging = toevoegingInput?.value.trim() || null;
-    const straat = straatInput?.value.trim();
-    const plaats = plaatsInput?.value.trim();
-
-    // Validatie
-    if (!postcode || !huisnummer || !straat || !plaats) {
-      showError(form, 'Vul alle verplichte velden in.');
-      return;
-    }
-
-    setButtonLoading(button, true);
-
-    try {
-      const authState = authClient.getAuthState();
-      await apiClient('/routes/dashboard/klant/update-adres', {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${authState.access_token}` },
-        body: JSON.stringify({ postcode, huisnummer, toevoeging, straat, plaats })
-      });
-
-      showSuccess(form);
-      console.log('✅ Adres bijgewerkt');
-
-    } catch (error) {
-      console.error('❌ Adres update error:', error);
-      showError(form, error.message || 'Kon adres niet bijwerken.');
-    } finally {
-      setButtonLoading(button, false);
-    }
-  });
-
-  console.log('✅ Adres formulier geïnitialiseerd');
-}
-
-// =============================================================================
-// 5. WACHTWOORD FORMULIER
-// =============================================================================
-
-function initWachtwoordForm() {
-  const form = document.querySelector('[data-account-form="wachtwoord"]');
-  const button = document.querySelector('[data-account-save="wachtwoord"]');
-  
-  if (!form || !button) {
-    console.warn('[Account] Wachtwoord form of button niet gevonden');
-    return;
-  }
-
-  const huidigInput = form.querySelector('[data-field-name="huidig-wachtwoord"]');
-  const nieuwInput = form.querySelector('[data-field-name="nieuw-wachtwoord"]');
-  const bevestigInput = form.querySelector('[data-field-name="bevestig-wachtwoord"]');
-
-  button.addEventListener('click', async (e) => {
-    e.preventDefault();
-    hideAllFieldErrors();
-
-    const huidig = huidigInput?.value;
-    const nieuw = nieuwInput?.value;
-    const bevestig = bevestigInput?.value;
-
-    // Validatie
-    if (!huidig || !nieuw || !bevestig) {
-      showError(form, 'Vul alle velden in.');
-      return;
-    }
-
-    if (nieuw.length < 8) {
-      showError(form, 'Nieuw wachtwoord moet minimaal 8 tekens zijn.');
-      return;
-    }
-
-    if (nieuw !== bevestig) {
-      showError(form, 'Wachtwoorden komen niet overeen.');
-      return;
-    }
-
-    setButtonLoading(button, true);
-
-    try {
-      const authState = authClient.getAuthState();
-      await apiClient('/routes/dashboard/klant/update-wachtwoord', {
-        method: 'PATCH',
-        headers: { 'Authorization': `Bearer ${authState.access_token}` },
-        body: JSON.stringify({ huidigWachtwoord: huidig, nieuwWachtwoord: nieuw })
-      });
-
-      showSuccess(form, 'Wachtwoord succesvol gewijzigd!');
-      
-      // Clear inputs
-      if (huidigInput) huidigInput.value = '';
-      if (nieuwInput) nieuwInput.value = '';
-      if (bevestigInput) bevestigInput.value = '';
-      
-      console.log('✅ Wachtwoord bijgewerkt');
-
-    } catch (error) {
-      console.error('❌ Wachtwoord update error:', error);
-      showError(form, error.message || 'Kon wachtwoord niet wijzigen. Controleer je huidige wachtwoord.');
-    } finally {
-      setButtonLoading(button, false);
-    }
-  });
-
-  console.log('✅ Wachtwoord formulier geïnitialiseerd');
-}
-
-// =============================================================================
-// DATA OPHALEN EN VULLEN
+// LOAD USER DATA (Prefill alle velden behalve wachtwoorden)
 // =============================================================================
 
 async function loadUserData() {
   try {
     const authState = authClient.getAuthState();
-    const userData = await apiClient('/routes/dashboard/klant/profiel', {
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${authState.access_token}` }
-    });
-
-    // Vul profiel
-    const voornaamInput = document.querySelector('[data-field-name="voornaam"]');
-    const achternaamInput = document.querySelector('[data-field-name="achternaam"]');
-    if (voornaamInput) voornaamInput.value = userData.voornaam || '';
-    if (achternaamInput) achternaamInput.value = userData.achternaam || '';
-
-    // Vul email
-    const emailInput = document.querySelector('[data-field-name="email"]');
-    if (emailInput) emailInput.value = userData.email || '';
-
-    // Vul telefoon
-    const telefoonInput = document.querySelector('[data-field-name="telefoon"]');
-    if (telefoonInput) telefoonInput.value = userData.telefoon || '';
-
-    // Vul adres
-    if (userData.adres) {
-      const postcodeInput = document.querySelector('[data-field-name="postcode"]');
-      const huisnummerInput = document.querySelector('[data-field-name="huisnummer"]');
-      const toevoegingInput = document.querySelector('[data-field-name="toevoeging"]');
-      const straatInput = document.querySelector('[data-field-name="straatnaam"]');
-      const plaatsInput = document.querySelector('[data-field-name="plaats"]');
-
-      if (postcodeInput) postcodeInput.value = userData.adres.postcode || '';
-      if (huisnummerInput) huisnummerInput.value = userData.adres.huisnummer || '';
-      if (toevoegingInput) toevoegingInput.value = userData.adres.toevoeging || '';
-      if (straatInput) straatInput.value = userData.adres.straat || '';
-      if (plaatsInput) plaatsInput.value = userData.adres.plaats || '';
+    if (!authState || !authState.access_token) {
+      console.error('❌ [Account Beheren] Geen auth state');
+      return;
     }
 
-    console.log('✅ User data geladen');
+    console.log('🔄 [Account Beheren] Laden user data...');
+
+    const data = await apiClient('/routes/dashboard/klant/profiel', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authState.access_token}`
+      }
+    });
+
+    console.log('✅ [Account Beheren] User data geladen:', data);
+
+    // Profiel form
+    setFieldValue('profiel', 'voornaam', data.voornaam);
+    setFieldValue('profiel', 'achternaam', data.achternaam);
+
+    // Email form
+    setFieldValue('email', 'email', data.email);
+
+    // Telefoon form
+    setFieldValue('telefoon', 'telefoon', data.telefoon);
+
+    // Adres form
+    if (data.adres) {
+      setFieldValue('adres', 'postcode', data.adres.postcode);
+      setFieldValue('adres', 'huisnummer', data.adres.huisnummer);
+      setFieldValue('adres', 'toevoeging', data.adres.toevoeging);
+      setFieldValue('adres', 'straatnaam', data.adres.straat);
+      setFieldValue('adres', 'plaats', data.adres.plaats);
+    }
+
+    // Wachtwoord form blijft LEEG (geen prefill)
+
+    console.log('✅ [Account Beheren] Velden gevuld met user data');
 
   } catch (error) {
-    console.error('❌ Fout bij laden user data:', error);
+    console.error('❌ [Account Beheren] Fout bij laden user data:', error);
   }
+}
+
+// =============================================================================
+// 1. PROFIEL FORM (voornaam + achternaam)
+// =============================================================================
+
+function initProfielForm() {
+  const button = document.querySelector('[data-account-save="profiel"]');
+  if (!button) return;
+
+  button.addEventListener('click', async (e) => {
+    e.preventDefault();
+    
+    const formName = 'profiel';
+    clearAllErrors(formName);
+    setButtonLoading(button, true);
+
+    try {
+      const voornaam = getFieldValue(formName, 'voornaam');
+      const achternaam = getFieldValue(formName, 'achternaam');
+
+      // Validatie
+      if (!voornaam) {
+        showFieldError(formName, 'voornaam', 'Voornaam is verplicht');
+        setButtonLoading(button, false);
+        return;
+      }
+      if (!achternaam) {
+        showFieldError(formName, 'achternaam', 'Achternaam is verplicht');
+        setButtonLoading(button, false);
+        return;
+      }
+
+      // API call
+      const authState = authClient.getAuthState();
+      await apiClient('/routes/dashboard/klant/update-profiel', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${authState.access_token}`
+        },
+        body: { voornaam, achternaam }
+      });
+
+      console.log('✅ [Profiel] Bijgewerkt');
+      showSuccess(formName, 'Profiel bijgewerkt!');
+
+    } catch (error) {
+      console.error('❌ [Profiel] Fout:', error);
+      showGlobalError(formName, error.message || 'Er ging iets mis');
+    } finally {
+      setButtonLoading(button, false);
+    }
+  });
+}
+
+// =============================================================================
+// 2. EMAIL FORM
+// =============================================================================
+
+function initEmailForm() {
+  const button = document.querySelector('[data-account-save="email"]');
+  if (!button) return;
+
+  button.addEventListener('click', async (e) => {
+    e.preventDefault();
+    
+    const formName = 'email';
+    clearAllErrors(formName);
+    setButtonLoading(button, true);
+
+    try {
+      const email = getFieldValue(formName, 'email');
+
+      // Validatie
+      if (!email || !email.includes('@')) {
+        showFieldError(formName, 'email', 'Geldig e-mailadres is verplicht');
+        setButtonLoading(button, false);
+        return;
+      }
+
+      // API call
+      const authState = authClient.getAuthState();
+      await apiClient('/routes/dashboard/klant/update-email', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${authState.access_token}`
+        },
+        body: { email }
+      });
+
+      console.log('✅ [Email] Bijgewerkt');
+      showSuccess(formName, 'E-mailadres bijgewerkt! Controleer je inbox voor bevestiging.');
+
+    } catch (error) {
+      console.error('❌ [Email] Fout:', error);
+      showGlobalError(formName, error.message || 'Er ging iets mis');
+    } finally {
+      setButtonLoading(button, false);
+    }
+  });
+}
+
+// =============================================================================
+// 3. TELEFOON FORM
+// =============================================================================
+
+function initTelefoonForm() {
+  const button = document.querySelector('[data-account-save="telefoon"]');
+  if (!button) return;
+
+  button.addEventListener('click', async (e) => {
+    e.preventDefault();
+    
+    const formName = 'telefoon';
+    clearAllErrors(formName);
+    setButtonLoading(button, true);
+
+    try {
+      const telefoon = getFieldValue(formName, 'telefoon');
+
+      // Validatie
+      if (!telefoon || telefoon.length < 10) {
+        showFieldError(formName, 'telefoon', 'Geldig telefoonnummer is verplicht (minimaal 10 tekens)');
+        setButtonLoading(button, false);
+        return;
+      }
+
+      // API call
+      const authState = authClient.getAuthState();
+      await apiClient('/routes/dashboard/klant/update-telefoon', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${authState.access_token}`
+        },
+        body: { telefoon }
+      });
+
+      console.log('✅ [Telefoon] Bijgewerkt');
+      showSuccess(formName, 'Telefoonnummer bijgewerkt!');
+
+    } catch (error) {
+      console.error('❌ [Telefoon] Fout:', error);
+      showGlobalError(formName, error.message || 'Er ging iets mis');
+    } finally {
+      setButtonLoading(button, false);
+    }
+  });
+}
+
+// =============================================================================
+// 4. ADRES FORM (met postcode check)
+// =============================================================================
+
+function initAdresForm() {
+  const formName = 'adres';
+  const postcodeField = document.querySelector(`[data-account-form="${formName}"] [data-field-name="postcode"]`);
+  const huisnummerField = document.querySelector(`[data-account-form="${formName}"] [data-field-name="huisnummer"]`);
+  const button = document.querySelector('[data-account-save="adres"]');
+
+  // Postcode check on blur
+  if (postcodeField && huisnummerField) {
+    const checkPostcode = async () => {
+      const postcode = postcodeField.value.trim();
+      const huisnummer = huisnummerField.value.trim();
+
+      if (!postcode || !huisnummer) return;
+
+      try {
+        const result = await checkAddress(postcode, huisnummer);
+        
+        if (result.straat && result.plaats) {
+          setFieldValue(formName, 'straatnaam', result.straat);
+          setFieldValue(formName, 'plaats', result.plaats);
+          clearFieldError(formName, 'postcode');
+          clearFieldError(formName, 'huisnummer');
+        }
+      } catch (error) {
+        console.error('❌ [Adres] Postcode check fout:', error);
+        showFieldError(formName, 'postcode', 'Ongeldig adres');
+      }
+    };
+
+    postcodeField.addEventListener('blur', checkPostcode);
+    huisnummerField.addEventListener('blur', checkPostcode);
+  }
+
+  // Save button
+  if (!button) return;
+
+  button.addEventListener('click', async (e) => {
+    e.preventDefault();
+    
+    clearAllErrors(formName);
+    setButtonLoading(button, true);
+
+    try {
+      const postcode = getFieldValue(formName, 'postcode');
+      const huisnummer = getFieldValue(formName, 'huisnummer');
+      const toevoeging = getFieldValue(formName, 'toevoeging');
+      const straat = getFieldValue(formName, 'straatnaam');
+      const plaats = getFieldValue(formName, 'plaats');
+
+      // Validatie
+      if (!postcode) {
+        showFieldError(formName, 'postcode', 'Postcode is verplicht');
+        setButtonLoading(button, false);
+        return;
+      }
+      if (!huisnummer) {
+        showFieldError(formName, 'huisnummer', 'Huisnummer is verplicht');
+        setButtonLoading(button, false);
+        return;
+      }
+      if (!straat || !plaats) {
+        showFieldError(formName, 'postcode', 'Vul eerst een geldige postcode en huisnummer in');
+        setButtonLoading(button, false);
+        return;
+      }
+
+      // API call
+      const authState = authClient.getAuthState();
+      await apiClient('/routes/dashboard/klant/update-adres', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${authState.access_token}`
+        },
+        body: { postcode, huisnummer, toevoeging, straat, plaats }
+      });
+
+      console.log('✅ [Adres] Bijgewerkt');
+      showSuccess(formName, 'Adres bijgewerkt!');
+
+    } catch (error) {
+      console.error('❌ [Adres] Fout:', error);
+      showGlobalError(formName, error.message || 'Er ging iets mis');
+    } finally {
+      setButtonLoading(button, false);
+    }
+  });
+}
+
+// =============================================================================
+// 5. WACHTWOORD FORM (met verificatie huidig wachtwoord)
+// =============================================================================
+
+function initWachtwoordForm() {
+  const button = document.querySelector('[data-account-save="wachtwoord"]');
+  if (!button) return;
+
+  button.addEventListener('click', async (e) => {
+    e.preventDefault();
+    
+    const formName = 'wachtwoord';
+    clearAllErrors(formName);
+    setButtonLoading(button, true);
+
+    try {
+      const huidigWachtwoord = getFieldValue(formName, 'huidig-wachtwoord');
+      const nieuwWachtwoord = getFieldValue(formName, 'nieuw-wachtwoord');
+      const bevestigWachtwoord = getFieldValue(formName, 'bevestig-wachtwoord');
+
+      // Validatie
+      if (!huidigWachtwoord) {
+        showFieldError(formName, 'huidig-wachtwoord', 'Huidig wachtwoord is verplicht');
+        setButtonLoading(button, false);
+        return;
+      }
+      if (!nieuwWachtwoord || nieuwWachtwoord.length < 8) {
+        showFieldError(formName, 'nieuw-wachtwoord', 'Nieuw wachtwoord moet minimaal 8 tekens zijn');
+        setButtonLoading(button, false);
+        return;
+      }
+      if (nieuwWachtwoord !== bevestigWachtwoord) {
+        showFieldError(formName, 'bevestig-wachtwoord', 'Wachtwoorden komen niet overeen');
+        setButtonLoading(button, false);
+        return;
+      }
+
+      // API call (backend verifieert huidig wachtwoord)
+      const authState = authClient.getAuthState();
+      await apiClient('/routes/dashboard/klant/update-wachtwoord', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${authState.access_token}`
+        },
+        body: { 
+          huidigWachtwoord, 
+          nieuwWachtwoord 
+        }
+      });
+
+      console.log('✅ [Wachtwoord] Bijgewerkt');
+      
+      // Clear wachtwoord velden na success
+      setFieldValue(formName, 'huidig-wachtwoord', '');
+      setFieldValue(formName, 'nieuw-wachtwoord', '');
+      setFieldValue(formName, 'bevestig-wachtwoord', '');
+      
+      showSuccess(formName, 'Wachtwoord succesvol gewijzigd!');
+
+    } catch (error) {
+      console.error('❌ [Wachtwoord] Fout:', error);
+      
+      // Specifieke error voor verkeerd huidig wachtwoord
+      if (error.message && error.message.includes('onjuist')) {
+        showFieldError(formName, 'huidig-wachtwoord', 'Huidig wachtwoord is onjuist');
+      } else {
+        showGlobalError(formName, error.message || 'Er ging iets mis');
+      }
+    } finally {
+      setButtonLoading(button, false);
+    }
+  });
 }
 
 // =============================================================================
@@ -460,10 +487,10 @@ async function loadUserData() {
 export async function initAccountBeheren() {
   console.log('⚙️ [Account Beheren] Initialiseren...');
 
-  // Laad user data
+  // Load user data en prefill alle velden (behalve wachtwoorden)
   await loadUserData();
 
-  // Initialiseer alle formulieren
+  // Initialiseer alle 5 formulieren
   initProfielForm();
   initEmailForm();
   initTelefoonForm();
