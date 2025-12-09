@@ -5,6 +5,7 @@
  */
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
+import { initInvoiceButton } from '../../utils/invoiceHelper.js';
 
 /**
  * Formatteer datum naar NL formaat
@@ -189,6 +190,36 @@ function populateProductItems(items) {
 }
 
 /**
+ * Initialiseer factuur button (indien beschikbaar)
+ */
+function initializeInvoiceButton(bestellingData) {
+  const invoiceButton = document.querySelector('[data-invoice-button]');
+  
+  if (!invoiceButton) {
+    console.log('[Bestelling Detail] Geen factuur button gevonden op pagina');
+    return;
+  }
+
+  const invoiceId = bestellingData.stripe_invoice_id;
+
+  if (!invoiceId) {
+    // Geen factuur beschikbaar - verberg button
+    console.log('[Bestelling Detail] Geen factuur beschikbaar voor deze bestelling');
+    invoiceButton.style.display = 'none';
+    return;
+  }
+
+  // Vul invoice ID in als data attribuut
+  invoiceButton.dataset.invoiceId = invoiceId;
+  invoiceButton.style.display = ''; // Zorg dat button zichtbaar is
+
+  // Initialiseer button functionaliteit
+  initInvoiceButton();
+
+  console.log(`✅ [Bestelling Detail] Factuur button geïnitialiseerd (${invoiceId})`);
+}
+
+/**
  * Initialiseer bestelling detail pagina
  */
 export async function initBestellingDetail() {
@@ -234,6 +265,9 @@ export async function initBestellingDetail() {
     if (data.items && data.items.length > 0) {
       populateProductItems(data.items);
     }
+
+    // Initialiseer factuur button (indien beschikbaar)
+    initializeInvoiceButton(data);
 
     console.log('✅ [Bestelling Detail] Initialisatie voltooid');
     
