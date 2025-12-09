@@ -5,7 +5,7 @@
  */
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
-import { checkAddress } from '../../utils/api/address.js';
+import { fetchAddressDetails } from '../../utils/api/address.js';
 
 /**
  * UI Helper: Show field error
@@ -333,7 +333,7 @@ function initAdresForm() {
       if (!postcode || !huisnummer) return;
 
       try {
-        const result = await checkAddress(postcode, huisnummer);
+        const result = await fetchAddressDetails(postcode, huisnummer);
         
         if (result.straat && result.plaats) {
           setFieldValue(formName, 'straatnaam', result.straat);
