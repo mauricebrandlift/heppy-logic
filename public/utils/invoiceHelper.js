@@ -21,7 +21,7 @@ export async function getInvoiceUrl(stripeInvoiceId) {
   }
 
   try {
-    const response = await apiClient('/api/routes/stripe/get-invoice-url', {
+    const response = await apiClient('/routes/stripe/get-invoice-url', {
       method: 'POST',
       body: JSON.stringify({ invoiceId: stripeInvoiceId })
     });
