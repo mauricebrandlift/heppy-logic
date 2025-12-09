@@ -15,7 +15,7 @@
 import { supabaseConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { handleErrorResponse } from '../../../utils/errorHandler.js';
-import { verifyAuthToken } from '../../../utils/authMiddleware.js';
+import { verifyAuth } from '../../../checks/authCheck.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -36,8 +36,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    const user = await verifyAuthToken(req, res);
-    if (!user) return;
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ correlationId, message: 'Authenticatie vereist' });
+    }
+    const token = authHeader.split(' ')[1];
+    const user = await verifyAuth(token);
 
     const { postcode, huisnummer, toevoeging, straat, plaats } = req.body;
 
