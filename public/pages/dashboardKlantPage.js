@@ -7,6 +7,7 @@ import { initDashboardAuth } from '../utils/auth/dashboardAuth.js';
 import { initDashboardOverview } from '../forms/dashboardKlant/overviewInit.js';
 import { initBestellingDetail } from '../forms/dashboardKlant/bestellingDetailInit.js';
 import { initFacturenOverzicht } from '../forms/dashboardKlant/facturenInit.js';
+import { initAccountBeheren } from '../forms/dashboardKlant/accountBeherenInit.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏠 [KlantDashboard] Pagina geladen');
@@ -35,6 +36,7 @@ async function initKlantDashboardFuncties() {
   const overviewPage = document.querySelector('[data-dashboard-page="overview"]');
   const bestellingDetailPage = document.querySelector('[data-dashboard-page="bestelling-detail"]');
   const facturenPage = document.querySelector('[data-dashboard-page="facturen"]');
+  const accountBeherenPage = document.querySelector('[data-dashboard-page="account-beheren"]');
   
   if (overviewPage) {
     console.log('📊 [KlantDashboard] Overview pagina gedetecteerd');
@@ -49,6 +51,11 @@ async function initKlantDashboardFuncties() {
   if (facturenPage) {
     console.log('📄 [KlantDashboard] Facturen pagina gedetecteerd');
     await initFacturenOverzicht();
+  }
+  
+  if (accountBeherenPage) {
+    console.log('⚙️ [KlantDashboard] Account beheren pagina gedetecteerd');
+    await initAccountBeheren();
   }
   
   // Hier komen later andere pagina checks:
