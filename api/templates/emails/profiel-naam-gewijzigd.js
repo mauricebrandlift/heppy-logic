@@ -50,7 +50,7 @@ export function profielNaamGewijzigd(data) {
     
     <div class="warning-box">
       <p><strong>⚠️ Heb je deze wijziging niet zelf uitgevoerd?</strong></p>
-      <p>Neem dan direct contact met ons op via <a href="mailto:info@heppy-schoonmaak.nl">info@heppy-schoonmaak.nl</a> of bel naar <strong>088 - 4377 900</strong>.</p>
+      <p>Neem dan direct contact met ons op via <a href="mailto:info@heppy-schoonmaak.nl">info@heppy-schoonmaak.nl</a>.</p>
     </div>
     
     <div style="margin-top: 30px; padding: 20px; background: #f9f9f9; border-radius: 8px; text-align: center;">

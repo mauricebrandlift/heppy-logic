@@ -81,6 +81,15 @@ export async function logAudit({ userId, action, entityType, entityId, oldValues
       return false;
     }
 
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      msg: 'audit_log_created',
+      action,
+      userId,
+      entityId: entityId || userId
+    }));
+
     return true;
   } catch (error) {
     console.warn(JSON.stringify({

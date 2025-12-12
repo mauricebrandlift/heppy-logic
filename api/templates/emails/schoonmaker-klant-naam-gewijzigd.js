@@ -56,7 +56,7 @@ export function schoonmakerKlantNaamGewijzigd(data) {
     
     <div style="margin-top: 20px; padding: 20px; background: #f9f9f9; border-radius: 8px; text-align: center;">
       <p style="margin: 0; color: #666;">
-        Vragen? Neem contact met ons op via <a href="mailto:info@heppy-schoonmaak.nl">info@heppy-schoonmaak.nl</a>
+        Vragen? Neem contact met ons op via <a href="mailto:info@heppy-schoonmaak.nl">info@heppy-schoonmaak.nl</a>.
       </p>
     </div>
   `;
