@@ -16,7 +16,7 @@ import { apiClient } from '../utils/api/client.js';
 
 export function initVerifyEmailPage() {
   // Check of we op de juiste pagina zitten
-  const pageIdentifier = document.querySelector('[data-page="verify-email"]');
+  const pageIdentifier = document.querySelector('[data-dashboard-page="verify-email"]');
   if (!pageIdentifier) return;
 
   console.log('[VerifyEmail] Pagina geladen');
