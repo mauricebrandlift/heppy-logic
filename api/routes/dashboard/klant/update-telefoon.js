@@ -145,7 +145,7 @@ export default async function handler(req, res) {
 
     // Haal actieve abonnementen op met schoonmaker details
     const abonnementResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/abonnementen?klant_id=eq.${user.id}&status=eq.actief&select=id,schoonmaker_id,schoonmaker:user_profiles!schoonmaker_id(voornaam,achternaam,email)`,
+      `${supabaseConfig.url}/rest/v1/abonnementen?klant_id=eq.${user.id}&status=eq.actief&select=id,schoonmaker_id`,
       {
         method: 'GET',
         headers: {
@@ -159,17 +159,40 @@ export default async function handler(req, res) {
     let activeAbonnementen = [];
     if (abonnementResponse.ok) {
       activeAbonnementen = await abonnementResponse.json();
+      
+      // Haal schoonmaker profiles op voor actieve abonnementen
+      for (const abonnement of activeAbonnementen) {
+        if (abonnement.schoonmaker_id) {
+          const schoonmakerResponse = await httpClient(
+            `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${abonnement.schoonmaker_id}&select=voornaam,achternaam,email`,
+            {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': supabaseConfig.anonKey,
+                'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+              }
+            }
+          );
+          if (schoonmakerResponse.ok) {
+            const schoonmakers = await schoonmakerResponse.json();
+            if (schoonmakers && schoonmakers.length > 0) {
+              abonnement.schoonmaker = schoonmakers[0];
+            }
+          }
+        }
+      }
     } else {
       console.error('Abonnementen ophalen error:', await abonnementResponse.text());
     }
 
     // Stuur email naar klant
-    const telefoonGewijzigdEmail = await import('../../../templates/emails/telefoon-gewijzigd.js');
+    const { telefoonGewijzigd } = await import('../../../templates/emails/telefoon-gewijzigd.js');
     try {
       await sendEmail({
         to: user.email,
         subject: 'Je telefoonnummer is gewijzigd',
-        html: telefoonGewijzigdEmail.default({
+        html: telefoonGewijzigd({
           voornaam: currentProfile.voornaam,
           oudTelefoon,
           nieuwTelefoon
@@ -184,7 +207,7 @@ export default async function handler(req, res) {
     // Notificeer schoonmakers als er actieve abonnementen zijn
     let schoonmakerGenotificeerd = false;
     if (activeAbonnementen && activeAbonnementen.length > 0) {
-      const schoonmakerTelefoonEmail = await import('../../../templates/emails/schoonmaker-klant-telefoon-gewijzigd.js');
+      const { schoonmakerKlantTelefoonGewijzigd } = await import('../../../templates/emails/schoonmaker-klant-telefoon-gewijzigd.js');
       
       for (const abonnement of activeAbonnementen) {
         if (abonnement.schoonmaker?.email) {
@@ -192,7 +215,7 @@ export default async function handler(req, res) {
             await sendEmail({
               to: abonnement.schoonmaker.email,
               subject: 'Klantgegevens gewijzigd',
-              html: schoonmakerTelefoonEmail.default({
+              html: schoonmakerKlantTelefoonGewijzigd({
                 schoonmakerVoornaam: abonnement.schoonmaker.voornaam,
                 klantNaam: `${currentProfile.voornaam} ${currentProfile.achternaam}`,
                 oudTelefoon,

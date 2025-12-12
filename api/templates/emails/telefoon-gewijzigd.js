@@ -5,7 +5,7 @@
 
 import { baseLayout } from './baseLayout.js';
 
-export default function telefoonGewijzigdEmail({ voornaam, oudTelefoon, nieuwTelefoon }) {
+export function telefoonGewijzigd({ voornaam, oudTelefoon, nieuwTelefoon }) {
   const content = `
     <p style="margin: 0 0 16px 0; color: #1a1a1a; font-size: 16px; line-height: 24px;">
       Hoi ${voornaam},
@@ -50,8 +50,5 @@ export default function telefoonGewijzigdEmail({ voornaam, oudTelefoon, nieuwTel
     </p>
   `;
 
-  return baseLayout({
-    content,
-    preheader: 'Je telefoonnummer is gewijzigd'
-  });
+  return baseLayout(content, 'Je telefoonnummer is gewijzigd - Heppy');
 }

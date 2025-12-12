@@ -5,7 +5,7 @@
 
 import { baseLayout } from './baseLayout.js';
 
-export default function schoonmakerKlantTelefoonGewijzigdEmail({ schoonmakerVoornaam, klantNaam, oudTelefoon, nieuwTelefoon }) {
+export function schoonmakerKlantTelefoonGewijzigd({ schoonmakerVoornaam, klantNaam, oudTelefoon, nieuwTelefoon }) {
   const content = `
     <p style="margin: 0 0 16px 0; color: #1a1a1a; font-size: 16px; line-height: 24px;">
       Hoi ${schoonmakerVoornaam},
@@ -48,8 +48,5 @@ export default function schoonmakerKlantTelefoonGewijzigdEmail({ schoonmakerVoor
     </p>
   `;
 
-  return baseLayout({
-    content,
-    preheader: 'Klantgegevens gewijzigd'
-  });
+  return baseLayout(content, 'Klantgegevens gewijzigd - Heppy');
 }
