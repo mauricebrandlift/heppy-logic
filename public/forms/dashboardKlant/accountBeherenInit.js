@@ -345,14 +345,25 @@ function initEmailForm() {
   button.addEventListener('click', async (e) => {
     e.preventDefault();
     
+    // Prevent dubbele clicks
+    if (button.dataset.requesting === 'true') {
+      console.log('[Email] Request al bezig, negeer duplicate click');
+      return;
+    }
+    
     clearAllErrors(formName);
 
     try {
+      // Mark als bezig
+      button.dataset.requesting = 'true';
+      setButtonDisabled(button, true);
+      
       const nieuwEmail = getFieldValue(formName, 'email');
 
       // Validatie
       if (!nieuwEmail || !nieuwEmail.includes('@')) {
         showFieldError(formName, 'email', 'Geldig e-mailadres is verplicht');
+        button.dataset.requesting = 'false';
         return;
       }
 
@@ -360,6 +371,7 @@ function initEmailForm() {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(nieuwEmail)) {
         showFieldError(formName, 'email', 'Voer een geldig e-mailadres in');
+        button.dataset.requesting = 'false';
         return;
       }
 
@@ -382,8 +394,6 @@ function initEmailForm() {
         emailInput.value = originalValues.email.email || '';
       }
       
-      setButtonDisabled(button, true);
-      
       showSuccess(formName, 'Check je nieuwe email voor de verificatie link. Je huidige email blijft actief tot je bevestigt.');
 
     } catch (error) {
@@ -395,6 +405,10 @@ function initEmailForm() {
       } else {
         showGlobalError(formName, error.message || 'Er ging iets mis');
       }
+    } finally {
+      // Reset requesting state
+      button.dataset.requesting = 'false';
+      setButtonDisabled(button, true);
     }
   });
 }

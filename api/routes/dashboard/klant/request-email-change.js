@@ -193,9 +193,9 @@ export default async function handler(req, res) {
       correlationId
     });
 
-    // Verificatie link (frontend moet deze route hebben)
+    // Verificatie link (direct naar API, die redirect naar dashboard)
     const baseUrl = process.env.FRONTEND_URL || 'https://heppy-frontend-code.vercel.app';
-    const verificatieLink = `${baseUrl}/dashboard/klant/verify-email?token=${verificatieToken}`;
+    const verificatieLink = `${baseUrl}/api/routes/dashboard/klant/verify-email-change?token=${verificatieToken}`;
 
     // Email naar OUDE adres (notificatie)
     await sendEmail({

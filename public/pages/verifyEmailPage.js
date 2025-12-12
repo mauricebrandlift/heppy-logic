@@ -27,10 +27,13 @@ export function initVerifyEmailPage() {
   const errorEl = document.querySelector('[data-verify-status="error"]');
   const errorMessageEl = document.querySelector('[data-verify-error-message]');
 
-  // Toon loading state
-  if (loadingEl) loadingEl.style.display = 'block';
+  // Hide all states initially via attribute
+  if (loadingEl) loadingEl.style.display = 'none';
   if (successEl) successEl.style.display = 'none';
   if (errorEl) errorEl.style.display = 'none';
+
+  // Show loading state
+  if (loadingEl) loadingEl.style.display = 'block';
 
   // Haal token uit URL
   const params = new URLSearchParams(window.location.search);

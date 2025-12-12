@@ -278,6 +278,77 @@ export default async function handler(req, res) {
       schoonmakerGenotificeerd: heeftActiefAbonnement
     }));
 
+    // Bij GET request vanuit browser: HTML response met redirect
+    // Bij POST/API call: JSON response
+    const acceptHeader = req.headers.accept || '';
+    if (req.method === 'GET' && acceptHeader.includes('text/html')) {
+      // Browser request - render HTML met success message en redirect
+      const baseUrl = process.env.FRONTEND_URL || 'https://heppy-frontend-code.vercel.app';
+      const successMessage = heeftActiefAbonnement 
+        ? 'Je email is succesvol gewijzigd! Je schoonmaker is automatisch op de hoogte gebracht.'
+        : 'Je email is succesvol gewijzigd!';
+      
+      const html = `
+        <!DOCTYPE html>
+        <html lang="nl">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Email Geverifieerd - Heppy</title>
+            <meta http-equiv="refresh" content="3;url=${baseUrl}/dashboard/klant">
+            <style>
+              body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                background: #f5f5f5;
+              }
+              .container {
+                background: white;
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                max-width: 500px;
+                text-align: center;
+              }
+              .success-icon {
+                font-size: 48px;
+                margin-bottom: 20px;
+              }
+              h1 {
+                color: #013d29;
+                margin: 0 0 15px 0;
+              }
+              p {
+                color: #666;
+                line-height: 1.6;
+                margin: 0 0 20px 0;
+              }
+              .redirect-note {
+                color: #999;
+                font-size: 14px;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="success-icon">✅</div>
+              <h1>Email Geverifieerd!</h1>
+              <p>${successMessage}</p>
+              <p class="redirect-note">Je wordt binnen 3 seconden doorgestuurd naar je dashboard...</p>
+            </div>
+          </body>
+        </html>
+      `;
+      
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(200).send(html);
+    }
+
+    // API request - JSON response
     return res.status(200).json({
       correlationId,
       message: 'Email succesvol gewijzigd',
@@ -287,6 +358,87 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
+    // Bij GET browser request: HTML error
+    const acceptHeader = req.headers.accept || '';
+    if (req.method === 'GET' && acceptHeader.includes('text/html')) {
+      const baseUrl = process.env.FRONTEND_URL || 'https://heppy-frontend-code.vercel.app';
+      
+      let errorMessage = 'Er ging iets mis bij het verifiëren van je email.';
+      if (error.error === 'TOKEN_NOT_FOUND') {
+        errorMessage = 'Ongeldige verificatie link. Controleer of je de juiste link hebt gebruikt.';
+      } else if (error.error === 'TOKEN_ALREADY_USED') {
+        errorMessage = 'Deze verificatie link is al gebruikt. Je email is waarschijnlijk al gewijzigd.';
+      } else if (error.error === 'TOKEN_EXPIRED') {
+        errorMessage = 'Deze verificatie link is verlopen. Vraag een nieuwe email wijziging aan via je dashboard.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      const html = `
+        <!DOCTYPE html>
+        <html lang="nl">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Verificatie Mislukt - Heppy</title>
+            <style>
+              body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 100vh;
+                margin: 0;
+                background: #f5f5f5;
+              }
+              .container {
+                background: white;
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                max-width: 500px;
+                text-align: center;
+              }
+              .error-icon {
+                font-size: 48px;
+                margin-bottom: 20px;
+              }
+              h1 {
+                color: #d32f2f;
+                margin: 0 0 15px 0;
+              }
+              p {
+                color: #666;
+                line-height: 1.6;
+                margin: 0 0 20px 0;
+              }
+              .button {
+                display: inline-block;
+                background: #c9e9b1;
+                color: #013d29;
+                padding: 12px 24px;
+                text-decoration: none;
+                border-radius: 6px;
+                font-weight: 600;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="error-icon">❌</div>
+              <h1>Verificatie Mislukt</h1>
+              <p>${errorMessage}</p>
+              <a href="${baseUrl}/dashboard/klant" class="button">Ga naar Dashboard</a>
+            </div>
+          </body>
+        </html>
+      `;
+      
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(400).send(html);
+    }
+    
+    // API request - JSON error
     return handleErrorResponse(error, res, correlationId);
   }
 }
