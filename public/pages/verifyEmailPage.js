@@ -67,7 +67,7 @@ export function initVerifyEmailPage() {
 
     // Redirect naar dashboard na 3 seconden
     setTimeout(() => {
-      window.location.href = '/dashboard/klant';
+      window.location.href = '/dashboard/klant/overview';
     }, 3000);
   }
 
