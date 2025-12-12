@@ -348,32 +348,53 @@ function initEmailForm() {
     clearAllErrors(formName);
 
     try {
-      const email = getFieldValue(formName, 'email');
+      const nieuwEmail = getFieldValue(formName, 'email');
 
-      if (!email || !email.includes('@')) {
+      // Validatie
+      if (!nieuwEmail || !nieuwEmail.includes('@')) {
         showFieldError(formName, 'email', 'Geldig e-mailadres is verplicht');
         return;
       }
 
+      // Email format validatie (zelfde als backend)
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(nieuwEmail)) {
+        showFieldError(formName, 'email', 'Voer een geldig e-mailadres in');
+        return;
+      }
+
       const authState = authClient.getAuthState();
-      await apiClient('/routes/dashboard/klant/update-email', {
-        method: 'PATCH',
+      
+      // Stap 1: Request email change (stuur verificatie emails)
+      const result = await apiClient('/routes/dashboard/klant/request-email-change', {
+        method: 'POST',
         headers: {
           'Authorization': `Bearer ${authState.access_token}`
         },
-        body: { email }
+        body: { nieuwEmail }
       });
 
-      console.log('✅ [Email] Bijgewerkt');
+      console.log('✅ [Email] Verificatie aangevraagd');
       
-      originalValues.email = { email };
+      // Reset form naar originele waarde (wijziging nog niet definitief)
+      const emailInput = document.querySelector(`[data-account-form="${formName}"] input[name="email"]`);
+      if (emailInput) {
+        emailInput.value = originalValues.email.email || '';
+      }
+      
       setButtonDisabled(button, true);
       
-      showSuccess(formName, 'E-mailadres bijgewerkt! Controleer je inbox voor bevestiging.');
+      showSuccess(formName, 'Check je nieuwe email voor de verificatie link. Je huidige email blijft actief tot je bevestigt.');
 
     } catch (error) {
       console.error('❌ [Email] Fout:', error);
-      showGlobalError(formName, error.message || 'Er ging iets mis');
+      
+      // Handle specifieke foutmeldingen
+      if (error.errors && error.errors.nieuwEmail) {
+        showFieldError(formName, 'email', error.errors.nieuwEmail);
+      } else {
+        showGlobalError(formName, error.message || 'Er ging iets mis');
+      }
     }
   });
 }

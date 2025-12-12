@@ -41,9 +41,16 @@ export { matchGoedgekeurdKlant } from './matchGoedgekeurdKlant.js';
 export { matchAfgewezenAdmin } from './matchAfgewezenAdmin.js';
 export { geenSchoonmakerBeschikbaarKlant } from './geenSchoonmakerBeschikbaarKlant.js';
 
-// Account Beheren Templates
+// Account Beheren Templates - Profiel
 export { profielNaamGewijzigd } from './profiel-naam-gewijzigd.js';
 export { schoonmakerKlantNaamGewijzigd } from './schoonmaker-klant-naam-gewijzigd.js';
+
+// Account Beheren Templates - Email
+export { emailWijzigingAangevraagdOud } from './email-wijziging-aangevraagd-oud.js';
+export { emailWijzigingVerificatieNieuw } from './email-wijziging-verificatie-nieuw.js';
+export { emailGewijzigdBevestigingOud } from './email-gewijzigd-bevestiging-oud.js';
+export { emailGewijzigdBevestigingNieuw } from './email-gewijzigd-bevestiging-nieuw.js';
+export { schoonmakerKlantEmailGewijzigd } from './schoonmaker-klant-email-gewijzigd.js';
 
 // Helper functions
 export { 
@@ -85,9 +92,16 @@ export const templates = {
   matchAfgewezenAdmin: (await import('./matchAfgewezenAdmin.js')).matchAfgewezenAdmin,
   geenSchoonmakerBeschikbaarKlant: (await import('./geenSchoonmakerBeschikbaarKlant.js')).geenSchoonmakerBeschikbaarKlant,
   
-  // Account Beheren
+  // Account Beheren - Profiel
   'profiel-naam-gewijzigd': (await import('./profiel-naam-gewijzigd.js')).profielNaamGewijzigd,
   'schoonmaker-klant-naam-gewijzigd': (await import('./schoonmaker-klant-naam-gewijzigd.js')).schoonmakerKlantNaamGewijzigd,
+  
+  // Account Beheren - Email
+  'email-wijziging-aangevraagd-oud': (await import('./email-wijziging-aangevraagd-oud.js')).emailWijzigingAangevraagdOud,
+  'email-wijziging-verificatie-nieuw': (await import('./email-wijziging-verificatie-nieuw.js')).emailWijzigingVerificatieNieuw,
+  'email-gewijzigd-bevestiging-oud': (await import('./email-gewijzigd-bevestiging-oud.js')).emailGewijzigdBevestigingOud,
+  'email-gewijzigd-bevestiging-nieuw': (await import('./email-gewijzigd-bevestiging-nieuw.js')).emailGewijzigdBevestigingNieuw,
+  'schoonmaker-klant-email-gewijzigd': (await import('./schoonmaker-klant-email-gewijzigd.js')).schoonmakerKlantEmailGewijzigd,
 };
 
 /**
