@@ -13,12 +13,14 @@ import { baseLayout } from './baseLayout.js';
  * @param {Object} data - Template data
  * @param {string} data.voornaam - Voornaam van de klant
  * @param {string} data.nieuwEmail - Nieuwe email adres (dit adres)
+ * @param {string} [data.dashboardUrl] - Dashboard URL (optioneel)
  * @returns {string} HTML string
  */
 export function emailGewijzigdBevestigingNieuw(data) {
   const {
     voornaam,
-    nieuwEmail
+    nieuwEmail,
+    dashboardUrl = 'https://heppy-schoonmaak.webflow.io/dashboard/klant/overview'
   } = data;
 
   const content = `
@@ -51,7 +53,7 @@ export function emailGewijzigdBevestigingNieuw(data) {
       <p style="margin: 0 0 15px 0; color: #013d29; font-weight: 600;">
         💡 Je kunt nu inloggen met je nieuwe email adres
       </p>
-      <a href="https://heppy-frontend-code.vercel.app/dashboard/klant" 
+      <a href="${dashboardUrl}" 
          style="display: inline-block; background: #013d29; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: 600;">
         Naar Mijn Dashboard
       </a>

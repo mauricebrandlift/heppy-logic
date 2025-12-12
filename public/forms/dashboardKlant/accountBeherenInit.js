@@ -434,18 +434,53 @@ function initTelefoonForm() {
   button.addEventListener('click', async (e) => {
     e.preventDefault();
     
+    // Duplicate click prevention
+    if (button.dataset.requesting === 'true') {
+      console.log('🚫 [Telefoon] Request already in progress');
+      return;
+    }
+    
     clearAllErrors(formName);
 
     try {
+      button.dataset.requesting = 'true';
+      setButtonDisabled(button, true);
+
       const telefoon = getFieldValue(formName, 'telefoon');
 
-      if (!telefoon || telefoon.length < 10) {
-        showFieldError(formName, 'telefoon', 'Geldig telefoonnummer is verplicht (minimaal 10 tekens)');
+      // Validatie
+      if (!telefoon || telefoon.trim() === '') {
+        showFieldError(formName, 'telefoon', 'Telefoonnummer is verplicht');
+        return;
+      }
+
+      // Strip non-digits voor validatie
+      const digitsOnly = telefoon.replace(/\D/g, '');
+      
+      // Dutch phone format check
+      if (digitsOnly.length < 10) {
+        showFieldError(formName, 'telefoon', 'Telefoonnummer moet minimaal 10 cijfers bevatten');
+        return;
+      }
+
+      // Check formaat (0 voor nationaal, 31 voor internationaal)
+      if (digitsOnly.startsWith('0')) {
+        if (digitsOnly.length !== 10) {
+          showFieldError(formName, 'telefoon', 'Nederlands telefoonnummer moet 10 cijfers zijn (bijv. 0612345678)');
+          return;
+        }
+      } else if (digitsOnly.startsWith('31')) {
+        if (digitsOnly.length < 11 || digitsOnly.length > 12) {
+          showFieldError(formName, 'telefoon', 'Internationaal nummer moet 11-12 cijfers zijn (bijv. +31612345678)');
+          return;
+        }
+      } else {
+        showFieldError(formName, 'telefoon', 'Telefoonnummer moet beginnen met 06 of +31');
         return;
       }
 
       const authState = authClient.getAuthState();
-      await apiClient('/routes/dashboard/klant/update-telefoon', {
+      const response = await apiClient('/routes/dashboard/klant/update-telefoon', {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${authState.access_token}`
@@ -458,11 +493,20 @@ function initTelefoonForm() {
       originalValues.telefoon = { telefoon };
       setButtonDisabled(button, true);
       
-      showSuccess(formName, 'Telefoonnummer bijgewerkt!');
+      // Dynamic success message
+      let successMessage = 'Telefoonnummer succesvol bijgewerkt';
+      if (response.schoonmakerGenotificeerd) {
+        successMessage += ' • Je schoonmaker is op de hoogte gebracht';
+      }
+      showSuccess(formName, successMessage);
 
     } catch (error) {
       console.error('❌ [Telefoon] Fout:', error);
       showGlobalError(formName, error.message || 'Er ging iets mis');
+    } finally {
+      // Reset requesting flag
+      delete button.dataset.requesting;
+      updateButtonState(formName, button);
     }
   });
 }

@@ -236,13 +236,15 @@ export default async function handler(req, res) {
     }, correlationId);
 
     // Email naar NIEUWE adres (bevestiging)
+    const baseUrl = process.env.FRONTEND_URL || 'https://heppy-frontend-code.vercel.app';
     await sendEmail({
       to: nieuwEmail,
       subject: 'Je email is gewijzigd',
       template: 'email-gewijzigd-bevestiging-nieuw',
       data: {
         voornaam: userProfile.voornaam,
-        nieuwEmail
+        nieuwEmail,
+        dashboardUrl: `${baseUrl}/dashboard/klant/overview`
       }
     }, correlationId);
 

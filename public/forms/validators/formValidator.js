@@ -101,6 +101,36 @@ export const validators = {
     
     return null;
   },
+  // Telefoon validator (Nederlands formaat)
+  telefoon: (value) => {
+    // Lege waarde wordt afgehandeld door required validator
+    if (!value || value.trim() === '') return null;
+    
+    // Verwijder alle niet-cijfers voor validatie
+    const digitsOnly = value.replace(/\D/g, '');
+    
+    // Minimaal 10 cijfers (Nederlands nummer zonder landcode)
+    if (digitsOnly.length < 10) {
+      return 'Telefoonnummer moet minimaal 10 cijfers bevatten.';
+    }
+    
+    // Check Nederlands formaat: begint met 0 of 31
+    if (!digitsOnly.startsWith('0') && !digitsOnly.startsWith('31')) {
+      return 'Voer een geldig Nederlands telefoonnummer in.';
+    }
+    
+    // Internationaal formaat: +31 (11-12 cijfers totaal)
+    if (digitsOnly.startsWith('31') && (digitsOnly.length < 11 || digitsOnly.length > 12)) {
+      return 'Voer een geldig telefoonnummer in (bijv. +31612345678).';
+    }
+    
+    // Nationaal formaat: 0 (10 cijfers totaal)
+    if (digitsOnly.startsWith('0') && digitsOnly.length !== 10) {
+      return 'Voer een geldig telefoonnummer in (bijv. 0612345678).';
+    }
+    
+    return null;
+  },
 };
 
 /**
