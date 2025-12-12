@@ -145,7 +145,7 @@ export default async function handler(req, res) {
 
     // Haal actieve abonnementen op met schoonmaker details
     const abonnementResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/abonnementen?klant_id=eq.${user.id}&status=eq.actief&select=id,schoonmaker_id,user_profiles!abonnementen_schoonmaker_id_fkey(voornaam,achternaam,email)`,
+      `${supabaseConfig.url}/rest/v1/abonnementen?klant_id=eq.${user.id}&status=eq.actief&select=id,schoonmaker_id,schoonmaker:user_profiles!schoonmaker_id(voornaam,achternaam,email)`,
       {
         method: 'GET',
         headers: {
@@ -174,7 +174,7 @@ export default async function handler(req, res) {
           oudTelefoon,
           nieuwTelefoon
         }),
-        from: 'info@heppy-schoonmaak.nl'
+        from: 'info@mail.heppy-schoonmaak.nl'
       });
     } catch (emailError) {
       console.error('Klant email error:', emailError);
@@ -187,22 +187,22 @@ export default async function handler(req, res) {
       const schoonmakerTelefoonEmail = await import('../../../templates/emails/schoonmaker-klant-telefoon-gewijzigd.js');
       
       for (const abonnement of activeAbonnementen) {
-        if (abonnement.user_profiles?.email) {
+        if (abonnement.schoonmaker?.email) {
           try {
             await sendEmail({
-              to: abonnement.user_profiles.email,
+              to: abonnement.schoonmaker.email,
               subject: 'Klantgegevens gewijzigd',
               html: schoonmakerTelefoonEmail.default({
-                schoonmakerVoornaam: abonnement.user_profiles.voornaam,
+                schoonmakerVoornaam: abonnement.schoonmaker.voornaam,
                 klantNaam: `${currentProfile.voornaam} ${currentProfile.achternaam}`,
                 oudTelefoon,
                 nieuwTelefoon
               }),
-              from: 'info@heppy-schoonmaak.nl'
+              from: 'info@mail.heppy-schoonmaak.nl'
             });
             schoonmakerGenotificeerd = true;
           } catch (emailError) {
-            console.error(`Schoonmaker email error voor ${abonnement.user_profiles.email}:`, emailError);
+            console.error(`Schoonmaker email error voor ${abonnement.schoonmaker.email}:`, emailError);
           }
         }
       }
