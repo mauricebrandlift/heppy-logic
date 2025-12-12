@@ -41,6 +41,10 @@ export { matchGoedgekeurdKlant } from './matchGoedgekeurdKlant.js';
 export { matchAfgewezenAdmin } from './matchAfgewezenAdmin.js';
 export { geenSchoonmakerBeschikbaarKlant } from './geenSchoonmakerBeschikbaarKlant.js';
 
+// Account Beheren Templates
+export { profielNaamGewijzigd } from './profiel-naam-gewijzigd.js';
+export { schoonmakerKlantNaamGewijzigd } from './schoonmaker-klant-naam-gewijzigd.js';
+
 // Helper functions
 export { 
   baseLayout, 
@@ -80,6 +84,10 @@ export const templates = {
   matchGoedgekeurdKlant: (await import('./matchGoedgekeurdKlant.js')).matchGoedgekeurdKlant,
   matchAfgewezenAdmin: (await import('./matchAfgewezenAdmin.js')).matchAfgewezenAdmin,
   geenSchoonmakerBeschikbaarKlant: (await import('./geenSchoonmakerBeschikbaarKlant.js')).geenSchoonmakerBeschikbaarKlant,
+  
+  // Account Beheren
+  'profiel-naam-gewijzigd': (await import('./profiel-naam-gewijzigd.js')).profielNaamGewijzigd,
+  'schoonmaker-klant-naam-gewijzigd': (await import('./schoonmaker-klant-naam-gewijzigd.js')).schoonmakerKlantNaamGewijzigd,
 };
 
 /**

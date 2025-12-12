@@ -83,6 +83,24 @@ export const validators = {
     }
     return null;
   },
+  // Naam validator (voor voornaam/achternaam)
+  name: (value) => {
+    // Lege waarde wordt afgehandeld door required validator
+    if (!value || value.trim() === '') return null;
+    
+    // Alleen letters, spaties, koppeltekens, apostrofs toegestaan
+    const nameRegex = /^[a-zA-ZÀ-ÿ\s'-]+$/;
+    if (!nameRegex.test(value)) {
+      return 'Naam mag alleen letters, spaties, koppeltekens en apostrofs bevatten.';
+    }
+    
+    // Minimaal 2 karakters
+    if (value.trim().length < 2) {
+      return 'Naam moet minimaal 2 karakters bevatten.';
+    }
+    
+    return null;
+  },
 };
 
 /**

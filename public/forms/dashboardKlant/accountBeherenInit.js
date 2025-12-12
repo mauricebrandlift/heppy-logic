@@ -295,7 +295,7 @@ function initProfielForm() {
 
       // API call
       const authState = authClient.getAuthState();
-      await apiClient('/routes/dashboard/klant/update-profiel', {
+      const result = await apiClient('/routes/dashboard/klant/update-profiel', {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${authState.access_token}`
@@ -309,7 +309,13 @@ function initProfielForm() {
       originalValues.profiel = { voornaam, achternaam };
       setButtonDisabled(button, true);
       
-      showSuccess(formName, 'Profiel bijgewerkt!');
+      // Toon success met extra info als schoonmaker genotificeerd is
+      let successMessage = 'Profiel bijgewerkt!';
+      if (result.schoonmakerGenotificeerd) {
+        successMessage += ' Je schoonmaker is automatisch op de hoogte gebracht.';
+      }
+      
+      showSuccess(formName, successMessage);
 
     } catch (error) {
       console.error('❌ [Profiel] Fout:', error);

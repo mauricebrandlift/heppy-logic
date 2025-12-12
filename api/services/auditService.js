@@ -23,3 +23,72 @@ export const auditService = {
     }
   }
 };
+
+/**
+ * Enhanced audit logging with old/new values, IP address, and user agent
+ * @param {Object} params
+ * @param {string} params.userId - User performing the action
+ * @param {string} params.action - Action identifier (e.g. 'update_profiel')
+ * @param {string} [params.entityType] - Entity type being modified (e.g. 'user_profiles')
+ * @param {string} [params.entityId] - Entity ID being modified
+ * @param {Object} [params.oldValues] - Old values before change
+ * @param {Object} [params.newValues] - New values after change
+ * @param {string} [params.ipAddress] - IP address of request
+ * @param {string} [params.userAgent] - User agent of request
+ * @param {string} [params.correlationId] - Optional correlation ID
+ */
+export async function logAudit({ userId, action, entityType, entityId, oldValues, newValues, ipAddress, userAgent, correlationId }) {
+  try {
+    const url = `${supabaseConfig.url}/rest/v1/audit_logs`;
+    
+    const details = {
+      entityType: entityType || null,
+      oldValues: oldValues || null,
+      newValues: newValues || null,
+      ipAddress: ipAddress || null,
+      userAgent: userAgent || null
+    };
+
+    const body = {
+      id: uuid(),
+      module: 'user_account',
+      entity_id: entityId || userId,
+      action,
+      performed_by: userId,
+      details
+    };
+
+    const resp = await httpClient(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(body)
+    }, correlationId);
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.warn(JSON.stringify({
+        level: 'WARN',
+        correlationId,
+        msg: 'audit_log_failed',
+        status: resp.status,
+        text
+      }));
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.warn(JSON.stringify({
+      level: 'WARN',
+      correlationId,
+      msg: 'audit_log_exception',
+      error: error.message
+    }));
+    return false;
+  }
+}

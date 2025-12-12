@@ -17,6 +17,7 @@
 
 import { emailConfig } from '../config/index.js';
 import { auditService } from './auditService.js';
+import { renderTemplate } from '../templates/emails/index.js';
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
 const MAX_RETRIES = 2;
@@ -49,13 +50,25 @@ export async function sendEmail(emailData, correlationId) {
     subject,
     html,
     text,
+    template,
+    data,
     from = emailConfig.fromEmail,
     replyTo = emailConfig.replyToEmail,
   } = emailData;
 
+  // Render template indien aanwezig
+  let emailHtml = html;
+  if (template && data) {
+    try {
+      emailHtml = renderTemplate(template, data);
+    } catch (error) {
+      throw new Error(`Template rendering failed: ${error.message}`);
+    }
+  }
+
   // Validatie
-  if (!to || !subject || !html) {
-    throw new Error('Email requires: to, subject, html');
+  if (!to || !subject || !emailHtml) {
+    throw new Error('Email requires: to, subject, and (html OR template+data)');
   }
 
   if (!emailConfig.resendApiKey) {
@@ -84,7 +97,7 @@ export async function sendEmail(emailData, correlationId) {
     from,
     to,
     subject,
-    html,
+    html: emailHtml,
     ...(text && { text }),
     ...(replyTo && { reply_to: replyTo }),
   };
