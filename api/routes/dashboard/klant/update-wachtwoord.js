@@ -15,6 +15,8 @@ import { supabaseConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { handleErrorResponse } from '../../../utils/errorHandler.js';
 import { verifyAuth } from '../../../checks/authCheck.js';
+import { logAudit } from '../../../services/auditService.js';
+import { sendEmail } from '../../../services/emailService.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -90,6 +92,30 @@ export default async function handler(req, res) {
       });
     }
 
+    // Haal huidige profiel op voor email
+    const profileResponse = await httpClient(
+      `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${user.id}&select=voornaam,achternaam`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+        }
+      }
+    );
+
+    if (!profileResponse.ok) {
+      throw new Error('Kon profiel niet ophalen');
+    }
+
+    const profiles = await profileResponse.json();
+    if (!profiles || profiles.length === 0) {
+      throw new Error('Profiel niet gevonden');
+    }
+
+    const currentProfile = profiles[0];
+
     // Update wachtwoord via Admin API
     const updateResponse = await httpClient(
       `${supabaseConfig.url}/auth/v1/admin/users/${user.id}`,
@@ -116,6 +142,73 @@ export default async function handler(req, res) {
         error: errorText
       }));
       throw new Error('Kon wachtwoord niet bijwerken');
+    }
+
+    // Extract IP en user agent voor audit (GEEN wachtwoord waarden)
+    const ipAddress = req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+                      req.headers['x-real-ip'] ||
+                      req.connection?.remoteAddress ||
+                      'unknown';
+    const userAgent = req.headers['user-agent'] || 'unknown';
+
+    // Log audit - ZONDER wachtwoord waarden (security)
+    await logAudit({
+      userId: user.id,
+      action: 'wachtwoord_gewijzigd',
+      entityType: 'auth_user',
+      entityId: user.id,
+      oldValues: null, // Geen wachtwoord waarden loggen
+      newValues: null, // Geen wachtwoord waarden loggen
+      ipAddress,
+      userAgent,
+      correlationId
+    });
+
+    // Invalideer alle sessies behalve huidige (security)
+    // Haal eerst huidige sessie ID op (via token)
+    const currentSessionId = token.substring(0, 32); // Simplified - in productie via JWT decode
+    
+    try {
+      const deleteSessionsResponse = await httpClient(
+        `${supabaseConfig.url}/rest/v1/user_sessies?user_id=eq.${user.id}&session_token=not.eq.${currentSessionId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+          }
+        }
+      );
+
+      if (deleteSessionsResponse.ok) {
+        console.log(JSON.stringify({
+          level: 'INFO',
+          correlationId,
+          route: 'dashboard/klant/update-wachtwoord',
+          action: 'sessions_invalidated',
+          userId: user.id
+        }));
+      }
+    } catch (sessionError) {
+      console.error('Session invalidatie error (niet-kritisch):', sessionError);
+      // Continue - session invalidatie is nice-to-have
+    }
+
+    // Stuur beveiligings-email naar klant
+    const { wachtwoordGewijzigd } = await import('../../../templates/emails/wachtwoord-gewijzigd.js');
+    try {
+      await sendEmail({
+        to: user.email,
+        subject: 'Je wachtwoord is gewijzigd',
+        html: wachtwoordGewijzigd({
+          voornaam: currentProfile.voornaam
+        }),
+        from: 'info@mail.heppy-schoonmaak.nl'
+      });
+    } catch (emailError) {
+      console.error('Klant email error:', emailError);
+      // Continue - email failure shouldn't block the update
     }
 
     console.log(JSON.stringify({

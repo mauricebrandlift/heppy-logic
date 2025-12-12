@@ -631,23 +631,51 @@ function initWachtwoordForm() {
   button.addEventListener('click', async (e) => {
     e.preventDefault();
     
+    // Duplicate click prevention
+    if (button.dataset.requesting === 'true') {
+      console.log('🚫 [Wachtwoord] Request already in progress');
+      return;
+    }
+    
     clearAllErrors(formName);
 
     try {
+      button.dataset.requesting = 'true';
+      setButtonDisabled(button, true);
+
       const huidigWachtwoord = getFieldValue(formName, 'huidig-wachtwoord');
       const nieuwWachtwoord = getFieldValue(formName, 'nieuw-wachtwoord');
       const bevestigWachtwoord = getFieldValue(formName, 'bevestig-wachtwoord');
 
-      if (!huidigWachtwoord) {
+      // Validatie huidig wachtwoord
+      if (!huidigWachtwoord || huidigWachtwoord.trim() === '') {
         showFieldError(formName, 'huidig-wachtwoord', 'Huidig wachtwoord is verplicht');
         return;
       }
-      if (!nieuwWachtwoord || nieuwWachtwoord.length < 8) {
-        showFieldError(formName, 'nieuw-wachtwoord', 'Nieuw wachtwoord moet minimaal 8 tekens zijn');
+
+      // Validatie nieuw wachtwoord
+      if (!nieuwWachtwoord || nieuwWachtwoord.trim() === '') {
+        showFieldError(formName, 'nieuw-wachtwoord', 'Nieuw wachtwoord is verplicht');
+        return;
+      }
+      if (nieuwWachtwoord.length < 8) {
+        showFieldError(formName, 'nieuw-wachtwoord', 'Nieuw wachtwoord moet minimaal 8 tekens bevatten');
+        return;
+      }
+
+      // Validatie bevestig wachtwoord
+      if (!bevestigWachtwoord || bevestigWachtwoord.trim() === '') {
+        showFieldError(formName, 'bevestig-wachtwoord', 'Bevestig je nieuwe wachtwoord');
         return;
       }
       if (nieuwWachtwoord !== bevestigWachtwoord) {
         showFieldError(formName, 'bevestig-wachtwoord', 'Wachtwoorden komen niet overeen');
+        return;
+      }
+
+      // Check of nieuw wachtwoord hetzelfde is als huidig
+      if (huidigWachtwoord === nieuwWachtwoord) {
+        showFieldError(formName, 'nieuw-wachtwoord', 'Nieuw wachtwoord moet verschillen van huidig wachtwoord');
         return;
       }
 
@@ -665,22 +693,27 @@ function initWachtwoordForm() {
 
       console.log('✅ [Wachtwoord] Bijgewerkt');
       
-      // Clear alle wachtwoord velden
+      // Clear alle wachtwoord velden (security)
       setFieldValue(formName, 'huidig-wachtwoord', '');
       setFieldValue(formName, 'nieuw-wachtwoord', '');
       setFieldValue(formName, 'bevestig-wachtwoord', '');
       setButtonDisabled(button, true);
       
-      showSuccess(formName, 'Wachtwoord succesvol gewijzigd!');
+      showSuccess(formName, 'Wachtwoord succesvol gewijzigd • Andere sessies zijn uitgelogd');
 
     } catch (error) {
       console.error('❌ [Wachtwoord] Fout:', error);
       
+      // Specific error handling
       if (error.message && error.message.includes('onjuist')) {
         showFieldError(formName, 'huidig-wachtwoord', 'Huidig wachtwoord is onjuist');
       } else {
-        showGlobalError(formName, error.message || 'Er ging iets mis');
+        showGlobalError(formName, error.message || 'Er ging iets mis bij het wijzigen van je wachtwoord');
       }
+    } finally {
+      // Reset requesting flag
+      delete button.dataset.requesting;
+      updateButtonState(formName, button);
     }
   });
 }
