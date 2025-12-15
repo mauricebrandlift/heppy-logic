@@ -34,14 +34,14 @@ export async function getExternalAddressDetails(postcode, huisnummer, correlatio
       message: 'Postcode API URL of API Key ontbreekt in de configuratie.',
     }));
     const err = new Error('Server configuratiefout: Postcode API details missen.');
-    err.code = 500; // Internal Server Error
+    err.status = 500; // Internal Server Error
     throw err;
   }
 
   if (!postcode || !huisnummer) {
     console.warn(JSON.stringify({ ...logMeta, level: 'WARN', message: 'Postcode en huisnummer zijn verplicht.' }));
     const err = new Error('Postcode en huisnummer zijn verplicht.');
-    err.code = 400; // Bad Request
+    err.status = 400; // Bad Request
     throw err;
   }
 
@@ -72,7 +72,7 @@ export async function getExternalAddressDetails(postcode, huisnummer, correlatio
         apiResponse: errorText,
       }));
       const err = new Error(`Fout bij externe adres API: ${response.statusText}`);
-      err.code = response.status; // Gebruik de status van de externe API
+      err.status = response.status; // Gebruik de status van de externe API
       err.externalResponse = errorText; // Voeg eventueel de response body toe
       throw err;
     }
@@ -83,7 +83,7 @@ export async function getExternalAddressDetails(postcode, huisnummer, correlatio
     if (!data || !data.postcode || !data.number) {
       console.warn(JSON.stringify({ ...logMeta, level: 'WARN', message: 'Geen adres gevonden voor combinatie.', apiResponse: data }));
       const err = new Error('Geen adres gevonden voor de opgegeven postcode en huisnummer.');
-      err.code = 404; // Not Found
+      err.status = 404; // Not Found
       throw err;
     }
 
@@ -103,9 +103,9 @@ export async function getExternalAddressDetails(postcode, huisnummer, correlatio
     return resultaat;
 
   } catch (error) {
-    // Als het al een error met een code is (bijv. van de !response.ok check), gooi die door.
+    // Als het al een error met een status is (bijv. van de !response.ok check), gooi die door.
     // Anders, log en maak een generieke 500 error.
-    if (!error.code) {
+    if (!error.status) {
       console.error(JSON.stringify({
         ...logMeta,
         level: 'ERROR',
@@ -113,7 +113,7 @@ export async function getExternalAddressDetails(postcode, huisnummer, correlatio
         error: error.message,
         stack: error.stack,
       }));
-      error.code = 500; // Internal Server Error
+      error.status = 500; // Internal Server Error
       error.message = error.message || 'Interne serverfout bij ophalen adres.';
     }
     throw error;

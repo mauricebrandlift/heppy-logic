@@ -15,7 +15,7 @@ export const commonMessages = {
 
   // Adres-gerelateerde foutmeldingen
   address: {
-    ADDRESS_NOT_FOUND: 'Dit adres bestaat niet. Controleer je postcode en huisnummer.',
+    ADDRESS_NOT_FOUND: 'De combinatie van postcode en huisnummer geeft geen geldig adres. Controleer je invoer.',
     INVALID_ADDRESS: 'De ingevoerde postcode en/of huisnummer is ongeldig. Controleer uw invoer.',
     API_TIMEOUT: 'Het ophalen van adresgegevens duurt te lang. Probeer het later nog eens.',
     API_ERROR: 'Er is een probleem bij het ophalen van adresgegevens. Probeer het later opnieuw.',
