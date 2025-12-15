@@ -26,12 +26,17 @@ async function loadUserData() {
       headers: { 'Authorization': `Bearer ${authState.access_token}` }
     });
 
+    console.log('🔍 [Account Beheren] Profile API response:', profileData);
+
     // All data from API (including email from database)
-    return {
+    const userData = {
       id: authState.user?.id,
       role: authState.user?.role,
       ...profileData // email comes from API (user_profiles table)
     };
+
+    console.log('🔍 [Account Beheren] Combined userData:', userData);
+    return userData;
   } catch (error) {
     console.error('❌ [Account Beheren] Error loading user data:', error);
     return null;
@@ -52,10 +57,17 @@ function prefillForm(formName, userData) {
   const fields = fieldMap[formName];
   if (!fields) return;
 
+  console.log(`🔍 [Prefill] Form: ${formName}, Fields:`, fields, 'Data:', userData);
+
   fields.forEach(fieldName => {
     const field = document.querySelector(`[data-field-name="${fieldName}"]`);
     if (field && userData[fieldName]) {
+      console.log(`✓ Prefilling ${fieldName} with:`, userData[fieldName]);
       field.value = userData[fieldName];
+    } else if (field && !userData[fieldName]) {
+      console.warn(`⚠️ Field ${fieldName} found but no data:`, userData[fieldName]);
+    } else {
+      console.warn(`⚠️ Field ${fieldName} not found in DOM`);
     }
   });
 }
