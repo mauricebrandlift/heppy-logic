@@ -384,6 +384,14 @@ function initWachtwoordForm() {
 export async function initAccountBeheren() {
   console.log('⚙️ [Account Beheren] Initialiseren...');
 
+  // ⚠️ BELANGRIJK: Check authenticatie EERST voordat we iets doen
+  // Dit voorkomt race conditions tijdens redirect
+  const authState = authClient.getAuthState();
+  if (!authState || !authState.access_token) {
+    console.warn('⚠️ [Account Beheren] Geen authenticatie, stoppen met initialisatie');
+    return; // Stop direct, laat dashboardAuth.js de redirect afhandelen
+  }
+
   // Hide all success messages on page load (so they're visible in Webflow editor)
   hideAllSuccessMessages();
 

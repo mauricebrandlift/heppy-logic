@@ -352,6 +352,14 @@ function hideLoading() {
 export async function initDashboardOverview() {
   console.log('📊 [Dashboard Overview] Initialiseren...');
 
+  // ⚠️ BELANGRIJK: Check authenticatie EERST voordat we iets doen
+  // Dit voorkomt race conditions tijdens redirect
+  const authState = authClient.getAuthState();
+  if (!authState || !authState.access_token) {
+    console.warn('⚠️ [Dashboard Overview] Geen authenticatie, stoppen met initialisatie');
+    return; // Stop direct, laat dashboardAuth.js de redirect afhandelen
+  }
+
   // Zet content direct op display none (ongeacht Webflow instellingen)
   const contentState = document.querySelector('[data-content-state]');
   if (contentState) contentState.style.display = 'none';
@@ -360,11 +368,6 @@ export async function initDashboardOverview() {
   showLoading();
 
   try {
-    // Haal auth token op
-    const authState = authClient.getAuthState();
-    if (!authState || !authState.access_token) {
-      throw new Error('Geen authenticatie gevonden');
-    }
 
     // Haal dashboard data op
     console.log('🔄 [Dashboard Overview] Fetching data...');

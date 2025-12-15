@@ -225,6 +225,14 @@ function initializeInvoiceButton(bestellingData) {
 export async function initBestellingDetail() {
   console.log('📦 [Bestelling Detail] Initialiseren...');
 
+  // ⚠️ BELANGRIJK: Check authenticatie EERST voordat we iets doen
+  // Dit voorkomt race conditions tijdens redirect
+  const authState = authClient.getAuthState();
+  if (!authState || !authState.access_token) {
+    console.warn('⚠️ [Bestelling Detail] Geen authenticatie, stoppen met initialisatie');
+    return; // Stop direct, laat dashboardAuth.js de redirect afhandelen
+  }
+
   // Zet content direct op display none
   const contentState = document.querySelector('[data-content-state]');
   if (contentState) contentState.style.display = 'none';
@@ -240,12 +248,6 @@ export async function initBestellingDetail() {
     if (!bestellingId) {
       showError('Geen bestelling ID gevonden in URL.');
       return;
-    }
-
-    // Haal auth token op
-    const authState = authClient.getAuthState();
-    if (!authState || !authState.access_token) {
-      throw new Error('Geen authenticatie gevonden');
     }
 
     // Haal bestelling data op

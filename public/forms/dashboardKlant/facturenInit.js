@@ -193,15 +193,18 @@ async function fetchFacturen(accessToken) {
 export async function initFacturenOverzicht() {
   console.log('📄 [Facturen] Initialiseren...');
 
+  // ⚠️ BELANGRIJK: Check authenticatie EERST voordat we iets doen
+  // Dit voorkomt race conditions tijdens redirect
+  const authState = authClient.getAuthState();
+  if (!authState || !authState.access_token) {
+    console.warn('⚠️ [Facturen] Geen authenticatie, stoppen met initialisatie');
+    return; // Stop direct, laat dashboardAuth.js de redirect afhandelen
+  }
+
   // Verberg content, toon loading
   showLoading();
 
   try {
-    // Haal auth token op
-    const authState = authClient.getAuthState();
-    if (!authState || !authState.access_token) {
-      throw new Error('Geen authenticatie gevonden');
-    }
 
     // Haal facturen op
     console.log('🔄 [Facturen] Fetching data...');
