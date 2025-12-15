@@ -43,35 +43,6 @@ async function loadUserData() {
   }
 }
 
-/**
- * Prefill form fields with user data
- */
-function prefillForm(formName, userData) {
-  const fieldMap = {
-    'account-profiel-form': ['voornaam', 'achternaam'],
-    'account-email-form': ['email'],
-    'account-telefoon-form': ['telefoon'],
-    'account-adres-form': ['postcode', 'huisnummer', 'toevoeging']
-  };
-
-  const fields = fieldMap[formName];
-  if (!fields) return;
-
-  console.log(`🔍 [Prefill] Form: ${formName}, Fields:`, fields, 'Data:', userData);
-
-  fields.forEach(fieldName => {
-    const field = document.querySelector(`[data-field-name="${fieldName}"]`);
-    if (field && userData[fieldName]) {
-      console.log(`✓ Prefilling ${fieldName} with:`, userData[fieldName]);
-      field.value = userData[fieldName];
-    } else if (field && !userData[fieldName]) {
-      console.warn(`⚠️ Field ${fieldName} found but no data:`, userData[fieldName]);
-    } else {
-      console.warn(`⚠️ Field ${fieldName} not found in DOM`);
-    }
-  });
-}
-
 // ============================================================================
 // 1. PROFIEL FORM
 // ============================================================================
@@ -79,9 +50,6 @@ function prefillForm(formName, userData) {
 function initProfielForm(userData) {
   const schema = getFormSchema('account-profiel-form');
   if (!schema) return;
-
-  // Prefill
-  prefillForm('account-profiel-form', userData);
 
   // Custom submit action
   schema.submit = {
@@ -102,7 +70,8 @@ function initProfielForm(userData) {
     }
   };
 
-  formHandler.init(schema);
+  // Pass userData as initialData to formHandler
+  formHandler.init(schema, userData);
 }
 
 // ============================================================================
@@ -112,8 +81,6 @@ function initProfielForm(userData) {
 function initEmailForm(userData) {
   const schema = getFormSchema('account-email-form');
   if (!schema) return;
-
-  prefillForm('account-email-form', userData);
 
   schema.submit = {
     action: async (formData) => {
@@ -130,7 +97,8 @@ function initEmailForm(userData) {
     }
   };
 
-  formHandler.init(schema);
+  // Pass userData as initialData to formHandler
+  formHandler.init(schema, userData);
 }
 
 // ============================================================================
@@ -140,8 +108,6 @@ function initEmailForm(userData) {
 function initTelefoonForm(userData) {
   const schema = getFormSchema('account-telefoon-form');
   if (!schema) return;
-
-  prefillForm('account-telefoon-form', userData);
 
   schema.submit = {
     action: async (formData) => {
@@ -160,7 +126,8 @@ function initTelefoonForm(userData) {
     }
   };
 
-  formHandler.init(schema);
+  // Pass userData as initialData to formHandler
+  formHandler.init(schema, userData);
 }
 
 // ============================================================================
@@ -170,8 +137,6 @@ function initTelefoonForm(userData) {
 function initAdresForm(userData) {
   const schema = getFormSchema('account-adres-form');
   if (!schema) return;
-
-  prefillForm('account-adres-form', userData);
 
   schema.submit = {
     action: async (formData) => {
@@ -207,7 +172,8 @@ function initAdresForm(userData) {
     }
   };
 
-  formHandler.init(schema);
+  // Pass userData as initialData to formHandler
+  formHandler.init(schema, userData);
 }
 
 // ============================================================================

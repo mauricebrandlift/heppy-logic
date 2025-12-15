@@ -322,9 +322,13 @@ export const formHandler = {
    * Stap 7: Update de initiële staat van de submit-knop (enabled/disabled) op basis van de validatie.
    *
    * @param {object} schema - De configuratie-object voor het formulier, inclusief naam, selector, velddefinities, en submit-logica.
+   * @param {object} initialData - Optionele initial data om formulier mee te prefill (heeft voorrang op localStorage)
    */
-  init(schema) {
+  init(schema, initialData = null) {
     console.log(`🚀 [FormHandler] Init formulier: ${schema.name} (selector: ${schema.selector})`);
+    if (initialData) {
+      console.log(`🔍 [FormHandler] Initial data provided:`, initialData);
+    }
     const context = this._loadContext(schema.name) || {};
     this.schema = schema;
     this.formElement = document.querySelector(schema.selector);
@@ -430,6 +434,14 @@ export const formHandler = {
         valueToLoad = formSpecificSavedData[fieldName];
         console.log(
           `🔄 [FormHandler] Veld '${fieldName}' (form-specific): Geladen formulierwaarde (overschrijft globaal indien aanwezig): ${valueToLoad}`
+        );
+      }
+
+      // initialData has highest priority, then valueToLoad from storage
+      if (initialData && initialData[fieldName] !== undefined) {
+        valueToLoad = initialData[fieldName];
+        console.log(
+          `🔄 [FormHandler] Veld '${fieldName}' (initialData): Using provided initial value: ${valueToLoad}`
         );
       }
 
