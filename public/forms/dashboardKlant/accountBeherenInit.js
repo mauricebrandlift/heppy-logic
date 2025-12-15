@@ -6,6 +6,7 @@
  */
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
+import { validateForm } from '../validators/formValidator.js';
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
 import { fetchAddressDetails } from '../../utils/api/address.js';
@@ -216,7 +217,7 @@ async function initProfielForm(userData) {
         achternaam: getFieldValue('achternaam')
       };
 
-      const validation = formHandler.validateForm(formData, schema);
+      const validation = validateForm(formData, schema);
       if (!validation.isFormValid) {
         validation.fieldErrors.forEach((error) => {
           showError(error.fieldName, error.message, schema.selector);
@@ -307,7 +308,7 @@ async function initEmailForm(userData) {
 
       const formData = { email: getFieldValue('email') };
 
-      const validation = formHandler.validateForm(formData, schema);
+      const validation = validateForm(formData, schema);
       if (!validation.isFormValid) {
         validation.fieldErrors.forEach((error) => {
           showError(error.fieldName, error.message, schema.selector);
@@ -390,7 +391,7 @@ async function initTelefoonForm(userData) {
 
       const formData = { telefoon: getFieldValue('telefoon') };
 
-      const validation = formHandler.validateForm(formData, schema);
+      const validation = validateForm(formData, schema);
       if (!validation.isFormValid) {
         validation.fieldErrors.forEach((error) => {
           showError(error.fieldName, error.message, schema.selector);
@@ -488,7 +489,7 @@ async function initAdresForm(userData) {
         toevoeging: getFieldValue('toevoeging')
       };
 
-      const validation = formHandler.validateForm(formData, schema);
+      const validation = validateForm(formData, schema);
       if (!validation.isFormValid) {
         validation.fieldErrors.forEach((error) => {
           showError(error.fieldName, error.message, schema.selector);
@@ -591,7 +592,7 @@ async function initWachtwoordForm() {
         bevestigWachtwoord: getFieldValue('bevestigWachtwoord')
       };
 
-      const validation = formHandler.validateForm(formData, schema);
+      const validation = validateForm(formData, schema);
       if (!validation.isFormValid) {
         validation.fieldErrors.forEach((error) => {
           showError(error.fieldName, error.message, schema.selector);
