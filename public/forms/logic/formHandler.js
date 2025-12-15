@@ -987,8 +987,9 @@ export const formHandler = {
     toggleFields(this.formElement, false);
 
     try {
+      let actionResult = null;
       if (this.schema.submit && typeof this.schema.submit.action === 'function') {
-        await this.schema.submit.action(this.formData);
+        actionResult = await this.schema.submit.action(this.formData);
       }
       
       // Update originalData after successful submit (for edit forms)
@@ -1010,7 +1011,7 @@ export const formHandler = {
       this.updateSubmitState();
       
       if (this.schema.submit && typeof this.schema.submit.onSuccess === 'function') {
-        this.schema.submit.onSuccess();
+        this.schema.submit.onSuccess(actionResult);
       }
     } catch (err) {
       console.error(`❌ [FormHandler] Submit error:`, err);
