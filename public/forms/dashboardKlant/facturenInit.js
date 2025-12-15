@@ -8,7 +8,7 @@ import { authClient } from '../../utils/auth/authClient.js';
 import { initInvoiceButton } from '../../utils/invoiceHelper.js';
 
 /**
- * Formatteer datum naar NL formaat
+ * Formatteer datum naar NL formaat (kort)
  */
 function formatDatum(dateString) {
   if (!dateString) return '-';
@@ -21,40 +21,69 @@ function formatDatum(dateString) {
 }
 
 /**
- * Formatteer bedrag in centen naar euros
+ * Formatteer maand en jaar uit datum
+ */
+function formatMaandJaar(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('nl-NL', { 
+    month: 'long', 
+    year: 'numeric' 
+  });
+}
+
+/**
+ * Formatteer bedrag in centen naar euros (alleen getal, geen €)
  */
 function formatBedrag(cents) {
-  if (!cents && cents !== 0) return '€0,00';
-  return new Intl.NumberFormat('nl-NL', {
-    style: 'currency',
-    currency: 'EUR'
-  }).format(cents / 100);
+  if (!cents && cents !== 0) return '0,00';
+  return (cents / 100).toFixed(2).replace('.', ',');
 }
 
 /**
- * Bepaal factuur type op basis van data
+ * Bepaal factuur type display naam
  */
-function getFactuurType(factuur) {
+function getFactuurTypeName(factuur) {
   if (factuur.bestel_nummer) return 'Webshop';
   if (factuur.abonnement_id) return 'Abonnement';
-  if (factuur.opdracht_id) return 'Eenmalige opdracht';
-  return 'Onbekend';
+  if (factuur.opdracht_id) return 'Eenmalige schoonmaak';
+  return 'Betaling';
 }
 
 /**
- * Haal factuur beschrijving op
+ * Formatteer status voor weergave
  */
-function getFactuurBeschrijving(factuur) {
-  if (factuur.bestel_nummer) {
-    return `Bestelling ${factuur.bestel_nummer}`;
-  }
-  if (factuur.abonnement_id) {
-    return `Abonnement betaling`;
-  }
-  if (factuur.opdracht_id) {
-    return `Eenmalige opdracht`;
-  }
-  return 'Betaling';
+function formatStatus(status) {
+  const mapping = {
+    'paid': 'Betaald',
+    'open': 'Open',
+    'draft': 'Concept',
+    'void': 'Geannuleerd',
+    'uncollectible': 'Oninbaar',
+    'betaald': 'Betaald',
+    'openstaand': 'Open'
+  };
+  return mapping[status] || status;
+}
+
+/**
+ * Voeg status class toe aan element
+ */
+function addStatusClass(element, status) {
+  if (!element) return;
+  
+  const statusClassMap = {
+    'paid': 'is-active',
+    'betaald': 'is-active',
+    'open': 'is-pending',
+    'openstaand': 'is-pending',
+    'draft': 'is-pending',
+    'void': 'is-unactive',
+    'uncollectible': 'is-unactive'
+  };
+  
+  const statusClass = statusClassMap[status] || 'is-pending';
+  element.classList.add(statusClass);
 }
 
 /**
@@ -97,70 +126,114 @@ function showError(message) {
  * Toon empty state wanneer geen facturen
  */
 function showEmptyState() {
-  const container = document.querySelector('[data-facturen-list]');
-  if (!container) return;
-
-  container.innerHTML = `
-    <div class="empty-state" style="text-align: center; padding: 3rem 1rem;">
-      <p style="font-size: 1.125rem; color: #6B7280; margin-bottom: 0.5rem;">
-        Je hebt nog geen facturen
-      </p>
-      <p style="font-size: 0.875rem; color: #9CA3AF;">
-        Facturen van je bestellingen en abonnementen verschijnen hier.
-      </p>
-    </div>
-  `;
+  const containerWithItems = document.querySelector('[data-facturen-state="heeft-items"]');
+  const containerNoItems = document.querySelector('[data-facturen-state="geen-items"]');
+  
+  if (containerWithItems) containerWithItems.style.display = 'none';
+  if (containerNoItems) containerNoItems.style.display = 'block';
 }
 
 /**
  * Render facturen list
  */
 function renderFacturenList(facturen) {
-  const container = document.querySelector('[data-facturen-list]');
-  const template = document.querySelector('[data-factuur-item-template]');
-
-  if (!container) {
-    console.error('[Facturen] Container niet gevonden');
-    return;
-  }
+  const template = document.querySelector('[data-factuur-item]');
 
   if (!template) {
     console.error('[Facturen] Template niet gevonden');
     return;
   }
 
-  // Clear bestaande items (behalve template)
-  const existingItems = Array.from(container.children).filter(
-    child => !child.hasAttribute('data-factuur-item-template')
-  );
+  const parent = template.parentElement;
+  
+  // Clear bestaande items (behalve template met lege ID)
+  const existingItems = parent.querySelectorAll('[data-factuur-item]:not([data-factuur-item=""])');
   existingItems.forEach(item => item.remove());
 
   // Render elke factuur
   facturen.forEach(factuur => {
     const clone = template.cloneNode(true);
-    clone.removeAttribute('data-factuur-item-template');
+    clone.setAttribute('data-factuur-item', factuur.id);
     clone.style.display = '';
 
-    // Vul factuur details
-    const datumEl = clone.querySelector('[data-factuur-datum]');
-    const beschrijvingEl = clone.querySelector('[data-factuur-beschrijving]');
-    const bedragEl = clone.querySelector('[data-factuur-bedrag]');
-    const buttonEl = clone.querySelector('[data-invoice-button]');
+    // Bepaal type voor conditional rendering
+    const isAbonnement = !!factuur.abonnement_id;
+    const isEenmalig = !!factuur.opdracht_id;
+    const isWebshop = !!factuur.bestel_nummer;
 
-    if (datumEl) datumEl.textContent = formatDatum(factuur.aangemaakt_op);
-    if (beschrijvingEl) beschrijvingEl.textContent = getFactuurBeschrijving(factuur);
+    // Factuurnummer (format: FAC-{jaar}-{id})
+    const nummerEl = clone.querySelector('[data-factuur-nummer]');
+    if (nummerEl) {
+      const jaar = new Date(factuur.aangemaakt_op).getFullYear();
+      nummerEl.textContent = `FAC-${jaar}-${String(factuur.id).padStart(4, '0')}`;
+    }
+
+    // Type naam
+    const typeEl = clone.querySelector('[data-factuur-type]');
+    if (typeEl) typeEl.textContent = getFactuurTypeName(factuur);
+
+    // Periode/Datum title en waarde (conditioneel)
+    const periodeTitle = clone.querySelector('[data-factuur-periode-title]');
+    const periodeDatum = clone.querySelector('[data-factuur-periode-datum]');
+
+    if (isAbonnement) {
+      // Abonnement: toon periode
+      if (periodeTitle) periodeTitle.textContent = 'Periode';
+      if (periodeDatum) {
+        // TODO: Als we weeknummers in de data hebben, toon die
+        // Voor nu: maand + jaar
+        periodeDatum.textContent = formatMaandJaar(factuur.aangemaakt_op);
+      }
+    } else {
+      // Eenmalig of Webshop: toon datum
+      if (periodeTitle) {
+        periodeTitle.textContent = isWebshop ? 'Besteldatum' : 'Datum';
+      }
+      if (periodeDatum) {
+        periodeDatum.textContent = formatDatum(factuur.aangemaakt_op);
+      }
+    }
+
+    // Details (type-specifiek)
+    const detailsEl = clone.querySelector('[data-factuur-details]');
+    if (detailsEl) {
+      if (isAbonnement) {
+        // TODO: Als we frequentie + uren hebben, toon die
+        detailsEl.textContent = 'Schoonmaakabonnement';
+      } else if (isEenmalig) {
+        // TODO: Als we opdracht type + uren hebben, toon die
+        detailsEl.textContent = 'Eenmalige schoonmaak';
+      } else if (isWebshop) {
+        // TODO: Als we aantal producten hebben, toon die
+        detailsEl.textContent = `Bestelling ${factuur.bestel_nummer}`;
+      }
+    }
+
+    // Bedrag (alleen getal, € staat al in HTML)
+    const bedragEl = clone.querySelector('[data-factuur-bedrag]');
     if (bedragEl) bedragEl.textContent = formatBedrag(factuur.amount_cents);
 
-    // Vul invoice button data
+    // Status
+    const statusEl = clone.querySelector('[data-factuur-status]');
+    if (statusEl) {
+      const statusText = statusEl.querySelector('.text-size-small');
+      if (statusText) statusText.textContent = formatStatus(factuur.status);
+      addStatusClass(statusEl, factuur.status);
+    }
+
+    // Download button
+    const buttonEl = clone.querySelector('[data-invoice-button]');
     if (buttonEl && factuur.stripe_invoice_id) {
       buttonEl.dataset.invoiceId = factuur.stripe_invoice_id;
-      buttonEl.style.display = '';
     } else if (buttonEl) {
       buttonEl.style.display = 'none';
     }
 
-    container.appendChild(clone);
+    parent.appendChild(clone);
   });
+
+  // Hide template
+  template.style.display = 'none';
 
   console.log(`✅ [Facturen] ${facturen.length} facturen gerenderd`);
 }
@@ -201,6 +274,12 @@ export async function initFacturenOverzicht() {
     return; // Stop direct, laat dashboardAuth.js de redirect afhandelen
   }
 
+  // Zet initial states (verberg alles behalve loading)
+  const containerWithItems = document.querySelector('[data-facturen-state="heeft-items"]');
+  const containerNoItems = document.querySelector('[data-facturen-state="geen-items"]');
+  if (containerWithItems) containerWithItems.style.display = 'none';
+  if (containerNoItems) containerNoItems.style.display = 'none';
+
   // Verberg content, toon loading
   showLoading();
 
@@ -215,6 +294,13 @@ export async function initFacturenOverzicht() {
     if (facturen.length === 0) {
       showEmptyState();
     } else {
+      // Toon container met items, verberg empty state
+      const containerWithItems = document.querySelector('[data-facturen-state="heeft-items"]');
+      const containerNoItems = document.querySelector('[data-facturen-state="geen-items"]');
+      
+      if (containerWithItems) containerWithItems.style.display = 'block';
+      if (containerNoItems) containerNoItems.style.display = 'none';
+      
       renderFacturenList(facturen);
       
       // Initialiseer alle invoice buttons
