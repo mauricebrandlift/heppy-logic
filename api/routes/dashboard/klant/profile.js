@@ -5,6 +5,7 @@
  * GET /api/dashboard/klant/profile
  * 
  * Returns:
+ * - email (from user_profiles table)
  * - voornaam, achternaam
  * - telefoon
  * - postcode, huisnummer, toevoeging, straat, plaats
@@ -77,6 +78,7 @@ export default async function handler(req, res) {
 
     // Return profiel data met adres info
     return res.status(200).json({
+      email: profile.email, // Email from database (user_profiles table)
       voornaam: profile.voornaam,
       achternaam: profile.achternaam,
       telefoon: profile.telefoon,

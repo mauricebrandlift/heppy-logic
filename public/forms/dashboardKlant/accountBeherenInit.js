@@ -26,11 +26,11 @@ async function loadUserData() {
       headers: { 'Authorization': `Bearer ${authState.access_token}` }
     });
 
+    // All data from API (including email from database)
     return {
       id: authState.user?.id,
-      email: authState.user?.email,
       role: authState.user?.role,
-      ...profileData
+      ...profileData // email comes from API (user_profiles table)
     };
   } catch (error) {
     console.error('❌ [Account Beheren] Error loading user data:', error);
