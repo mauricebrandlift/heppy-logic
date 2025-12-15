@@ -9,6 +9,7 @@ import { getFormSchema } from '../schemas/formSchemas.js';
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
 import { fetchAddressDetails } from '../../utils/api/address.js';
+import { initAddressLookupTrigger } from '../logic/formTriggers.js';
 
 /**
  * Load user data from API for prefilling
@@ -138,54 +139,6 @@ function initAdresForm(userData) {
   const schema = getFormSchema('account-adres-form');
   if (!schema) return;
 
-  // Add address lookup trigger (fills straatnaam and plaatsnaam)
-  schema.triggers = {
-    postcode: [
-      {
-        when: 'valid',
-        action: async (formData, formHandler) => {
-          const { postcode, huisnummer, toevoeging } = formData;
-          
-          if (!postcode || !huisnummer) return;
-
-          try {
-            const addressDetails = await fetchAddressDetails(postcode, huisnummer, toevoeging || '');
-            
-            if (addressDetails) {
-              // Update readonly fields via formHandler
-              formHandler.updateFieldValue('straatnaam', addressDetails.straat);
-              formHandler.updateFieldValue('plaats', addressDetails.plaats);
-            }
-          } catch (error) {
-            console.error('Address lookup failed:', error);
-          }
-        }
-      }
-    ],
-    huisnummer: [
-      {
-        when: 'valid',
-        action: async (formData, formHandler) => {
-          const { postcode, huisnummer, toevoeging } = formData;
-          
-          if (!postcode || !huisnummer) return;
-
-          try {
-            const addressDetails = await fetchAddressDetails(postcode, huisnummer, toevoeging || '');
-            
-            if (addressDetails) {
-              // Update readonly fields via formHandler
-              formHandler.updateFieldValue('straatnaam', addressDetails.straat);
-              formHandler.updateFieldValue('plaats', addressDetails.plaats);
-            }
-          } catch (error) {
-            console.error('Address lookup failed:', error);
-          }
-        }
-      }
-    ]
-  };
-
   schema.submit = {
     action: async (formData) => {
       // Address verification
@@ -234,6 +187,14 @@ function initAdresForm(userData) {
 
   // Pass userData as initialData to formHandler (includes straat/plaats from DB)
   formHandler.init(schema, userData);
+
+  // Initialize address lookup trigger (automatic lookup on postcode/huisnummer change)
+  initAddressLookupTrigger(formHandler, {
+    postcodeField: 'postcode',
+    huisnummerField: 'huisnummer',
+    straatField: 'straatnaam',
+    plaatsField: 'plaats'
+  });
 }
 
 /**
