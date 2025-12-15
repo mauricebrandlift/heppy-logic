@@ -195,6 +195,19 @@ export function hideSuccessMessage(successEl) {
 }
 
 /**
+ * Verberg alle success message elementen op basis van data-success-message attribuut.
+ * Roep dit aan bij page load om alle success messages te verbergen.
+ */
+export function hideAllSuccessMessages() {
+  const successElements = document.querySelectorAll('[data-success-message]');
+  successElements.forEach(el => {
+    el.style.display = 'none';
+    el.setAttribute('aria-hidden', 'true');
+  });
+  console.log(`🙈 [FormUI] ${successElements.length} success message(s) verborgen bij page load`);
+}
+
+/**
  * Synchroniseer stylingklassen voor custom radio groepen (bijv. Webflow "radio-fancy").
  * Zet de actieve klasse op het omliggende label en verwijdert deze van niet-geselecteerde opties.
  * @param {HTMLFormElement} formEl

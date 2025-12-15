@@ -10,6 +10,7 @@ import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
 import { fetchAddressDetails } from '../../utils/api/address.js';
 import { initAddressLookupTrigger } from '../logic/formTriggers.js';
+import { hideAllSuccessMessages } from '../ui/formUi.js';
 
 /**
  * Load user data from API for prefilling
@@ -62,12 +63,25 @@ function initProfielForm(userData) {
         body: formData
       });
 
-      // Return success message
+      // Build success message
       let message = 'Naam succesvol bijgewerkt';
       if (response.schoonmakerGenotificeerd) {
         message += ' • Je schoonmaker is op de hoogte gebracht';
       }
       return { message };
+    },
+    onSuccess: () => {
+      // Show inline success message
+      formHandler.showSuccessState('account-profiel-form', {
+        messageAttribute: 'account-profiel-form',
+        hideForm: false,
+        scrollIntoView: false
+      });
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        formHandler.resetSuccessState('account-profiel-form');
+      }, 5000);
     }
   };
 
@@ -95,6 +109,19 @@ function initEmailForm(userData) {
       return { 
         message: 'Verificatie-email verzonden naar je nieuwe e-mailadres • Klik op de link in de email om te bevestigen'
       };
+    },
+    onSuccess: () => {
+      // Show inline success message
+      formHandler.showSuccessState('account-email-form', {
+        messageAttribute: 'account-email-form',
+        hideForm: false,
+        scrollIntoView: false
+      });
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        formHandler.resetSuccessState('account-email-form');
+      }, 5000);
     }
   };
 
@@ -124,6 +151,19 @@ function initTelefoonForm(userData) {
         message += ' • Je schoonmaker is op de hoogte gebracht';
       }
       return { message };
+    },
+    onSuccess: () => {
+      // Show inline success message
+      formHandler.showSuccessState('account-telefoon-form', {
+        messageAttribute: 'account-telefoon-form',
+        hideForm: false,
+        scrollIntoView: false
+      });
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        formHandler.resetSuccessState('account-telefoon-form');
+      }, 5000);
     }
   };
 
@@ -172,23 +212,40 @@ function initAdresForm(userData) {
         schoonmakerGenotificeerd: response.schoonmakerGenotificeerd
       });
 
-      // Handle modal display based on response
-      if (response.buitenDekking) {
-        // Show "buiten dekking" modal
-        showModal('adres-buiten-dekking');
-        return { message: null }; // Suppress success message
-      } else if (response.heeftActiefAbonnement && !response.schoonmakerGenotificeerd) {
-        // Show "schoonmaker notify" modal
-        showModal('adres-schoonmaker-notify');
-        return { message: null }; // Suppress success message
-      }
-
-      // Default success message
+      // Build success message
       let message = 'Adres succesvol bijgewerkt';
       if (response.schoonmakerGenotificeerd) {
         message += ' • Je schoonmaker is op de hoogte gebracht';
       }
-      return { message };
+      
+      // Store response flags for onSuccess handler
+      return { 
+        message,
+        customData: {
+          buitenDekking: response.buitenDekking,
+          heeftActiefAbonnement: response.heeftActiefAbonnement
+        }
+      };
+    },
+    onSuccess: (result) => {
+      // Check if we need to show a modal instead of success message
+      if (result?.customData?.buitenDekking) {
+        showModal('adres-buiten-dekking');
+      } else if (result?.customData?.heeftActiefAbonnement) {
+        showModal('adres-schoonmaker-notify');
+      } else {
+        // Show inline success message for non-subscription users
+        formHandler.showSuccessState('account-adres-form', {
+          messageAttribute: 'account-adres-form',
+          hideForm: false,
+          scrollIntoView: false
+        });
+        
+        // Auto-hide success message after 5 seconds
+        setTimeout(() => {
+          formHandler.resetSuccessState('account-adres-form');
+        }, 5000);
+      }
     }
   };
 
@@ -274,6 +331,19 @@ function initWachtwoordForm() {
       return { 
         message: 'Wachtwoord succesvol gewijzigd • Andere sessies zijn uitgelogd'
       };
+    },
+    onSuccess: () => {
+      // Show inline success message
+      formHandler.showSuccessState('account-wachtwoord-form', {
+        messageAttribute: 'account-wachtwoord-form',
+        hideForm: false,
+        scrollIntoView: false
+      });
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        formHandler.resetSuccessState('account-wachtwoord-form');
+      }, 5000);
     }
   };
 
@@ -286,6 +356,9 @@ function initWachtwoordForm() {
 
 export async function initAccountBeheren() {
   console.log('⚙️ [Account Beheren] Initialiseren...');
+
+  // Hide all success messages on page load (so they're visible in Webflow editor)
+  hideAllSuccessMessages();
 
   // Load user data
   const userData = await loadUserData();
