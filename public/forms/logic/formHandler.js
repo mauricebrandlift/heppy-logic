@@ -42,6 +42,8 @@ export const formHandler = {
   formElement: null, // DOM-element van het formulier
   formData: {}, // Huidige waarden van alle velden
   formState: {}, // State per veld (bijv. isTouched)
+  originalData: null, // Original data for change tracking (edit forms)
+  requireChanges: false, // Whether to require changes before enabling submit
   _triggerCleanupFunctions: [], // Opslag voor cleanup functie van triggers
   _contexts: new Map(), // Opslag voor formuliercontexten per form name
   _activeFormName: null,
@@ -57,6 +59,8 @@ export const formHandler = {
       formElement: this.formElement,
       formData: this.formData,
       formState: this.formState,
+      originalData: this.originalData,
+      requireChanges: this.requireChanges,
       triggerCleanupFunctions: this._triggerCleanupFunctions,
       fieldListeners: this._fieldListeners,
       submitButton: this._submitButton,
@@ -87,6 +91,8 @@ export const formHandler = {
         formElement: null,
         formData: {},
         formState: {},
+        originalData: null,
+        requireChanges: false,
         triggerCleanupFunctions: [],
         fieldListeners: [],
         submitButton: null,
@@ -100,6 +106,8 @@ export const formHandler = {
     this.formElement = context.formElement;
     this.formData = context.formData;
     this.formState = context.formState;
+    this.originalData = context.originalData || null;
+    this.requireChanges = context.requireChanges || false;
     this._triggerCleanupFunctions = context.triggerCleanupFunctions || [];
     this._fieldListeners = context.fieldListeners || [];
     this._submitButton = context.submitButton || null;
@@ -390,10 +398,21 @@ export const formHandler = {
     this._activeFormName = schema.name;
     this._successState = null;
 
+    // Setup change tracking (hybride: auto-detect met override optie)
+    const autoDetectEditMode = initialData !== null;
+    this.requireChanges = schema.requireChanges ?? autoDetectEditMode;
+    this.originalData = this.requireChanges && initialData ? { ...initialData } : null;
+
+    if (this.requireChanges && this.originalData) {
+      console.log(`🔍 [FormHandler] Change tracking enabled - button only active if data changes`);
+    }
+
     context.schema = this.schema;
     context.formElement = this.formElement;
     context.formData = this.formData;
     context.formState = this.formState;
+    context.originalData = this.originalData;
+    context.requireChanges = this.requireChanges;
     context.triggerCleanupFunctions = this._triggerCleanupFunctions;
     context.fieldListeners = this._fieldListeners;
     context.submitButton = this._submitButton;
@@ -721,11 +740,35 @@ export const formHandler = {
     // Update de status van de submit knop (bijv. enabled/disabled) op basis van de algehele validiteit van het formulier.
     this.updateSubmitState();
   },
+
+  /**
+   * 🔍 Controleert of er wijzigingen zijn in de formulierdata t.o.v. originalData
+   * Gebruikt voor edit-formulieren om alleen submit toe te staan bij daadwerkelijke wijzigingen
+   * 
+   * @returns {boolean} True als er wijzigingen zijn, false als data hetzelfde is
+   */
+  _hasChanges() {
+    if (!this.originalData) return true; // Geen original data = altijd changes allowed
+
+    // Vergelijk alle velden in het schema
+    return Object.keys(this.schema.fields).some(fieldName => {
+      const currentValue = this.formData[fieldName];
+      const originalValue = this.originalData[fieldName];
+
+      // Normaliseer undefined/null/"" als equivalente lege waarden
+      const normalizedCurrent = (currentValue === undefined || currentValue === null) ? '' : String(currentValue).trim();
+      const normalizedOriginal = (originalValue === undefined || originalValue === null) ? '' : String(originalValue).trim();
+
+      return normalizedCurrent !== normalizedOriginal;
+    });
+  },
+
   /**
    * 🔄 Controleert volledige formulier-validatie en togglet de submit-knop.
    *
    * Gebruikt validateForm om de globale validatie-status te bepalen.
    * Controleert ook of velden die server-validatie nodig hebben ingevuld zijn.
+   * Voor edit-formulieren: controleert ook of er daadwerkelijk wijzigingen zijn.
    */
   updateSubmitState(formName = this._activeFormName) {
     const context = this._loadContext(formName, { createIfMissing: false });
@@ -750,7 +793,10 @@ export const formHandler = {
         return this.formData[field] && this.formData[field].trim() !== '';
       });
 
-    const isFormValid = basicFormValid && areServerValidatedFieldsPopulated;
+    // Check if changes are required and present (for edit forms)
+    const hasChanges = this.requireChanges ? this._hasChanges() : true;
+
+    const isFormValid = basicFormValid && areServerValidatedFieldsPopulated && hasChanges;
     
     const btn = this.formElement.querySelector(`[data-form-button="${this.schema.name}"]`);
     if (btn) {
@@ -759,7 +805,7 @@ export const formHandler = {
       console.log(
         `🔄 [FormHandler] Submit button ${isFormValid ? 'enabled ✅' : 'disabled ❌'} for form ${
           this.schema.name
-        } (basic validation: ${basicFormValid}, server fields populated: ${areServerValidatedFieldsPopulated})`
+        } (validation: ${basicFormValid}, server fields: ${areServerValidatedFieldsPopulated}, changes: ${hasChanges}${this.requireChanges ? ' [required]' : ''})`
       );
     } else {
       console.warn(
