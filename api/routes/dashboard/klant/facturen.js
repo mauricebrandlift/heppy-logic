@@ -12,30 +12,14 @@
 import { supabaseConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { handleErrorResponse } from '../../../utils/errorHandler.js';
-import { verifyAuthToken } from '../../../utils/authMiddleware.js';
+import { withAuth } from '../../../utils/authMiddleware.js';
 
-export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Correlation-ID');
-
-  if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
-  }
-
+async function facturenHandler(req, res) {
   const correlationId = req.headers['x-correlation-id'] || `facturen-${Date.now()}`;
   res.setHeader('X-Correlation-ID', correlationId);
 
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET, OPTIONS');
-    return res.status(405).json({ correlationId, message: 'Method not allowed' });
-  }
-
   try {
-    // Verificatie auth token
-    const user = await verifyAuthToken(req, res);
-    if (!user) return; // verifyAuthToken heeft al response gestuurd
+    const user = req.user; // User is already verified by withAuth middleware
 
     console.log(JSON.stringify({
       level: 'INFO',
@@ -122,3 +106,6 @@ export default async function handler(req, res) {
     return handleErrorResponse(error, res, correlationId);
   }
 }
+
+// Export with auth middleware wrapper
+export default withAuth(facturenHandler, { roles: ['klant'] });
