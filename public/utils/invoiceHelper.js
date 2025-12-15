@@ -80,9 +80,6 @@ export function initInvoiceButton(options = {}) {
     button.addEventListener('click', async (e) => {
       e.preventDefault();
 
-      // Loading state
-      onLoading(button, true);
-
       try {
         const invoiceUrl = await getInvoiceUrl(buttonInvoiceId);
 
@@ -90,15 +87,12 @@ export function initInvoiceButton(options = {}) {
           throw new Error('Geen factuur URL ontvangen');
         }
 
-        // Success
+        // Success - open in nieuw tabblad
         onSuccess(button, invoiceUrl);
 
       } catch (error) {
         // Error
         onError(button, error);
-      } finally {
-        // Reset loading state
-        onLoading(button, false);
       }
     });
 
