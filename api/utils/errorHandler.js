@@ -10,8 +10,8 @@
  * @param {string} [correlationId] Optionele correlation ID.
  */
 export function handleErrorResponse(error, res, correlationId) {
-  // Support both error.code and error.statusCode
-  const statusCode = error.statusCode || (typeof error.code === 'number' ? error.code : 500);
+  // Support error.status (primary), error.statusCode, and error.code
+  const statusCode = error.status || error.statusCode || (typeof error.code === 'number' ? error.code : 500);
   const message = error.message || 'An unexpected error occurred.';
 
   // Log de error server-side (uitgebreider dan wat naar client gaat)
@@ -23,6 +23,7 @@ export function handleErrorResponse(error, res, correlationId) {
     errorDetails: {
       name: error.name,
       message: error.message,
+      status: error.status,
       code: error.code,
       statusCode: error.statusCode,
     },

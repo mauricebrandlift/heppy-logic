@@ -58,21 +58,7 @@ export default async function handler(req, res) {
     console.log(JSON.stringify({ ...logMeta, level: 'INFO', message: 'Adres succesvol opgehaald en verstuurd.' /*, adres: addressDetails*/ })); // PII in adres niet standaard loggen
     return res.status(200).json(addressDetails);
   } catch (error) {
-    // handleErrorResponse zou de correlationId moeten kunnen ontvangen en gebruiken
-    if (handleErrorResponse) {
-       handleErrorResponse(res, error, undefined, logMeta.correlationId);
-    } else {
-      // Fallback als handleErrorResponse niet correct werkt of niet is gedefinieerd
-      const statusCode = typeof error.code === 'number' ? error.code : 500;
-      const message = error.message || 'Interne serverfout bij het ophalen van adresgegevens.';
-      console.error(JSON.stringify({
-        ...logMeta, // logMeta bevat al de correlationId
-        level: 'ERROR',
-        message: `Fout bij adres ophalen: ${message}`,
-        statusCode,
-        errorDetails: { name: error.name, message: error.message, code: error.code },
-      }));
-      return res.status(statusCode).json({ correlationId: logMeta.correlationId, message });
-    }
+    // handleErrorResponse met correcte parameter volgorde: (error, res, correlationId)
+    return handleErrorResponse(error, res, logMeta.correlationId);
   }
 }
