@@ -4,6 +4,7 @@
  * Beheert inloggen, uitloggen en sessiegegevens
  */
 import { API_CONFIG } from '../../config/apiConfig.js';
+import { setSkip401Handler } from '../api/client.js';
 
 export class AuthError extends Error {
   constructor(message, statusCode, code) {
@@ -114,6 +115,10 @@ export const authClient = {
       // Roep logout endpoint aan indien nodig
       const authData = this.getAuthState();
       if (authData?.access_token) {
+        // Schakel 401 auto-logout uit voor deze logout API call
+        // Anders krijgen we dubbele redirects (logout API → 401 → redirect + logout → redirect)
+        setSkip401Handler(true);
+        
         await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.AUTH.LOGOUT}`, {
           method: 'POST',
           headers: {
@@ -122,6 +127,9 @@ export const authClient = {
         }).catch(err => {
           // Negeer API fouten bij uitloggen; we loggen lokaal altijd uit
           console.warn('Uitlog API fout (genegeerd):', err);
+        }).finally(() => {
+          // Zet de flag terug na de logout call
+          setSkip401Handler(false);
         });
       }
     } finally {

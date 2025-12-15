@@ -7,6 +7,9 @@ import { API_CONFIG } from '../../config/apiConfig.js'; // Importeer de configur
 
 const BASE_API_PATH = '/api'; // Basispad voor alle backend API-calls
 
+// Flag om 401 auto-logout tijdelijk uit te schakelen (tijdens logout zelf)
+let skipNext401Handler = false;
+
 /**
  * Genereert een unieke correlation ID voor request tracking
  * @returns {string} Een unieke correlation ID
@@ -26,6 +29,14 @@ export class ApiError extends Error {
     this.status = status; // HTTP status code
     this.data = data;     // Optionele data, bijv. de JSON error body van de server
   }
+}
+
+/**
+ * Helper om 401 auto-logout tijdelijk uit te schakelen
+ * Gebruikt tijdens logout API call om dubbele redirects te voorkomen
+ */
+export function setSkip401Handler(skip) {
+  skipNext401Handler = skip;
 }
 
 /**
@@ -85,7 +96,8 @@ export async function apiClient(endpoint, options = {}, timeout = 5000) {
       console.error('API Error Response:', { status: response.status, url, correlationId, responseData });
       
       // 🔒 Automatisch uitloggen bij 401 Unauthorized (invalid/expired token)
-      if (response.status === 401) {
+      // BEHALVE als we al bezig zijn met uitloggen (voorkomt dubbele redirects)
+      if (response.status === 401 && !skipNext401Handler) {
         console.warn('🔒 [API Client] 401 Unauthorized - token invalid/expired, logging out...');
         // Clear localStorage en redirect naar login
         localStorage.removeItem('heppy_auth');
