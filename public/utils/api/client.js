@@ -83,6 +83,16 @@ export async function apiClient(endpoint, options = {}, timeout = 5000) {
 
     if (!response.ok) {
       console.error('API Error Response:', { status: response.status, url, correlationId, responseData });
+      
+      // 🔒 Automatisch uitloggen bij 401 Unauthorized (invalid/expired token)
+      if (response.status === 401) {
+        console.warn('🔒 [API Client] 401 Unauthorized - token invalid/expired, logging out...');
+        // Clear localStorage en redirect naar login
+        localStorage.removeItem('heppy_auth');
+        window.location.href = '/inloggen?message=Je sessie is verlopen. Log opnieuw in.';
+        // Throw error alsnog voor catch blocks die al draaien
+      }
+      
       throw new ApiError(response.status, responseData.message || `API Fout: ${response.status}`, responseData);
     }
 
