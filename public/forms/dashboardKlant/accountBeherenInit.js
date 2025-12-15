@@ -353,7 +353,7 @@ function initWachtwoordForm() {
       });
 
       return { 
-        message: 'Wachtwoord succesvol gewijzigd • Andere sessies zijn uitgelogd'
+        message: 'Wachtwoord succesvol gewijzigd • Je wordt uitgelogd...'
       };
     },
     onSuccess: () => {
@@ -365,15 +365,12 @@ function initWachtwoordForm() {
         scrollIntoView: false
       });
       
-      // Auto-hide success message after 5 seconds
+      // Logout and redirect after 3 seconds
       setTimeout(() => {
-        console.log(`[Account Beheren] Auto-hiding success for ${formName}`);
-        const successEl = document.querySelector(`[data-success-message="${formName}"]`);
-        if (successEl) {
-          successEl.style.display = 'none';
-          console.log(`[Account Beheren] Success message hidden for ${formName}`);
-        }
-      }, 5000);
+        console.log('[Account Beheren] Uitloggen na wachtwoord wijziging...');
+        authClient.logout();
+        window.location.href = '/inloggen?message=Wachtwoord gewijzigd. Log opnieuw in met je nieuwe wachtwoord.';
+      }, 3000);
     }
   };
 

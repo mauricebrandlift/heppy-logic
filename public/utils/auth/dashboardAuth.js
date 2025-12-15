@@ -32,12 +32,19 @@ export function initDashboardAuth(options = {}) {
   // Controleer of gebruiker is ingelogd
   if (!authClient.isAuthenticated()) {
     console.log('🔒 [DashboardAuth] Gebruiker niet ingelogd, redirecting naar login pagina');
-    window.location.href = '/inloggen';
+    window.location.href = '/inloggen?message=Je sessie is verlopen. Log opnieuw in.';
     return null;
   }
   
-  // Haal auth state op
+  // Haal auth state op (dit checkt ook token expiry)
   const authState = authClient.getAuthState();
+  
+  // Als getAuthState null teruggeeft, is de token expired
+  if (!authState) {
+    console.log('🔒 [DashboardAuth] Token expired, redirecting naar login pagina');
+    window.location.href = '/inloggen?message=Je sessie is verlopen. Log opnieuw in.';
+    return null;
+  }
   const userRole = authState?.user?.role;
   
   if (!userRole) {
