@@ -71,16 +71,22 @@ function initProfielForm(userData) {
       return { message };
     },
     onSuccess: () => {
+      const formName = 'account-profiel-form';
       // Show inline success message
-      formHandler.showSuccessState('account-profiel-form', {
-        messageAttribute: 'account-profiel-form',
+      formHandler.showSuccessState(formName, {
+        messageAttribute: formName,
         hideForm: false,
         scrollIntoView: false
       });
       
       // Auto-hide success message after 5 seconds
       setTimeout(() => {
-        formHandler.resetSuccessState('account-profiel-form');
+        console.log(`[Account Beheren] Auto-hiding success for ${formName}`);
+        const successEl = document.querySelector(`[data-success-message="${formName}"]`);
+        if (successEl) {
+          successEl.style.display = 'none';
+          console.log(`[Account Beheren] Success message hidden for ${formName}`);
+        }
       }, 5000);
     }
   };
@@ -111,16 +117,22 @@ function initEmailForm(userData) {
       };
     },
     onSuccess: () => {
+      const formName = 'account-email-form';
       // Show inline success message
-      formHandler.showSuccessState('account-email-form', {
-        messageAttribute: 'account-email-form',
+      formHandler.showSuccessState(formName, {
+        messageAttribute: formName,
         hideForm: false,
         scrollIntoView: false
       });
       
       // Auto-hide success message after 5 seconds
       setTimeout(() => {
-        formHandler.resetSuccessState('account-email-form');
+        console.log(`[Account Beheren] Auto-hiding success for ${formName}`);
+        const successEl = document.querySelector(`[data-success-message="${formName}"]`);
+        if (successEl) {
+          successEl.style.display = 'none';
+          console.log(`[Account Beheren] Success message hidden for ${formName}`);
+        }
       }, 5000);
     }
   };
@@ -153,16 +165,22 @@ function initTelefoonForm(userData) {
       return { message };
     },
     onSuccess: () => {
+      const formName = 'account-telefoon-form';
       // Show inline success message
-      formHandler.showSuccessState('account-telefoon-form', {
-        messageAttribute: 'account-telefoon-form',
+      formHandler.showSuccessState(formName, {
+        messageAttribute: formName,
         hideForm: false,
         scrollIntoView: false
       });
       
       // Auto-hide success message after 5 seconds
       setTimeout(() => {
-        formHandler.resetSuccessState('account-telefoon-form');
+        console.log(`[Account Beheren] Auto-hiding success for ${formName}`);
+        const successEl = document.querySelector(`[data-success-message="${formName}"]`);
+        if (successEl) {
+          successEl.style.display = 'none';
+          console.log(`[Account Beheren] Success message hidden for ${formName}`);
+        }
       }, 5000);
     }
   };
@@ -234,16 +252,22 @@ function initAdresForm(userData) {
       } else if (result?.customData?.heeftActiefAbonnement) {
         showModal('adres-schoonmaker-notify');
       } else {
+        const formName = 'account-adres-form';
         // Show inline success message for non-subscription users
-        formHandler.showSuccessState('account-adres-form', {
-          messageAttribute: 'account-adres-form',
+        formHandler.showSuccessState(formName, {
+          messageAttribute: formName,
           hideForm: false,
           scrollIntoView: false
         });
         
         // Auto-hide success message after 5 seconds
         setTimeout(() => {
-          formHandler.resetSuccessState('account-adres-form');
+          console.log(`[Account Beheren] Auto-hiding success for ${formName}`);
+          const successEl = document.querySelector(`[data-success-message="${formName}"]`);
+          if (successEl) {
+            successEl.style.display = 'none';
+            console.log(`[Account Beheren] Success message hidden for ${formName}`);
+          }
         }, 5000);
       }
     }
@@ -333,16 +357,22 @@ function initWachtwoordForm() {
       };
     },
     onSuccess: () => {
+      const formName = 'account-wachtwoord-form';
       // Show inline success message
-      formHandler.showSuccessState('account-wachtwoord-form', {
-        messageAttribute: 'account-wachtwoord-form',
+      formHandler.showSuccessState(formName, {
+        messageAttribute: formName,
         hideForm: false,
         scrollIntoView: false
       });
       
       // Auto-hide success message after 5 seconds
       setTimeout(() => {
-        formHandler.resetSuccessState('account-wachtwoord-form');
+        console.log(`[Account Beheren] Auto-hiding success for ${formName}`);
+        const successEl = document.querySelector(`[data-success-message="${formName}"]`);
+        if (successEl) {
+          successEl.style.display = 'none';
+          console.log(`[Account Beheren] Success message hidden for ${formName}`);
+        }
       }, 5000);
     }
   };
