@@ -165,6 +165,13 @@ function initAdresForm(userData) {
         }
       });
 
+      // Debug: log response flags
+      console.log('[accountBeheren] Adres response:', {
+        buitenDekking: response.buitenDekking,
+        heeftActiefAbonnement: response.heeftActiefAbonnement,
+        schoonmakerGenotificeerd: response.schoonmakerGenotificeerd
+      });
+
       // Handle modal display based on response
       if (response.buitenDekking) {
         // Show "buiten dekking" modal
@@ -201,9 +208,13 @@ function initAdresForm(userData) {
  * Show modal helper
  */
 function showModal(modalName) {
+  console.log('[accountBeheren] showModal called with:', modalName);
   const modalWrapper = document.querySelector(`[data-modal-wrapper="${modalName}"]`);
+  console.log('[accountBeheren] Modal element found:', !!modalWrapper);
+  
   if (modalWrapper) {
     modalWrapper.style.display = 'flex';
+    console.log('[accountBeheren] Modal display set to flex');
     
     // Setup close handlers
     const closeTriggers = modalWrapper.querySelectorAll('[data-modal-close]');
@@ -213,6 +224,8 @@ function showModal(modalName) {
         modalWrapper.style.display = 'none';
       });
     });
+  } else {
+    console.warn(`[accountBeheren] Modal not found: [data-modal-wrapper="${modalName}"]`);
   }
 }
 
