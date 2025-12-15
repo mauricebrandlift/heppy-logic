@@ -138,6 +138,54 @@ function initAdresForm(userData) {
   const schema = getFormSchema('account-adres-form');
   if (!schema) return;
 
+  // Add address lookup trigger (fills straatnaam and plaatsnaam)
+  schema.triggers = {
+    postcode: [
+      {
+        when: 'valid',
+        action: async (formData, formHandler) => {
+          const { postcode, huisnummer, toevoeging } = formData;
+          
+          if (!postcode || !huisnummer) return;
+
+          try {
+            const addressDetails = await fetchAddressDetails(postcode, huisnummer, toevoeging || '');
+            
+            if (addressDetails) {
+              // Update readonly fields via formHandler
+              formHandler.updateFieldValue('straatnaam', addressDetails.straat);
+              formHandler.updateFieldValue('plaatsnaam', addressDetails.plaats);
+            }
+          } catch (error) {
+            console.error('Address lookup failed:', error);
+          }
+        }
+      }
+    ],
+    huisnummer: [
+      {
+        when: 'valid',
+        action: async (formData, formHandler) => {
+          const { postcode, huisnummer, toevoeging } = formData;
+          
+          if (!postcode || !huisnummer) return;
+
+          try {
+            const addressDetails = await fetchAddressDetails(postcode, huisnummer, toevoeging || '');
+            
+            if (addressDetails) {
+              // Update readonly fields via formHandler
+              formHandler.updateFieldValue('straatnaam', addressDetails.straat);
+              formHandler.updateFieldValue('plaatsnaam', addressDetails.plaats);
+            }
+          } catch (error) {
+            console.error('Address lookup failed:', error);
+          }
+        }
+      }
+    ]
+  };
+
   schema.submit = {
     action: async (formData) => {
       // Address verification
@@ -164,6 +212,18 @@ function initAdresForm(userData) {
         }
       });
 
+      // Handle modal display based on response
+      if (response.buitenDekking) {
+        // Show "buiten dekking" modal
+        showModal('adres-buiten-dekking');
+        return { message: null }; // Suppress success message
+      } else if (response.heeftActiefAbonnement && !response.schoonmakerGenotificeerd) {
+        // Show "schoonmaker notify" modal
+        showModal('adres-schoonmaker-notify');
+        return { message: null }; // Suppress success message
+      }
+
+      // Default success message
       let message = 'Adres succesvol bijgewerkt';
       if (response.schoonmakerGenotificeerd) {
         message += ' • Je schoonmaker is op de hoogte gebracht';
@@ -172,8 +232,27 @@ function initAdresForm(userData) {
     }
   };
 
-  // Pass userData as initialData to formHandler
+  // Pass userData as initialData to formHandler (includes straat/plaats from DB)
   formHandler.init(schema, userData);
+}
+
+/**
+ * Show modal helper
+ */
+function showModal(modalName) {
+  const modalWrapper = document.querySelector(`[data-modal-wrapper="${modalName}"]`);
+  if (modalWrapper) {
+    modalWrapper.style.display = 'flex';
+    
+    // Setup close handlers
+    const closeTriggers = modalWrapper.querySelectorAll('[data-modal-close]');
+    closeTriggers.forEach(trigger => {
+      trigger.addEventListener('click', (e) => {
+        e.preventDefault();
+        modalWrapper.style.display = 'none';
+      });
+    });
+  }
 }
 
 // ============================================================================

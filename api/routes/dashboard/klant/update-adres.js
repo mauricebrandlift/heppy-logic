@@ -179,10 +179,55 @@ export default async function handler(req, res) {
       }));
     }
 
+    // Check 1: Heeft user actief abonnement?
+    const abonnementResponse = await httpClient(
+      `${supabaseConfig.url}/rest/v1/abonnementen?gebruiker_id=eq.${user.id}&status=in.(actief,gepauzeerd)&select=id`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+        }
+      }
+    );
+
+    const abonnementen = await abonnementResponse.json();
+    const heeftActiefAbonnement = abonnementen && abonnementen.length > 0;
+
+    // Check 2: Is nieuwe plaats binnen dekking?
+    const dekkingResponse = await httpClient(
+      `${supabaseConfig.url}/rest/v1/plaatsen_dekking?plaats=ilike.${encodeURIComponent(plaats.trim())}&select=id`,
+      {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+        }
+      }
+    );
+
+    const dekkingPlaatsen = await dekkingResponse.json();
+    const binnenDekking = dekkingPlaatsen && dekkingPlaatsen.length > 0;
+    const buitenDekking = heeftActiefAbonnement && !binnenDekking;
+
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'dashboard/klant/update-adres',
+      action: 'adres_check_completed',
+      userId: user.id,
+      heeftActiefAbonnement,
+      binnenDekking,
+      buitenDekking
+    }));
+
     return res.status(200).json({
       correlationId,
       message: 'Adres bijgewerkt',
-      success: true
+      success: true,
+      heeftActiefAbonnement,
+      buitenDekking,
+      schoonmakerGenotificeerd: false // TODO: implement notification logic if needed
     });
 
   } catch (error) {

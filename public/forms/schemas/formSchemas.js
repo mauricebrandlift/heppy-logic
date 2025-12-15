@@ -1696,6 +1696,26 @@ export function getFormSchema(name) {
         },
         toevoeging: {
           ...commonFields.toevoeging,
+        },
+        straatnaam: {
+          label: 'Straatnaam',
+          inputType: 'text',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none',
+          messages: {
+            required: 'Straatnaam is verplicht'
+          }
+        },
+        plaatsnaam: {
+          label: 'Plaatsnaam',
+          inputType: 'text',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none',
+          messages: {
+            required: 'Plaatsnaam is verplicht'
+          }
         }
       },
       globalMessages: combineMessages(

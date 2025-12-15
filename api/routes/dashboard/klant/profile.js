@@ -85,8 +85,8 @@ export default async function handler(req, res) {
       postcode: adresData?.postcode || null,
       huisnummer: adresData?.huisnummer || null,
       toevoeging: adresData?.toevoeging || null,
-      straat: adresData?.straat || null,
-      plaats: adresData?.plaats || null
+      straatnaam: adresData?.straat || null, // Match HTML field name
+      plaatsnaam: adresData?.plaats || null  // Match HTML field name
     });
 
   } catch (error) {
