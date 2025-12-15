@@ -130,13 +130,13 @@ export default async function handler(req, res) {
       console.log(`⏱️ [Me API] Total request duration: ${totalDuration}ms`);
       console.log('✅ [Me API] ========== ME REQUEST SUCCESS ==========');
       
-      // Return de gebruiker met hun rol
+      // Return minimale gebruiker data (alleen auth verificatie)
+      // Voor profiel data: gebruik /dashboard/klant/profile
       return res.status(200).json({
         user: {
           id: user.id,
           email: user.email,
-          role: profile.rol,
-          // Voeg andere relevante gebruikersdata toe
+          role: profile.rol
         }
       });
   } catch (error) {

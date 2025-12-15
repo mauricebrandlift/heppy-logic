@@ -121,6 +121,7 @@ function updateButtonState(formName, button, getCurrentValues) {
 
 /**
  * Load user data from API
+ * Uses /dashboard/klant/profile for profiel data (not /auth/me)
  */
 async function loadUserData() {
   console.log('🔄 [Account Beheren] Loading user data...');
@@ -132,15 +133,23 @@ async function loadUserData() {
   }
 
   try {
-    const response = await apiClient('/auth/me', {
+    // Haal profiel data op via dedicated endpoint
+    const profileData = await apiClient('/dashboard/klant/profile', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authState.access_token}`
       }
     });
 
-    console.log('✅ [Account Beheren] User data loaded:', response.user);
-    return response.user;
+    console.log('✅ [Account Beheren] Profile data loaded:', profileData);
+    
+    // Combine met basis auth data uit authState
+    return {
+      id: authState.user?.id,
+      email: authState.user?.email,
+      role: authState.user?.role,
+      ...profileData
+    };
   } catch (error) {
     console.error('❌ [Account Beheren] Error loading user data:', error);
     return null;
