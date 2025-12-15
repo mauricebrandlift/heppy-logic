@@ -991,6 +991,12 @@ export const formHandler = {
         await this.schema.submit.action(this.formData);
       }
       
+      // Update originalData after successful submit (for edit forms)
+      if (this.requireChanges && this.originalData) {
+        this.originalData = { ...this.formData };
+        console.log('🔄 [FormHandler] originalData updated after successful submit - button will be disabled until next change');
+      }
+      
       // Gebruik dezelfde button voor het verbergen van de loader
       if (submitButton) {
         hideLoader(submitButton);
@@ -999,6 +1005,10 @@ export const formHandler = {
       }
       
       toggleFields(this.formElement, true);
+      
+      // Update button state (will disable button if no changes)
+      this.updateSubmitState();
+      
       if (this.schema.submit && typeof this.schema.submit.onSuccess === 'function') {
         this.schema.submit.onSuccess();
       }
