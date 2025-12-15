@@ -1634,6 +1634,123 @@ export function getFormSchema(name) {
     },
 
     // Andere formulieren...
+
+    // ============================================================================
+    // DASHBOARD - ACCOUNT BEHEREN FORMS (5 losse formulieren)
+    // ============================================================================
+    
+    'account-profiel-form': {
+      name: 'account-profiel-form',
+      selector: '[data-form-name="account-profiel-form"]',
+      fields: {
+        voornaam: {
+          ...commonFields.voornaam,
+        },
+        achternaam: {
+          ...commonFields.achternaam,
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server
+      )
+    },
+
+    'account-email-form': {
+      name: 'account-email-form',
+      selector: '[data-form-name="account-email-form"]',
+      fields: {
+        email: {
+          ...commonFields.email,
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server
+      )
+    },
+
+    'account-telefoon-form': {
+      name: 'account-telefoon-form',
+      selector: '[data-form-name="account-telefoon-form"]',
+      fields: {
+        telefoon: {
+          ...commonFields.telefoon,
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server
+      )
+    },
+
+    'account-adres-form': {
+      name: 'account-adres-form',
+      selector: '[data-form-name="account-adres-form"]',
+      fields: {
+        postcode: {
+          ...commonFields.postcode,
+        },
+        huisnummer: {
+          ...commonFields.huisnummer,
+        },
+        toevoeging: {
+          ...commonFields.toevoeging,
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.address,
+        commonMessages.server
+      )
+    },
+
+    'account-wachtwoord-form': {
+      name: 'account-wachtwoord-form',
+      selector: '[data-form-name="account-wachtwoord-form"]',
+      fields: {
+        huidigWachtwoord: {
+          label: 'Huidig wachtwoord',
+          inputType: 'password',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none',
+          messages: {
+            required: 'Huidig wachtwoord is verplicht'
+          }
+        },
+        nieuwWachtwoord: {
+          label: 'Nieuw wachtwoord',
+          inputType: 'password',
+          sanitizers: ['trim'],
+          validators: ['required', 'strongPassword'],
+          persist: 'none',
+          messages: {
+            required: 'Nieuw wachtwoord is verplicht',
+            strongPassword: 'Wachtwoord moet minimaal 8 tekens, een hoofdletter, kleine letter en cijfer bevatten'
+          }
+        },
+        bevestigWachtwoord: {
+          label: 'Bevestig wachtwoord',
+          inputType: 'password',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none',
+          messages: {
+            required: 'Bevestig je nieuwe wachtwoord'
+          }
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          PASSWORD_MISMATCH: 'Wachtwoorden komen niet overeen',
+          INVALID_CURRENT_PASSWORD: 'Huidig wachtwoord is onjuist',
+          SAME_PASSWORD: 'Nieuw wachtwoord moet verschillen van huidig wachtwoord'
+        }
+      )
+    },
   };
 
   return schemas[name] || null;

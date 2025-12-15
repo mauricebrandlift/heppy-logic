@@ -152,12 +152,11 @@ export const commonFields = {
     label: 'Wachtwoord',
     inputType: 'password',
     sanitizers: ['trim'],
-    validators: ['required', 'minLength'],
+    validators: ['required', 'strongPassword'],
     persist: 'none', // Wachtwoorden nooit persistent opslaan
-    minLength: 8,
     messages: {
       required: 'Wachtwoord is verplicht',
-      minLength: 'Wachtwoord moet minimaal 8 karakters zijn'
+      strongPassword: 'Wachtwoord moet minimaal 8 tekens, een hoofdletter, kleine letter en cijfer bevatten'
     }
   },
   akkoordVoorwaarden: {

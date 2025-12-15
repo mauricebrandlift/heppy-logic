@@ -131,6 +131,33 @@ export const validators = {
     
     return null;
   },
+  // Sterk wachtwoord validator (minimaal 8 tekens, hoofdletter, kleine letter, cijfer)
+  strongPassword: (value) => {
+    // Lege waarde wordt afgehandeld door required validator
+    if (!value || value.trim() === '') return null;
+    
+    // Minimaal 8 tekens
+    if (value.length < 8) {
+      return 'Wachtwoord moet minimaal 8 tekens bevatten.';
+    }
+    
+    // Bevat minimaal één hoofdletter
+    if (!/[A-Z]/.test(value)) {
+      return 'Wachtwoord moet minimaal één hoofdletter bevatten.';
+    }
+    
+    // Bevat minimaal één kleine letter
+    if (!/[a-z]/.test(value)) {
+      return 'Wachtwoord moet minimaal één kleine letter bevatten.';
+    }
+    
+    // Bevat minimaal één cijfer
+    if (!/[0-9]/.test(value)) {
+      return 'Wachtwoord moet minimaal één cijfer bevatten.';
+    }
+    
+    return null;
+  },
 };
 
 /**
