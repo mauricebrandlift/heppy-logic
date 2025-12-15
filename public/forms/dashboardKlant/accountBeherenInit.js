@@ -134,7 +134,7 @@ async function loadUserData() {
 
   try {
     // Haal profiel data op via dedicated endpoint
-    const profileData = await apiClient('/dashboard/klant/profile', {
+    const profileData = await apiClient('/routes/dashboard/klant/profile', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authState.access_token}`
@@ -226,7 +226,7 @@ async function initProfielForm(userData) {
 
       // Submit
       const authState = authClient.getAuthState();
-      const response = await apiClient('/dashboard/klant/update-profiel', {
+      const response = await apiClient('/routes/dashboard/klant/update-adres', {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${authState.access_token}` },
         body: formData
@@ -317,7 +317,7 @@ async function initEmailForm(userData) {
 
       // Submit
       const authState = authClient.getAuthState();
-      await apiClient('/dashboard/klant/request-email-change', {
+      await apiClient('/routes/dashboard/klant/request-email-change', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${authState.access_token}` },
         body: { nieuwEmail: formData.email }
@@ -399,7 +399,7 @@ async function initTelefoonForm(userData) {
       }
 
       const authState = authClient.getAuthState();
-      const response = await apiClient('/dashboard/klant/update-telefoon', {
+      const response = await apiClient('/routes/dashboard/klant/update-telefoon', {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${authState.access_token}` },
         body: formData
@@ -509,7 +509,7 @@ async function initAdresForm(userData) {
       }
 
       const authState = authClient.getAuthState();
-      const response = await apiClient('/dashboard/klant/update-adres', {
+      const response = await apiClient('/routes/dashboard/klant/update-adres', {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${authState.access_token}` },
         body: {
@@ -612,7 +612,7 @@ async function initWachtwoordForm() {
       }
 
       const authState = authClient.getAuthState();
-      await apiClient('/dashboard/klant/update-wachtwoord', {
+      await apiClient('/routes/dashboard/klant/update-wachtwoord', {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${authState.access_token}` },
         body: {
