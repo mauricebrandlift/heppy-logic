@@ -221,12 +221,24 @@ function renderFacturenList(facturen) {
       addStatusClass(statusEl, factuur.status);
     }
 
-    // Download button
+    // Download button (binnen dropdown wrapper)
     const buttonEl = clone.querySelector('[data-invoice-button]');
     if (buttonEl && factuur.stripe_invoice_id) {
       buttonEl.dataset.invoiceId = factuur.stripe_invoice_id;
+      buttonEl.style.display = ''; // Maak button zichtbaar
+      
+      // Maak ook de dropdown wrapper zichtbaar
+      const dropdownWrapper = buttonEl.closest('.w-dropdown');
+      if (dropdownWrapper) {
+        dropdownWrapper.style.display = '';
+      }
     } else if (buttonEl) {
+      // Geen invoice ID: verberg button en dropdown
       buttonEl.style.display = 'none';
+      const dropdownWrapper = buttonEl.closest('.w-dropdown');
+      if (dropdownWrapper) {
+        dropdownWrapper.style.display = 'none';
+      }
     }
 
     parent.appendChild(clone);
