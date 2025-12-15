@@ -358,6 +358,14 @@ function initWachtwoordForm() {
     },
     onSuccess: () => {
       const formName = 'account-wachtwoord-form';
+      
+      // 🔒 BELANGRIJK: Clear localStorage DIRECT om race conditions te voorkomen
+      // Token is al invalid op server (Supabase invalideerde bij password change)
+      // Als we niet direct clearen, kan gebruiker nog navigeren naar dashboard pages
+      // die dan 401 errors krijgen en dubbele redirects veroorzaken
+      console.log('[Account Beheren] Clearing localStorage direct na wachtwoord wijziging');
+      localStorage.removeItem('heppy_auth');
+      
       // Show inline success message
       formHandler.showSuccessState(formName, {
         messageAttribute: formName,
@@ -365,10 +373,11 @@ function initWachtwoordForm() {
         scrollIntoView: false
       });
       
-      // Logout and redirect after 3 seconds
+      // Logout API call (in background) en redirect na 3 seconden
       setTimeout(() => {
-        console.log('[Account Beheren] Uitloggen na wachtwoord wijziging...');
-        authClient.logout();
+        console.log('[Account Beheren] Redirecting na wachtwoord wijziging...');
+        // authClient.logout() roept API aan (die 500 geeft, genegeerd) en doet redirect
+        // Maar we doen redirect zelf omdat logout() met reason='manual' altijd redirect doet
         window.location.href = '/inloggen?message=Wachtwoord gewijzigd. Log opnieuw in met je nieuwe wachtwoord.';
       }, 3000);
     }
