@@ -1707,7 +1707,7 @@ export function getFormSchema(name) {
             required: 'Straatnaam is verplicht'
           }
         },
-        plaatsnaam: {
+        plaats: {
           label: 'Plaatsnaam',
           inputType: 'text',
           sanitizers: ['trim'],

@@ -154,7 +154,7 @@ function initAdresForm(userData) {
             if (addressDetails) {
               // Update readonly fields via formHandler
               formHandler.updateFieldValue('straatnaam', addressDetails.straat);
-              formHandler.updateFieldValue('plaatsnaam', addressDetails.plaats);
+              formHandler.updateFieldValue('plaats', addressDetails.plaats);
             }
           } catch (error) {
             console.error('Address lookup failed:', error);
@@ -176,7 +176,7 @@ function initAdresForm(userData) {
             if (addressDetails) {
               // Update readonly fields via formHandler
               formHandler.updateFieldValue('straatnaam', addressDetails.straat);
-              formHandler.updateFieldValue('plaatsnaam', addressDetails.plaats);
+              formHandler.updateFieldValue('plaats', addressDetails.plaats);
             }
           } catch (error) {
             console.error('Address lookup failed:', error);
