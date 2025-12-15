@@ -52,18 +52,39 @@ export default async function handler(req, res) {
 
     const { profile } = authData;
 
+    // Haal adres data op als er een adres_id is
+    let adresData = null;
+    if (profile.adres_id) {
+      const adresResponse = await httpClient(
+        `${supabaseConfig.url}/rest/v1/adressen?id=eq.${profile.adres_id}&select=postcode,huisnummer,toevoeging,straat,plaats`,
+        {
+          headers: {
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (adresResponse.ok) {
+        const adressen = await adresResponse.json();
+        if (adressen && adressen.length > 0) {
+          adresData = adressen[0];
+        }
+      }
+    }
+
     console.log('✅ [Profile API] Profiel data opgehaald voor user:', authData.id);
 
-    // Return profiel data
+    // Return profiel data met adres info
     return res.status(200).json({
       voornaam: profile.voornaam,
       achternaam: profile.achternaam,
       telefoon: profile.telefoon,
-      postcode: profile.postcode,
-      huisnummer: profile.huisnummer,
-      toevoeging: profile.toevoeging,
-      straat: profile.straat,
-      plaats: profile.plaats
+      postcode: adresData?.postcode || null,
+      huisnummer: adresData?.huisnummer || null,
+      toevoeging: adresData?.toevoeging || null,
+      straat: adresData?.straat || null,
+      plaats: adresData?.plaats || null
     });
 
   } catch (error) {
