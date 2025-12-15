@@ -9,7 +9,56 @@ import { getFormSchema } from '../schemas/formSchemas.js';
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
 import { fetchAddressDetails } from '../../utils/api/address.js';
-import { showError, clearError, showSuccess as uiShowSuccess } from '../ui/errorDisplay.js';
+import { showError as showErrorElement, hideError, showFieldErrors, clearErrors } from '../ui/formUi.js';
+
+// Wrapper functions om formUi functies te gebruiken met selector-based API
+function showError(fieldName, message, formSelector) {
+  const formEl = document.querySelector(formSelector);
+  if (!formEl) return;
+  
+  if (fieldName === 'global') {
+    const errorEl = formEl.querySelector('[data-error-for="global"]');
+    if (errorEl) {
+      showErrorElement(errorEl, message);
+    }
+  } else {
+    showFieldErrors(formEl, fieldName, message);
+  }
+}
+
+function clearError(formSelector, fieldName = null) {
+  const formEl = document.querySelector(formSelector);
+  if (!formEl) return;
+  
+  if (fieldName) {
+    const errorEl = formEl.querySelector(`[data-error-for="${fieldName}"]`);
+    if (errorEl) hideError(errorEl);
+  } else {
+    clearErrors(formEl);
+  }
+}
+
+function showSuccess(message, formSelector) {
+  const formEl = document.querySelector(formSelector);
+  if (!formEl) return;
+  
+  const successWrapper = formEl.querySelector('.form_message-success-wrapper');
+  if (!successWrapper) return;
+  
+  const successDiv = successWrapper.querySelector('.form_message-success > div');
+  if (successDiv) {
+    successDiv.textContent = message;
+  }
+  
+  successWrapper.style.display = 'flex';
+  successWrapper.setAttribute('aria-hidden', 'false');
+  
+  // Auto-hide na 5 seconden
+  setTimeout(() => {
+    successWrapper.style.display = 'none';
+    successWrapper.setAttribute('aria-hidden', 'true');
+  }, 5000);
+}
 
 // Store original values for change detection
 const originalValues = {
@@ -185,7 +234,7 @@ async function initProfielForm(userData) {
       if (response.schoonmakerGenotificeerd) {
         successMessage += ' • Je schoonmaker is op de hoogte gebracht';
       }
-      uiShowSuccess(successMessage, schema.selector);
+      showSuccess(successMessage, schema.selector);
 
     } catch (error) {
       console.error('❌ [Profiel] Error:', error);
@@ -271,7 +320,7 @@ async function initEmailForm(userData) {
       setFieldValue('email', originalValues.email.email);
       setButtonDisabled(button, true);
       
-      uiShowSuccess('Verificatie-email verzonden naar je nieuwe e-mailadres • Klik op de link in de email om te bevestigen', schema.selector);
+      showSuccess('Verificatie-email verzonden naar je nieuwe e-mailadres • Klik op de link in de email om te bevestigen', schema.selector);
 
     } catch (error) {
       console.error('❌ [Email] Error:', error);
@@ -356,7 +405,7 @@ async function initTelefoonForm(userData) {
       if (response.schoonmakerGenotificeerd) {
         successMessage += ' • Je schoonmaker is op de hoogte gebracht';
       }
-      uiShowSuccess(successMessage, schema.selector);
+      showSuccess(successMessage, schema.selector);
 
     } catch (error) {
       console.error('❌ [Telefoon] Error:', error);
@@ -470,7 +519,7 @@ async function initAdresForm(userData) {
       if (response.schoonmakerGenotificeerd) {
         successMessage += ' • Je schoonmaker is op de hoogte gebracht';
       }
-      uiShowSuccess(successMessage, schema.selector);
+      showSuccess(successMessage, schema.selector);
 
     } catch (error) {
       console.error('❌ [Adres] Error:', error);
@@ -571,7 +620,7 @@ async function initWachtwoordForm() {
       setFieldValue('bevestigWachtwoord', '');
       setButtonDisabled(button, true);
       
-      uiShowSuccess('Wachtwoord succesvol gewijzigd • Andere sessies zijn uitgelogd', schema.selector);
+      showSuccess('Wachtwoord succesvol gewijzigd • Andere sessies zijn uitgelogd', schema.selector);
 
     } catch (error) {
       console.error('❌ [Wachtwoord] Error:', error);
