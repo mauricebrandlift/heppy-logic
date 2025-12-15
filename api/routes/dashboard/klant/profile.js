@@ -43,14 +43,16 @@ export default async function handler(req, res) {
 
     const token = authHeader.split(' ')[1];
 
-    // Verify user via auth check
-    const { user, profile } = await verifyAuth(token);
+    // Verify user via auth check (returns { id, email, role, profile })
+    const authData = await verifyAuth(token);
 
-    if (!user || !profile) {
+    if (!authData || !authData.profile) {
       return res.status(401).json({ correlationId, message: 'Ongeldige authenticatie' });
     }
 
-    console.log('✅ [Profile API] Profiel data opgehaald voor user:', user.id);
+    const { profile } = authData;
+
+    console.log('✅ [Profile API] Profiel data opgehaald voor user:', authData.id);
 
     // Return profiel data
     return res.status(200).json({
