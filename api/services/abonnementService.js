@@ -60,6 +60,7 @@ export const abonnementService = {
       gebruiker_id: userId, 
       schoonmaak_aanvraag_id: aanvraagId, 
       uren: meta.uren||null, 
+      minimum_uren: meta.minimum_uren||meta.uren||null,
       startdatum: meta.startdatum||null, 
       status:'wachtrij', 
       frequentie: meta.frequentie||null, 

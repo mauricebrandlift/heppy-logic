@@ -103,6 +103,7 @@ async function abonnementDetailHandler(req, res) {
       // Abonnement gegevens
       id: abonnement.id,
       uren: abonnement.uren,
+      minimum_uren: abonnement.minimum_uren,
       frequentie: abonnement.frequentie,
       status: abonnement.status,
       startdatum: abonnement.startdatum,
