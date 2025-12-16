@@ -2,12 +2,14 @@
 /**
  * Update abonnement frequentie en uren
  * Alleen eigen abonnementen toegestaan
- * Valideert minimum uren
+ * Valideert minimum uren en herberekent prijzen
  */
 
 import { supabaseConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { withAuth } from '../../../utils/authMiddleware.js';
+import { getConfig } from '../../../services/configService.js';
+import { calculateAbonnementPricing } from '../../../services/pricingCalculator.js';
 
 async function updateAbonnementHandler(req, res) {
   const correlationId = req.headers['x-correlation-id'] || `update-abonnement-${Date.now()}`;
@@ -129,6 +131,26 @@ async function updateAbonnementHandler(req, res) {
       });
     }
 
+    // === HERBEREKEN PRIJZEN ===
+    console.log('💰 [Update Abonnement] Herberekenen prijzen...', {
+      frequentie,
+      uren: parsedUren
+    });
+
+    const pricingConfig = await getConfig('pricing', correlationId);
+    
+    const pricingResult = calculateAbonnementPricing({
+      frequentie,
+      requestedHours: parsedUren
+    }, pricingConfig);
+
+    console.log('📊 [Update Abonnement] Prijs herberekend:', {
+      sessionsPerCycle: pricingResult.sessionsPerCycle,
+      pricePerSession: pricingResult.pricePerSession,
+      bundleAmount: pricingResult.bundleAmount
+    });
+
+    // === UPDATE ABONNEMENT MET PRIJZEN ===
     console.log('🔄 [Update Abonnement] Updating...', {
       id,
       frequentie,
@@ -137,7 +159,6 @@ async function updateAbonnementHandler(req, res) {
       previousUren: abonnement.uren
     });
 
-    // === UPDATE ABONNEMENT ===
     const updateUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}`;
     
     const updateResponse = await httpClient(updateUrl, {
@@ -150,7 +171,10 @@ async function updateAbonnementHandler(req, res) {
       },
       body: JSON.stringify({
         frequentie,
-        uren: parsedUren
+        uren: parsedUren,
+        sessions_per_4w: pricingResult.sessionsPerCycle,
+        prijs_per_sessie_cents: Math.round(pricingResult.pricePerSession * 100),
+        bundle_amount_cents: pricingResult.bundleAmountCents
       })
     });
 
@@ -167,7 +191,10 @@ async function updateAbonnementHandler(req, res) {
       data: {
         id,
         frequentie,
-        uren: parsedUren
+        uren: parsedUren,
+        sessions_per_4w: pricingResult.sessionsPerCycle,
+        prijs_per_sessie_cents: Math.round(pricingResult.pricePerSession * 100),
+        bundle_amount_cents: pricingResult.bundleAmountCents
       }
     });
 
