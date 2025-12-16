@@ -521,57 +521,56 @@ async function initializeOpzeggenSection(data) {
     return;
   }
 
-  // Initialiseer formHandler
-  const handler = formHandler.init('abb_opzeg-form', {
-    schema,
-    customSubmit: {
-      action: async (formData) => {
-        console.log('📤 [Abonnement Detail] Submitting opzegging...', formData);
+  // Custom submit action
+  schema.submit = {
+    action: async (formData) => {
+      console.log('📤 [Abonnement Detail] Submitting opzegging...', formData);
 
-        // Haal jaar op uit hidden dataset attribuut (gezet door initWeekSelectTrigger)
-        const weekInput = formElement.querySelector('[data-field-name="opzeg_weeknr"]');
-        const opzeg_jaar = weekInput?.dataset.weekYear || new Date().getFullYear();
+      // Haal jaar op uit hidden dataset attribuut (gezet door initWeekSelectTrigger)
+      const weekInput = formElement.querySelector('[data-field-name="opzeg_weeknr"]');
+      const opzeg_jaar = weekInput?.dataset.weekYear || new Date().getFullYear();
 
-        const response = await apiClient('/api/routes/dashboard/klant/opzeg-abonnement', {
-          method: 'POST',
-          body: {
-            id: data.id,
-            opzeg_weeknr: formData.opzeg_weeknr,
-            opzeg_jaar: opzeg_jaar,
-            opzeg_reden: formData.opzeg_reden || ''
-          }
-        });
-
-        console.log('✅ [Abonnement Detail] Opzegging succesvol:', response);
-        
-        // Toon success message
-        const successEl = document.querySelector('[data-success-message="abb_opzeg-form"]');
-        if (successEl) {
-          successEl.style.display = 'block';
-          // Update de text binnen de success div (niet de hele parent)
-          const successText = successEl.querySelector('.success-text div, div');
-          if (successText) {
-            successText.textContent = '✅ Abonnement succesvol opgezegd.';
-          }
-          
-          // Auto-hide na 5 seconden
-          setTimeout(() => {
-            successEl.style.display = 'none';
-          }, 5000);
+      const authState = authClient.getAuthState();
+      const response = await apiClient('/routes/dashboard/klant/opzeg-abonnement', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authState.access_token}` },
+        body: {
+          id: data.id,
+          opzeg_weeknr: formData.opzeg_weeknr,
+          opzeg_jaar: opzeg_jaar,
+          opzeg_reden: formData.opzeg_reden || ''
         }
+      });
 
-        // Reload pagina na 2 seconden om nieuwe status te tonen
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
+      console.log('✅ [Abonnement Detail] Opzegging succesvol:', response);
+      return { message: 'Abonnement succesvol opgezegd' };
+    },
+    onSuccess: () => {
+      const formName = 'abb_opzeg-form';
+      formHandler.showSuccessState(formName, {
+        messageAttribute: formName,
+        hideForm: false,
+        scrollIntoView: false
+      });
+      
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        const successEl = document.querySelector(`[data-success-message="${formName}"]`);
+        if (successEl) successEl.style.display = 'none';
+      }, 5000);
 
-        return response;
-      }
+      // Reload page na 2 seconden om nieuwe status te tonen
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
     }
-  });
+  };
+
+  // Initialize formHandler
+  formHandler.init(schema);
 
   // Initialiseer week selector met 2 weken termijn en 26 weken vooruit
-  initWeekSelectTrigger(handler, {
+  initWeekSelectTrigger(formHandler, {
     weekField: 'opzeg_weeknr',
     infoField: 'opzeg_weeknr',
     maxWeeks: 26 // Half jaar vooruit is voldoende voor opzegging
