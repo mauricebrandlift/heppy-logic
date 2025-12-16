@@ -1808,6 +1808,42 @@ export function getFormSchema(name) {
         }
       )
     },
+    'abb_opzeg-form': {
+      name: 'abb_opzeg-form',
+      selector: '[data-form-name="abb_opzeg-form"]',
+      fields: {
+        opzeg_weeknr: {
+          label: 'Opzegweek',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'weeknrAllowed'],
+          persist: 'none',
+          allowedWeeks: [], // Wordt dynamisch gevuld door initWeekSelectTrigger
+          messages: {
+            required: 'Weeknummer is verplicht',
+            integer: 'Voer een geldig weeknummer in',
+            weeknrAllowed: 'Je kunt pas opzeggen vanaf 2 weken in de toekomst'
+          }
+        },
+        opzeg_reden: {
+          label: 'Reden voor opzegging',
+          inputType: 'textarea',
+          sanitizers: ['trim'],
+          validators: ['optional'],
+          persist: 'none',
+          messages: {}
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          OPZEG_SUCCESS: 'Je opzegging is verwerkt. Het abonnement stopt na de gekozen week.',
+          ALREADY_CANCELED: 'Dit abonnement is al opgezegd',
+          INVALID_WEEK: 'Ongeldige week gekozen'
+        }
+      )
+    },
   };
 
   return schemas[name] || null;

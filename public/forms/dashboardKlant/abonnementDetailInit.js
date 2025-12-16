@@ -459,14 +459,125 @@ function formatUren(uren) {
 
 /**
  * Initialiseer opzeggen sectie
- * Placeholder voor later (Step 3-4)
  */
-function initializeOpzeggenSection(data) {
-  // TODO: Later implementeren
-  // - Opzeg modal
-  // - Termijn selectie
-  // - Bevestiging flow
-  console.log('[Abonnement Detail] Opzeggen sectie - TODO');
+async function initializeOpzeggenSection(data) {
+  console.log('🚫 [Abonnement Detail] Initialiseren opzeg sectie...');
+
+  const actiefState = document.querySelector('[data-abonnementen-opzeg-state="is-actief"]');
+  const opgezegtState = document.querySelector('[data-abonnementen-opzeg-state="is-opgezegd"]');
+  
+  // Check of abonnement al is opgezegd
+  if (data.canceled_at) {
+    console.log('ℹ️ [Abonnement Detail] Abonnement is al opgezegd:', data.canceled_at);
+    
+    // Toggle states
+    if (actiefState) actiefState.style.display = 'none';
+    if (opgezegtState) opgezegtState.style.display = 'block';
+    
+    // Vul opzeg informatie in
+    const opzegInfo = document.querySelector('[data-opzeg-info]');
+    if (opzegInfo) {
+      const datum = new Date(data.canceled_at);
+      const dag = String(datum.getDate()).padStart(2, '0');
+      const maand = String(datum.getMonth() + 1).padStart(2, '0');
+      const jaar = datum.getFullYear();
+      const datumStr = `${dag}-${maand}-${jaar}`;
+      
+      let html = `<strong>Opzegdatum:</strong> ${datumStr}`;
+      if (data.cancellation_reason) {
+        html += `<br><strong>Reden:</strong> ${data.cancellation_reason}`;
+      }
+      
+      opzegInfo.innerHTML = html;
+    }
+    
+    return;
+  }
+
+  // Abonnement is actief - toon formulier
+  if (actiefState) actiefState.style.display = 'block';
+  if (opgezegtState) opgezegtState.style.display = 'none';
+
+  const formElement = document.querySelector('[data-form-name="abb_opzeg-form"]');
+  if (!formElement) {
+    console.warn('⚠️ [Abonnement Detail] Opzeg formulier niet gevonden in DOM');
+    return;
+  }
+
+  // Lazy load formHandler en dependencies
+  const [
+    { formHandler },
+    { getFormSchema },
+    { initWeekSelectTrigger }
+  ] = await Promise.all([
+    import('../logic/formHandler.js'),
+    import('../schemas/formSchemas.js'),
+    import('../logic/formTriggers.js')
+  ]);
+
+  const schema = getFormSchema('abb_opzeg-form');
+  if (!schema) {
+    console.error('❌ [Abonnement Detail] Schema voor abb_opzeg-form niet gevonden');
+    return;
+  }
+
+  // Initialiseer formHandler
+  const handler = formHandler.init('abb_opzeg-form', {
+    schema,
+    customSubmit: {
+      action: async (formData) => {
+        console.log('📤 [Abonnement Detail] Submitting opzegging...', formData);
+
+        // Haal jaar op uit hidden dataset attribuut (gezet door initWeekSelectTrigger)
+        const weekInput = formElement.querySelector('[data-field-name="opzeg_weeknr"]');
+        const opzeg_jaar = weekInput?.dataset.weekYear || new Date().getFullYear();
+
+        const response = await apiClient('/api/routes/dashboard/klant/opzeg-abonnement', {
+          method: 'POST',
+          body: {
+            id: data.id,
+            opzeg_weeknr: formData.opzeg_weeknr,
+            opzeg_jaar: opzeg_jaar,
+            opzeg_reden: formData.opzeg_reden || ''
+          }
+        });
+
+        console.log('✅ [Abonnement Detail] Opzegging succesvol:', response);
+        
+        // Toon success message
+        const successEl = document.querySelector('[data-success-message="abb_opzeg-form"]');
+        if (successEl) {
+          successEl.style.display = 'block';
+          // Update de text binnen de success div (niet de hele parent)
+          const successText = successEl.querySelector('.success-text div, div');
+          if (successText) {
+            successText.textContent = '✅ Abonnement succesvol opgezegd.';
+          }
+          
+          // Auto-hide na 5 seconden
+          setTimeout(() => {
+            successEl.style.display = 'none';
+          }, 5000);
+        }
+
+        // Reload pagina na 2 seconden om nieuwe status te tonen
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+
+        return response;
+      }
+    }
+  });
+
+  // Initialiseer week selector met 2 weken termijn en 26 weken vooruit
+  initWeekSelectTrigger(handler, {
+    weekField: 'opzeg_weeknr',
+    infoField: 'opzeg_weeknr',
+    maxWeeks: 26 // Half jaar vooruit is voldoende voor opzegging
+  });
+
+  console.log('✅ [Abonnement Detail] Opzeg formulier geïnitialiseerd');
 }
 
 /**
