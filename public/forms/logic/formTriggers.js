@@ -698,6 +698,8 @@ export function initWeekSelectTrigger(formHandler, options = {}) {
 
   const weekInput = formElement.querySelector(`[data-field-name="${config.weekField}"]`);
   const infoElement = formElement.querySelector(`[data-field-info="${config.infoField}"]`);
+  const helpElement = formElement.querySelector(`[data-field-help="${config.infoField}"]`); // Optioneel
+  
   if (!weekInput || !infoElement) {
     console.error('[formTriggers] Kon weeknummer input of info element niet vinden');
     return () => {};
@@ -788,7 +790,12 @@ export function initWeekSelectTrigger(formHandler, options = {}) {
     const startDate = getStartDateOfISOWeek(weekNumber, year);
     const endDate = new Date(startDate);
     endDate.setDate(startDate.getDate() + 6);
-    element.textContent = `Week ${weekNumber} (${formatDate(startDate)} – ${formatDate(endDate)})`;
+    element.textContent = `Week ${weekNumber} (${formatDate(startDate, year)} – ${formatDate(endDate, year)})`;
+    
+    // Update help text indien aanwezig (voor opzeg formulier)
+    if (helpElement && config.weekField === 'opzeg_weeknr') {
+      helpElement.textContent = `Vanaf deze week vindt er geen schoonmaak meer plaats`;
+    }
   }
 
   // ISO week helpers
@@ -814,7 +821,8 @@ export function initWeekSelectTrigger(formHandler, options = {}) {
     }
     return simple;
   }
-  function formatDate(date) {
-    return `${date.getUTCDate()} ${date.toLocaleString('nl-NL', { month: 'long', timeZone: 'UTC' })}`;
+  function formatDate(date, year) {
+    const displayYear = year || date.getUTCFullYear();
+    return `${date.getUTCDate()} ${date.toLocaleString('nl-NL', { month: 'long', timeZone: 'UTC' })} ${displayYear}`;
   }
 }
