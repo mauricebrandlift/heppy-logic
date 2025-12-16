@@ -8,6 +8,7 @@ import { initDashboardOverview } from '../forms/dashboardKlant/overviewInit.js';
 import { initBestellingDetail } from '../forms/dashboardKlant/bestellingDetailInit.js';
 import { initFacturenOverzicht } from '../forms/dashboardKlant/facturenInit.js';
 import { initAccountBeheren } from '../forms/dashboardKlant/accountBeherenInit.js';
+import { initAbonnementDetail } from '../forms/dashboardKlant/abonnementDetailInit.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏠 [KlantDashboard] Pagina geladen');
@@ -37,6 +38,7 @@ async function initKlantDashboardFuncties() {
   const bestellingDetailPage = document.querySelector('[data-dashboard-page="bestelling-detail"]');
   const facturenPage = document.querySelector('[data-dashboard-page="facturen"]');
   const accountBeherenPage = document.querySelector('[data-dashboard-page="account-beheren"]');
+  const abonnementDetailPage = document.querySelector('[data-dashboard-page="abonnement-detail"]');
   
   if (overviewPage) {
     console.log('📊 [KlantDashboard] Overview pagina gedetecteerd');
@@ -58,7 +60,12 @@ async function initKlantDashboardFuncties() {
     await initAccountBeheren();
   }
   
+  if (abonnementDetailPage) {
+    console.log('📋 [KlantDashboard] Abonnement detail pagina gedetecteerd');
+    await initAbonnementDetail();
+  }
+  
   // Hier komen later andere pagina checks:
-  // const beherenPage = document.querySelector('[data-dashboard-page="beheren"]');
+  // const schoonmakerProfielPage = document.querySelector('[data-dashboard-page="schoonmaker-profiel"]');
   // etc.
 }
