@@ -1771,6 +1771,44 @@ export function getFormSchema(name) {
         }
       )
     },
+
+    'abb_change-form': {
+      name: 'abb_change-form',
+      selector: '[data-form-name="abb_change-form"]',
+      fields: {
+        frequentie: {
+          label: 'Frequentie schoonmaak',
+          inputType: 'radio',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none',
+          messages: {
+            required: 'Kies een frequentie (per week of per twee weken)'
+          }
+        },
+        uren: {
+          label: 'Aantal uren',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'numeric', 'positiveNumber'],
+          persist: 'none',
+          messages: {
+            required: 'Aantal uren is verplicht',
+            numeric: 'Gebruik alleen cijfers',
+            positiveNumber: 'Aantal uren moet groter dan 0 zijn'
+          }
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          BELOW_MINIMUM: 'Het aantal uren mag niet lager zijn dan het minimum',
+          INVALID_HOURS: 'Voer een geldig aantal uren in (halve uren toegestaan)',
+          NO_CHANGES: 'Er zijn geen wijzigingen om op te slaan'
+        }
+      )
+    },
   };
 
   return schemas[name] || null;

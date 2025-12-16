@@ -248,15 +248,178 @@ function populateSchoonmakerSection(data) {
 }
 
 /**
- * Initialiseer wijzigingen sectie
- * Placeholder voor later (Step 3-4)
+ * Initialiseer wijzigingen sectie (frequentie en uren wijzigen)
  */
 function initializeWijzigingenSection(data) {
-  // TODO: Later implementeren
-  // - Frequentie wijzigen form
-  // - Uren wijzigen form
-  // - Kosten berekening
-  console.log('[Abonnement Detail] Wijzigingen sectie - TODO');
+  import('../logic/formHandler.js').then(({ formHandler }) => {
+    import('../schemas/formSchemas.js').then(({ getFormSchema }) => {
+      const schema = getFormSchema('abb_change-form');
+      if (!schema) {
+        console.error('[Abonnement Detail] Schema abb_change-form niet gevonden');
+        return;
+      }
+
+      // Prefill data vanuit abonnement
+      const initialData = {
+        frequentie: data.frequentie,
+        uren: data.uren
+      };
+
+      // Custom submit action
+      schema.submit = {
+        action: async (formData) => {
+          const authState = authClient.getAuthState();
+          const response = await apiClient('/routes/dashboard/klant/update-abonnement', {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${authState.access_token}` },
+            body: {
+              id: data.id,
+              frequentie: formData.frequentie,
+              uren: formData.uren
+            }
+          });
+
+          return { message: 'Abonnement succesvol bijgewerkt' };
+        },
+        onSuccess: () => {
+          const formName = 'abb_change-form';
+          formHandler.showSuccessState(formName, {
+            messageAttribute: formName,
+            hideForm: false,
+            scrollIntoView: false
+          });
+          
+          // Auto-hide success message after 5 seconds
+          setTimeout(() => {
+            const successEl = document.querySelector(`[data-success-message="${formName}"]`);
+            if (successEl) successEl.style.display = 'none';
+          }, 5000);
+
+          // Reload page data om nieuwe waarden te tonen
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
+      };
+
+      // Initialize form met change tracking
+      formHandler.init(schema, initialData, { requireChanges: true });
+
+      // Setup uren +/- buttons
+      setupUrenButtons(data);
+    });
+  });
+}
+
+/**
+ * Setup uren increment/decrement buttons
+ */
+function setupUrenButtons(data) {
+  const urenUpBtn = document.querySelector('[data-btn="uren_up"]');
+  const urenDownBtn = document.querySelector('[data-btn="uren_down"]');
+  const urenDisplay = document.querySelector('[data-field-total="calculate_form_abb_uren"]');
+  const minUrenDisplay = document.querySelector('[data-abo-adres="min-uren"]');
+  const urenError = document.querySelector('[data-error-for="uren"]');
+
+  if (!urenUpBtn || !urenDownBtn || !urenDisplay) {
+    console.warn('[Abonnement Detail] Uren buttons of display niet gevonden');
+    return;
+  }
+
+  // Set initial values
+  let currentUren = parseFloat(data.uren) || 3;
+  const minimumUren = parseFloat(data.minimum_uren) || 3;
+
+  urenDisplay.textContent = formatUren(currentUren);
+  if (minUrenDisplay) minUrenDisplay.textContent = formatUren(minimumUren);
+
+  // Set initial prijs
+  const prijsDisplay = document.querySelector('[data-field-total="calculate_form_abb_prijs"]');
+  if (prijsDisplay && data.prijs_per_sessie_cents) {
+    const initieleprijs = data.prijs_per_sessie_cents / 100;
+    prijsDisplay.textContent = initieleprijs.toFixed(2).replace('.', ',');
+  }
+
+  // Clear any existing errors
+  if (urenError) {
+    urenError.style.display = 'none';
+  }
+
+  // Bereken en update prijs
+  const updatePrijsDisplay = (uren) => {
+    const prijsDisplay = document.querySelector('[data-field-total="calculate_form_abb_prijs"]');
+    if (!prijsDisplay || !data.prijs_per_sessie_cents) return;
+
+    // Bereken prijs per uur
+    const prijsPerUur = data.prijs_per_sessie_cents / (parseFloat(data.uren) || 1);
+    const nieuwePrijs = (uren * prijsPerUur) / 100;
+    
+    prijsDisplay.textContent = nieuwePrijs.toFixed(2).replace('.', ',');
+  };
+
+  // Update hidden input voor formHandler
+  const updateHiddenInput = (value) => {
+    import('../logic/formHandler.js').then(({ formHandler }) => {
+      formHandler.runWithFormContext('abb_change-form', () => {
+        formHandler.formData.uren = value.toString();
+        formHandler.updateSubmitState();
+      });
+    });
+    
+    // Update prijs display
+    updatePrijsDisplay(value);
+  };
+
+  // Increment button
+  urenUpBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    currentUren += 0.5;
+    urenDisplay.textContent = formatUren(currentUren);
+    
+    // Clear error if present
+    if (urenError) {
+      urenError.style.display = 'none';
+    }
+
+    updateHiddenInput(currentUren);
+  });
+
+  // Decrement button
+  urenDownBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    
+    // Check minimum
+    if (currentUren - 0.5 < minimumUren) {
+      // Show error
+      if (urenError) {
+        urenError.textContent = `Het minimum aantal uren is ${formatUren(minimumUren)} uur`;
+        urenError.style.display = 'block';
+      }
+      return;
+    }
+
+    currentUren -= 0.5;
+    urenDisplay.textContent = formatUren(currentUren);
+    
+    // Clear error
+    if (urenError) {
+      urenError.style.display = 'none';
+    }
+
+    updateHiddenInput(currentUren);
+  });
+}
+
+/**
+ * Formatteer uren voor display (zonder .0)
+ */
+function formatUren(uren) {
+  if (typeof uren !== 'number' || isNaN(uren)) {
+    return '0';
+  }
+  const normalized = Math.round((uren + Number.EPSILON) * 2) / 2;
+  const formatted = normalized % 1 === 0 ? normalized.toFixed(0) : normalized.toFixed(1);
+  return formatted.replace('.0', '');
 }
 
 /**
