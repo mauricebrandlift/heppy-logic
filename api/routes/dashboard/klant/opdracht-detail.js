@@ -36,7 +36,7 @@ async function opdrachtDetailHandler(req, res) {
 
     // === FETCH OPDRACHT MET USER PROFIEL (voor adres) ===
     // Join met user_profiles voor klant adres via gebruiker_id
-    const opdrachtUrl = `${supabaseConfig.url}/rest/v1/opdrachten?id=eq.${id}&gebruiker_id=eq.${userId}&select=*,user_profile:user_profiles!opdrachten_gebruiker_id_fkey(voornaam,achternaam,adres_id,adressen:adres_id(straat,huisnummer,toevoeging,postcode,plaats))`;
+    const opdrachtUrl = `${supabaseConfig.url}/rest/v1/opdrachten?id=eq.${id}&gebruiker_id=eq.${userId}&select=*,user_profile:user_profiles!gebruiker_id(voornaam,achternaam,adres_id,adressen:adres_id(straat,huisnummer,toevoeging,postcode,plaats))`;
     
     const opdrachtResponse = await httpClient(opdrachtUrl, {
       headers: {
@@ -46,6 +46,8 @@ async function opdrachtDetailHandler(req, res) {
     });
 
     if (!opdrachtResponse.ok) {
+      const errorText = await opdrachtResponse.text();
+      console.error('❌ [Opdracht Detail] Supabase error:', errorText);
       throw new Error('Kan opdracht niet ophalen');
     }
 
@@ -74,7 +76,8 @@ async function opdrachtDetailHandler(req, res) {
     if (opdracht.schoonmaker_id) {
       console.log('🔄 [Opdracht Detail] Fetching schoonmaker profile...', { schoonmaker_id: opdracht.schoonmaker_id });
       
-      const schoonmakerUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${opdracht.schoonmaker_id}&select=voornaam,achternaam,email,telefoon,profielfoto,adressen:adres_id(plaats)`;
+      // Haal schoonmaker profiel + adres op voor plaats
+      const schoonmakerUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${opdracht.schoonmaker_id}&select=voornaam,achternaam,email,telefoon,profielfoto,adres_id,adressen:adres_id(plaats)`;
       
       const schoonmakerResponse = await httpClient(schoonmakerUrl, {
         headers: {
@@ -87,7 +90,8 @@ async function opdrachtDetailHandler(req, res) {
         const profiles = await schoonmakerResponse.json();
         schoonmakerProfile = profiles[0] || null;
       } else {
-        console.warn('⚠️ [Opdracht Detail] Kon schoonmaker profiel niet ophalen');
+        const errorText = await schoonmakerResponse.text();
+        console.warn('⚠️ [Opdracht Detail] Kon schoonmaker profiel niet ophalen:', errorText);
       }
     }
 
