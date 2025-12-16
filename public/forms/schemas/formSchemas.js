@@ -1790,12 +1790,11 @@ export function getFormSchema(name) {
           label: 'Aantal uren',
           inputType: 'number',
           sanitizers: ['trim'],
-          validators: ['required', 'numeric', 'positiveNumber'],
+          validators: ['required', 'positiveNumber'],
           persist: 'none',
           messages: {
             required: 'Aantal uren is verplicht',
-            numeric: 'Gebruik alleen cijfers',
-            positiveNumber: 'Aantal uren moet groter dan 0 zijn'
+            positiveNumber: 'Aantal uren moet groter dan 0 zijn (halve uren toegestaan)'
           }
         }
       },
