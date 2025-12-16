@@ -252,6 +252,23 @@ function populateSchoonmakerSection(data) {
  * Initialiseer wijzigingen sectie (frequentie en uren wijzigen)
  */
 function initializeWijzigingenSection(data) {
+  // EERST: Maak hidden input aan VOORDAT formHandler initialiseert
+  const formElement = document.querySelector('[data-form-name="abb_change-form"]');
+  if (!formElement) {
+    console.error('[Abonnement Detail] Form element niet gevonden');
+    return;
+  }
+
+  let urenInput = formElement.querySelector('input[data-field-name="uren"]');
+  if (!urenInput) {
+    urenInput = document.createElement('input');
+    urenInput.type = 'hidden';
+    urenInput.setAttribute('data-field-name', 'uren');
+    urenInput.value = data.uren;
+    formElement.appendChild(urenInput);
+    console.log('[Abonnement Detail] Hidden uren input aangemaakt met waarde:', data.uren);
+  }
+
   import('../logic/formHandler.js').then(({ formHandler }) => {
     import('../schemas/formSchemas.js').then(({ getFormSchema }) => {
       const schema = getFormSchema('abb_change-form');
@@ -307,8 +324,8 @@ function initializeWijzigingenSection(data) {
       // Initialize form met change tracking
       formHandler.init(schema, initialData, { requireChanges: true });
 
-      // Setup uren +/- buttons
-      setupUrenButtons(data);
+      // Setup uren +/- buttons (geef urenInput door)
+      setupUrenButtons(data, urenInput);
     });
   });
 }
@@ -316,28 +333,16 @@ function initializeWijzigingenSection(data) {
 /**
  * Setup uren increment/decrement buttons
  */
-function setupUrenButtons(data) {
-  const formElement = document.querySelector('[data-form-name="abb_change-form"]');
+function setupUrenButtons(data, urenInput) {
   const urenUpBtn = document.querySelector('[data-btn="uren_up"]');
   const urenDownBtn = document.querySelector('[data-btn="uren_down"]');
   const urenDisplay = document.querySelector('[data-field-total="calculate_form_abb_uren"]');
   const minUrenDisplay = document.querySelector('[data-abo-adres="min-uren"]');
   const urenError = document.querySelector('[data-error-for="uren"]');
 
-  if (!formElement || !urenUpBtn || !urenDownBtn || !urenDisplay) {
-    console.warn('[Abonnement Detail] Uren buttons of display niet gevonden');
+  if (!urenUpBtn || !urenDownBtn || !urenDisplay || !urenInput) {
+    console.warn('[Abonnement Detail] Uren buttons, display of input niet gevonden');
     return;
-  }
-
-  // Zoek of maak hidden input voor uren
-  let urenInput = formElement.querySelector('input[data-field-name="uren"]');
-  if (!urenInput) {
-    urenInput = document.createElement('input');
-    urenInput.type = 'hidden';
-    urenInput.setAttribute('data-field-name', 'uren');
-    urenInput.value = data.uren;
-    formElement.appendChild(urenInput);
-    console.log('[Abonnement Detail] Hidden uren input aangemaakt');
   }
 
   // Set initial values
