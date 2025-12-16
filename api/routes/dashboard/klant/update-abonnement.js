@@ -10,7 +10,7 @@ import { httpClient } from '../../../utils/apiClient.js';
 import { withAuth } from '../../../utils/authMiddleware.js';
 import { fetchPricingConfiguration, formatPricingConfiguration } from '../../../services/configService.js';
 import { calculateAbonnementPricing } from '../../../services/pricingCalculator.js';
-import { emailService } from '../../../services/emailService.js';
+import { sendEmail } from '../../../services/emailService.js';
 import { 
   abonnementGewijzigdKlant,
   abonnementGewijzigdSchoonmaker,
@@ -243,7 +243,7 @@ async function updateAbonnementHandler(req, res) {
         sessionsPerCycle: pricingResult.sessionsPerCycle
       };
       
-      await emailService.send({
+      await sendEmail({
         to: user.email,
         subject: 'Je abonnement is gewijzigd',
         html: abonnementGewijzigdKlant(klantEmailData)
@@ -271,9 +271,9 @@ async function updateAbonnementHandler(req, res) {
           sessionsPerCycle: pricingResult.sessionsPerCycle
         };
         
-        await emailService.send({
+        await sendEmail({
           to: schoonmaker.email,
-          subject: `Abonnement gewijzigd - ${user.voornaam} ${user.achternaam}`,
+          subject: `Abonnement gewijzigd: ${user.voornaam} ${user.achternaam}`,
           html: abonnementGewijzigdSchoonmaker(schoonmakerEmailData)
         }, correlationId);
         
@@ -300,7 +300,7 @@ async function updateAbonnementHandler(req, res) {
         sessionsPerCycle: pricingResult.sessionsPerCycle
       };
       
-      await emailService.send({
+      await sendEmail({
         to: 'info@heppy-schoonmaak.nl',
         subject: `Abonnement gewijzigd - ${user.voornaam} ${user.achternaam}`,
         html: abonnementGewijzigdAdmin(adminEmailData)

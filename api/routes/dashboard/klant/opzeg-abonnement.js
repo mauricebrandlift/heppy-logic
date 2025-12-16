@@ -8,7 +8,7 @@
 import { supabaseConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { withAuth } from '../../../utils/authMiddleware.js';
-import { emailService } from '../../../services/emailService.js';
+import { sendEmail } from '../../../services/emailService.js';
 import { 
   abonnementOpgezegdKlant,
   abonnementOpgezegdSchoonmaker,
@@ -280,7 +280,7 @@ async function opzegAbonnementHandler(req, res) {
         frequentie: abonnement.frequentie
       };
       
-      await emailService.send({
+      await sendEmail({
         to: user.email,
         subject: 'Opzegging bevestigd - Jouw abonnement',
         html: abonnementOpgezegdKlant(klantEmailData)
@@ -307,9 +307,9 @@ async function opzegAbonnementHandler(req, res) {
           frequentie: abonnement.frequentie
         };
         
-        await emailService.send({
+        await sendEmail({
           to: schoonmaker.email,
-          subject: `Klant heeft opgezegd - ${user.voornaam} ${user.achternaam}`,
+          subject: `Klant opgezegd: ${user.voornaam} ${user.achternaam}`,
           html: abonnementOpgezegdSchoonmaker(schoonmakerEmailData)
         }, correlationId);
         
@@ -337,9 +337,9 @@ async function opzegAbonnementHandler(req, res) {
         startdatum: abonnement.startdatum
       };
       
-      await emailService.send({
+      await sendEmail({
         to: 'info@heppy-schoonmaak.nl',
-        subject: `⚠️ Churn Alert - ${user.voornaam} ${user.achternaam} heeft opgezegd`,
+        subject: `⚠️ Churn Alert - ${user.voornaam} ${user.achternaam}`,
         html: abonnementOpgezegdAdmin(adminEmailData)
       }, correlationId);
       
