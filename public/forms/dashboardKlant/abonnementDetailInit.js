@@ -317,15 +317,27 @@ function initializeWijzigingenSection(data) {
  * Setup uren increment/decrement buttons
  */
 function setupUrenButtons(data) {
+  const formElement = document.querySelector('[data-form-name="abb_change-form"]');
   const urenUpBtn = document.querySelector('[data-btn="uren_up"]');
   const urenDownBtn = document.querySelector('[data-btn="uren_down"]');
   const urenDisplay = document.querySelector('[data-field-total="calculate_form_abb_uren"]');
   const minUrenDisplay = document.querySelector('[data-abo-adres="min-uren"]');
   const urenError = document.querySelector('[data-error-for="uren"]');
 
-  if (!urenUpBtn || !urenDownBtn || !urenDisplay) {
+  if (!formElement || !urenUpBtn || !urenDownBtn || !urenDisplay) {
     console.warn('[Abonnement Detail] Uren buttons of display niet gevonden');
     return;
+  }
+
+  // Zoek of maak hidden input voor uren
+  let urenInput = formElement.querySelector('input[data-field-name="uren"]');
+  if (!urenInput) {
+    urenInput = document.createElement('input');
+    urenInput.type = 'hidden';
+    urenInput.setAttribute('data-field-name', 'uren');
+    urenInput.value = data.uren;
+    formElement.appendChild(urenInput);
+    console.log('[Abonnement Detail] Hidden uren input aangemaakt');
   }
 
   // Set initial values
@@ -361,6 +373,13 @@ function setupUrenButtons(data) {
 
   // Update hidden input voor formHandler
   const updateHiddenInput = (value) => {
+    // Update hidden input value
+    urenInput.value = value;
+    
+    // Trigger change event voor formHandler
+    const event = new Event('change', { bubbles: true });
+    urenInput.dispatchEvent(event);
+    
     import('../logic/formHandler.js').then(({ formHandler }) => {
       formHandler.runWithFormContext('abb_change-form', () => {
         // Store als number voor correcte vergelijking
