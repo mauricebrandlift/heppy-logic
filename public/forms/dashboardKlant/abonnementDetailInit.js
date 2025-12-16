@@ -252,6 +252,18 @@ function populateSchoonmakerSection(data) {
  * Initialiseer wijzigingen sectie (frequentie en uren wijzigen)
  */
 function initializeWijzigingenSection(data) {
+  const wijzigingWrapper = document.querySelector('[data-abonnementen-wijziging-form-wrapper]');
+  
+  // Verberg wijziging formulier als abonnement is opgezegd
+  if (data.canceled_at) {
+    console.log('ℹ️ [Abonnement Detail] Abonnement opgezegd - wijziging formulier verbergen');
+    if (wijzigingWrapper) wijzigingWrapper.style.display = 'none';
+    return;
+  }
+  
+  // Toon wijziging formulier voor actieve abonnementen
+  if (wijzigingWrapper) wijzigingWrapper.style.display = 'block';
+  
   // EERST: Maak hidden input aan VOORDAT formHandler initialiseert
   const formElement = document.querySelector('[data-form-name="abb_change-form"]');
   if (!formElement) {
