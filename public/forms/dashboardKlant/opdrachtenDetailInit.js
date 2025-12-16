@@ -188,37 +188,45 @@ function showError(message) {
 function buildDetailInfo(type, gegevens) {
   if (!gegevens || Object.keys(gegevens).length === 0) return 'Geen details beschikbaar';
   
-  // Type-specifieke detail formatting
+  // Type-specifieke detail formatting met correcte veldnamen (prefix patterns)
   switch(type) {
     case 'dieptereiniging':
-      // Voorbeeld: "3 slaapkamers, 2 badkamers, 1 toilet, 120 m²"
+      // dr_ prefix: dr_m2, dr_badkamers, dr_toiletten, dr_uren
       const parts = [];
-      if (gegevens.aantal_slaapkamers) parts.push(`${gegevens.aantal_slaapkamers} ${gegevens.aantal_slaapkamers === 1 ? 'slaapkamer' : 'slaapkamers'}`);
-      if (gegevens.aantal_badkamers) parts.push(`${gegevens.aantal_badkamers} ${gegevens.aantal_badkamers === 1 ? 'badkamer' : 'badkamers'}`);
-      if (gegevens.aantal_toiletten) parts.push(`${gegevens.aantal_toiletten} ${gegevens.aantal_toiletten === 1 ? 'toilet' : 'toiletten'}`);
-      if (gegevens.vierkante_meters) parts.push(`${gegevens.vierkante_meters} m²`);
+      if (gegevens.dr_m2) parts.push(`${gegevens.dr_m2} m²`);
+      if (gegevens.dr_badkamers) parts.push(`${gegevens.dr_badkamers} ${gegevens.dr_badkamers === 1 ? 'badkamer' : 'badkamers'}`);
+      if (gegevens.dr_toiletten) parts.push(`${gegevens.dr_toiletten} ${gegevens.dr_toiletten === 1 ? 'toilet' : 'toiletten'}`);
+      if (gegevens.dr_uren) parts.push(`${gegevens.dr_uren} ${gegevens.dr_uren === 1 ? 'uur' : 'uren'}`);
       return parts.length > 0 ? parts.join(', ') : 'Geen details beschikbaar';
       
     case 'verhuis':
-      // Bijvoorbeeld: "3 kamers, 120 m²"
+      // vh_ prefix: vh_m2, vh_toiletten, vh_badkamers
       const verhuisParts = [];
-      if (gegevens.aantal_kamers) verhuisParts.push(`${gegevens.aantal_kamers} ${gegevens.aantal_kamers === 1 ? 'kamer' : 'kamers'}`);
-      if (gegevens.vierkante_meters) verhuisParts.push(`${gegevens.vierkante_meters} m²`);
+      if (gegevens.vh_m2) verhuisParts.push(`${gegevens.vh_m2} m²`);
+      if (gegevens.vh_toiletten) verhuisParts.push(`${gegevens.vh_toiletten} ${gegevens.vh_toiletten === 1 ? 'toilet' : 'toiletten'}`);
+      if (gegevens.vh_badkamers) verhuisParts.push(`${gegevens.vh_badkamers} ${gegevens.vh_badkamers === 1 ? 'badkamer' : 'badkamers'}`);
       return verhuisParts.length > 0 ? verhuisParts.join(', ') : 'Geen details beschikbaar';
       
     case 'tapijt':
-      // Bijvoorbeeld: "15 m² tapijt"
-      return gegevens.vierkante_meters ? `${gegevens.vierkante_meters} m²` : 'Geen details beschikbaar';
+      // rt_ prefix: rt_totaal_m2, rt_opties
+      const tapijtParts = [];
+      if (gegevens.rt_totaal_m2) tapijtParts.push(`${gegevens.rt_totaal_m2} m²`);
+      if (gegevens.rt_opties && gegevens.rt_opties.length > 0) {
+        tapijtParts.push(`Opties: ${gegevens.rt_opties.join(', ')}`);
+      }
+      return tapijtParts.length > 0 ? tapijtParts.join(', ') : 'Geen details beschikbaar';
       
     case 'vloer':
-      // Bijvoorbeeld: "Parket, 45 m²"
+      // rv_ prefix: rv_oppervlakte_m2, vloer_types
       const vloerParts = [];
-      if (gegevens.vloertype) vloerParts.push(gegevens.vloertype);
-      if (gegevens.vierkante_meters) vloerParts.push(`${gegevens.vierkante_meters} m²`);
+      if (gegevens.rv_oppervlakte_m2) vloerParts.push(`${gegevens.rv_oppervlakte_m2} m²`);
+      if (gegevens.vloer_types && gegevens.vloer_types.length > 0) {
+        vloerParts.push(`Types: ${gegevens.vloer_types.join(', ')}`);
+      }
       return vloerParts.length > 0 ? vloerParts.join(', ') : 'Geen details beschikbaar';
       
-    case 'bank':
-      // Bijvoorbeeld: "2 banken, 4 stoelen, 8 zitvlakken, 4 kussens"
+    case 'bankreiniging':
+      // rbs_ prefix: rbs_banken, rbs_stoelen, rbs_zitvlakken, rbs_kussens
       const bankParts = [];
       const banken = parseInt(gegevens.rbs_banken) || 0;
       const stoelen = parseInt(gegevens.rbs_stoelen) || 0;
