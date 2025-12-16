@@ -373,6 +373,8 @@ function setupUrenButtons(data) {
 
   // Update hidden input voor formHandler
   const updateHiddenInput = (value) => {
+    console.log('[Uren Button] Updating uren to:', value, 'type:', typeof value);
+    
     // Update hidden input value
     urenInput.value = value;
     
@@ -382,8 +384,14 @@ function setupUrenButtons(data) {
     
     import('../logic/formHandler.js').then(({ formHandler }) => {
       formHandler.runWithFormContext('abb_change-form', () => {
+        console.log('[Uren Button] Before update - formData.uren:', formHandler.formData.uren, 'originalData.uren:', formHandler.originalData?.uren);
+        
         // Store als number voor correcte vergelijking
         formHandler.formData.uren = value;
+        
+        console.log('[Uren Button] After update - formData.uren:', formHandler.formData.uren, 'originalData.uren:', formHandler.originalData?.uren);
+        console.log('[Uren Button] Has changes?', formHandler._hasChanges());
+        
         formHandler.updateSubmitState();
       });
     });
