@@ -8,6 +8,12 @@
 import { supabaseConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { withAuth } from '../../../utils/authMiddleware.js';
+import { emailService } from '../../../services/emailService.js';
+import { 
+  abonnementOpgezegdKlant,
+  abonnementOpgezegdSchoonmaker,
+  abonnementOpgezegdAdmin
+} from '../../../templates/emails/index.js';
 
 /**
  * Bereken ISO weeknummer voor een datum
@@ -143,8 +149,8 @@ async function opzegAbonnementHandler(req, res) {
 
     console.log('🔄 [Opzeg Abonnement] Fetching abonnement...', { id, userId });
 
-    // === HAAL ABONNEMENT OP MET OWNERSHIP CHECK ===
-    const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}&gebruiker_id=eq.${userId}&select=id,status,canceled_at`;
+    // === HAAL ABONNEMENT OP MET OWNERSHIP CHECK + EXTRA DATA VOOR EMAILS ===
+    const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}&gebruiker_id=eq.${userId}&select=id,status,canceled_at,schoonmaker_id,uren,frequentie,bundle_amount_cents,startdatum`;
     
     const abonnementResponse = await httpClient(abonnementUrl, {
       headers: {
@@ -225,8 +231,122 @@ async function opzegAbonnementHandler(req, res) {
 
     console.log('✅ [Opzeg Abonnement] Opzegging succesvol verwerkt');
 
-    // TODO: Verstuur opzeg-bevestiging email
-    // TODO: Log in abonnement_wijzigingen tabel
+    // === HAAL GEBRUIKER + SCHOONMAKER GEGEVENS OP VOOR EMAILS ===
+    console.log('📧 [Opzeg Abonnement] Fetching user + schoonmaker data voor emails...');
+    
+    // Fetch user_profile
+    const userUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${userId}&select=voornaam,achternaam,email,telefoon,adres_id,adressen:adres_id(straat,huisnummer,toevoeging,postcode,plaats)`;
+    const userResponse = await httpClient(userUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`,
+      }
+    });
+    
+    const users = await userResponse.json();
+    const user = users[0] || {};
+    const adres = user.adressen;
+    const volledigAdres = adres 
+      ? `${adres.straat} ${adres.huisnummer}${adres.toevoeging || ''}, ${adres.postcode} ${adres.plaats}`
+      : 'Adres niet beschikbaar';
+
+    // Fetch schoonmaker (indien toegewezen)
+    let schoonmaker = null;
+    if (abonnement.schoonmaker_id) {
+      const schoonmakerUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${abonnement.schoonmaker_id}&select=voornaam,achternaam,email`;
+      const schoonmakerResponse = await httpClient(schoonmakerUrl, {
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${authToken}`,
+        }
+      });
+      const schoonmakers = await schoonmakerResponse.json();
+      schoonmaker = schoonmakers[0] || null;
+    }
+
+    // === VERZEND EMAILS ===
+    console.log('📧 [Opzeg Abonnement] Sending emails...');
+
+    // Email naar klant
+    try {
+      const klantEmailData = {
+        voornaam: user.voornaam,
+        achternaam: user.achternaam,
+        abonnementId: id,
+        opzegWeek: parsedWeek,
+        opzegJaar: parsedYear,
+        opzegReden: opzeg_reden || 'Geen reden opgegeven',
+        uren: abonnement.uren,
+        frequentie: abonnement.frequentie
+      };
+      
+      await emailService.send({
+        to: user.email,
+        subject: 'Opzegging bevestigd - Jouw abonnement',
+        html: abonnementOpgezegdKlant(klantEmailData)
+      }, correlationId);
+      
+      console.log('✅ [Opzeg Abonnement] Klant email verzonden');
+    } catch (error) {
+      console.error('⚠️ [Opzeg Abonnement] Klant email failed:', error.message);
+    }
+
+    // Email naar schoonmaker (indien toegewezen)
+    if (schoonmaker) {
+      try {
+        const schoonmakerEmailData = {
+          schoonmakerNaam: schoonmaker.voornaam,
+          klantNaam: `${user.voornaam} ${user.achternaam}`,
+          klantAdres: volledigAdres,
+          klantTelefoon: user.telefoon || null,
+          abonnementId: id,
+          opzegWeek: parsedWeek,
+          opzegJaar: parsedYear,
+          opzegReden: opzeg_reden || 'Geen reden opgegeven',
+          uren: abonnement.uren,
+          frequentie: abonnement.frequentie
+        };
+        
+        await emailService.send({
+          to: schoonmaker.email,
+          subject: `Klant heeft opgezegd - ${user.voornaam} ${user.achternaam}`,
+          html: abonnementOpgezegdSchoonmaker(schoonmakerEmailData)
+        }, correlationId);
+        
+        console.log('✅ [Opzeg Abonnement] Schoonmaker email verzonden');
+      } catch (error) {
+        console.error('⚠️ [Opzeg Abonnement] Schoonmaker email failed:', error.message);
+      }
+    }
+
+    // Email naar admin
+    try {
+      const adminEmailData = {
+        klantNaam: `${user.voornaam} ${user.achternaam}`,
+        klantEmail: user.email,
+        klantTelefoon: user.telefoon || null,
+        schoonmakerNaam: schoonmaker ? `${schoonmaker.voornaam} ${schoonmaker.achternaam}` : 'Nog niet toegewezen',
+        klantAdres: volledigAdres,
+        abonnementId: id,
+        opzegWeek: parsedWeek,
+        opzegJaar: parsedYear,
+        opzegReden: opzeg_reden || 'Geen reden opgegeven',
+        uren: abonnement.uren,
+        frequentie: abonnement.frequentie,
+        bundleCents: abonnement.bundle_amount_cents,
+        startdatum: abonnement.startdatum
+      };
+      
+      await emailService.send({
+        to: 'info@heppy-schoonmaak.nl',
+        subject: `⚠️ Churn Alert - ${user.voornaam} ${user.achternaam} heeft opgezegd`,
+        html: abonnementOpgezegdAdmin(adminEmailData)
+      }, correlationId);
+      
+      console.log('✅ [Opzeg Abonnement] Admin email verzonden');
+    } catch (error) {
+      console.error('⚠️ [Opzeg Abonnement] Admin email failed:', error.message);
+    }
 
     return res.status(200).json({
       correlationId,

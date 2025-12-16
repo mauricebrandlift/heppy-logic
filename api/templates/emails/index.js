@@ -52,6 +52,16 @@ export { emailGewijzigdBevestigingOud } from './email-gewijzigd-bevestiging-oud.
 export { emailGewijzigdBevestigingNieuw } from './email-gewijzigd-bevestiging-nieuw.js';
 export { schoonmakerKlantEmailGewijzigd } from './schoonmaker-klant-email-gewijzigd.js';
 
+// Account Beheren Templates - Abonnement Wijzigingen
+export { abonnementGewijzigdKlant } from './abonnementGewijzigdKlant.js';
+export { abonnementGewijzigdSchoonmaker } from './abonnementGewijzigdSchoonmaker.js';
+export { abonnementGewijzigdAdmin } from './abonnementGewijzigdAdmin.js';
+
+// Account Beheren Templates - Abonnement Opzegging
+export { abonnementOpgezegdKlant } from './abonnementOpgezegdKlant.js';
+export { abonnementOpgezegdSchoonmaker } from './abonnementOpgezegdSchoonmaker.js';
+export { abonnementOpgezegdAdmin } from './abonnementOpgezegdAdmin.js';
+
 // Helper functions
 export { 
   baseLayout, 
