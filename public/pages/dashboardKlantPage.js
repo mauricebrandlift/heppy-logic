@@ -9,6 +9,7 @@ import { initBestellingDetail } from '../forms/dashboardKlant/bestellingDetailIn
 import { initFacturenOverzicht } from '../forms/dashboardKlant/facturenInit.js';
 import { initAccountBeheren } from '../forms/dashboardKlant/accountBeherenInit.js';
 import { initAbonnementDetail } from '../forms/dashboardKlant/abonnementDetailInit.js';
+import { initOpdrachtDetail } from '../forms/dashboardKlant/opdrachtenDetailInit.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏠 [KlantDashboard] Pagina geladen');
@@ -39,6 +40,7 @@ async function initKlantDashboardFuncties() {
   const facturenPage = document.querySelector('[data-dashboard-page="facturen"]');
   const accountBeherenPage = document.querySelector('[data-dashboard-page="account-beheren"]');
   const abonnementDetailPage = document.querySelector('[data-dashboard-page="abonnement-detail"]');
+  const opdrachtDetailPage = document.querySelector('[data-dashboard-page="opdracht-detail"]');
   
   if (overviewPage) {
     console.log('📊 [KlantDashboard] Overview pagina gedetecteerd');
@@ -63,6 +65,11 @@ async function initKlantDashboardFuncties() {
   if (abonnementDetailPage) {
     console.log('📋 [KlantDashboard] Abonnement detail pagina gedetecteerd');
     await initAbonnementDetail();
+  }
+  
+  if (opdrachtDetailPage) {
+    console.log('🧹 [KlantDashboard] Opdracht detail pagina gedetecteerd');
+    await initOpdrachtDetail();
   }
   
   // Hier komen later andere pagina checks:
