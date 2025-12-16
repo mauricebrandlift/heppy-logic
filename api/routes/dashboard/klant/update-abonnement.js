@@ -8,7 +8,7 @@
 import { supabaseConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { withAuth } from '../../../utils/authMiddleware.js';
-import { getConfig } from '../../../services/configService.js';
+import { fetchPricingConfiguration, formatPricingConfiguration } from '../../../services/configService.js';
 import { calculateAbonnementPricing } from '../../../services/pricingCalculator.js';
 
 async function updateAbonnementHandler(req, res) {
@@ -137,7 +137,8 @@ async function updateAbonnementHandler(req, res) {
       uren: parsedUren
     });
 
-    const pricingConfig = await getConfig('pricing', correlationId);
+    const pricingRows = await fetchPricingConfiguration(correlationId, 'abonnement');
+    const pricingConfig = formatPricingConfiguration(pricingRows);
     
     const pricingResult = calculateAbonnementPricing({
       frequentie,
