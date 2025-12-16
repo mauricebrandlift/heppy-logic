@@ -5,6 +5,7 @@
  */
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
+import { hideAllSuccessMessages } from '../ui/formUi.js';
 
 /**
  * Formatteer datum naar NL formaat
@@ -260,9 +261,10 @@ function initializeWijzigingenSection(data) {
       }
 
       // Prefill data vanuit abonnement
+      // Converteer uren naar number voor correcte vergelijking
       const initialData = {
         frequentie: data.frequentie,
-        uren: data.uren
+        uren: parseFloat(data.uren)
       };
 
       // Custom submit action
@@ -361,7 +363,8 @@ function setupUrenButtons(data) {
   const updateHiddenInput = (value) => {
     import('../logic/formHandler.js').then(({ formHandler }) => {
       formHandler.runWithFormContext('abb_change-form', () => {
-        formHandler.formData.uren = value.toString();
+        // Store als number voor correcte vergelijking
+        formHandler.formData.uren = value;
         formHandler.updateSubmitState();
       });
     });
@@ -439,6 +442,9 @@ function initializeOpzeggenSection(data) {
  */
 export async function initAbonnementDetail() {
   console.log('📋 [Abonnement Detail] Initialiseren...');
+
+  // Hide alle success messages bij laden
+  hideAllSuccessMessages();
 
   // ⚠️ BELANGRIJK: Check authenticatie EERST voordat we iets doen
   // Dit voorkomt race conditions tijdens redirect
