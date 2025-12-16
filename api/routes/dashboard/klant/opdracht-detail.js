@@ -34,9 +34,8 @@ async function opdrachtDetailHandler(req, res) {
 
     console.log('🔄 [Opdracht Detail] Fetching opdracht...', { id, userId });
 
-    // === FETCH OPDRACHT MET USER PROFIEL (voor adres) ===
-    // Join met user_profiles voor klant adres via gebruiker_id
-    const opdrachtUrl = `${supabaseConfig.url}/rest/v1/opdrachten?id=eq.${id}&gebruiker_id=eq.${userId}&select=*,user_profile:user_profiles!gebruiker_id(voornaam,achternaam,adres_id,adressen:adres_id(straat,huisnummer,toevoeging,postcode,plaats))`;
+    // === FETCH OPDRACHT (zonder joins) ===
+    const opdrachtUrl = `${supabaseConfig.url}/rest/v1/opdrachten?id=eq.${id}&gebruiker_id=eq.${userId}`;
     
     const opdrachtResponse = await httpClient(opdrachtUrl, {
       headers: {
@@ -70,6 +69,26 @@ async function opdrachtDetailHandler(req, res) {
 
     const opdracht = opdrachten[0];
 
+    // === FETCH USER PROFIEL (voor adres) ===
+    console.log('🔄 [Opdracht Detail] Fetching user profile...', { gebruiker_id: userId });
+    
+    const userProfileUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${userId}&select=voornaam,achternaam,adres_id,adressen:adres_id(straat,huisnummer,toevoeging,postcode,plaats)`;
+    
+    const userProfileResponse = await httpClient(userProfileUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`,
+      }
+    });
+
+    let userProfile = null;
+    if (userProfileResponse.ok) {
+      const profiles = await userProfileResponse.json();
+      userProfile = profiles[0] || null;
+    } else {
+      console.warn('⚠️ [Opdracht Detail] Kon user profiel niet ophalen');
+    }
+
     // === FETCH SCHOONMAKER USER PROFILE (voor naam en contact) ===
     let schoonmakerProfile = null;
     
@@ -99,7 +118,7 @@ async function opdrachtDetailHandler(req, res) {
 
     // === RESPONSE SAMENSTELLEN ===
     // Flatten nested data voor frontend gemak
-    const adres = opdracht.user_profile?.adressen || null;
+    const adres = userProfile?.adressen || null;
     
     const responseData = {
       correlationId,
@@ -148,8 +167,8 @@ async function opdrachtDetailHandler(req, res) {
       
       // Klant naam (voor header)
       klant: {
-        voornaam: opdracht.user_profile?.voornaam || '',
-        achternaam: opdracht.user_profile?.achternaam || ''
+        voornaam: userProfile?.voornaam || '',
+        achternaam: userProfile?.achternaam || ''
       }
     };
 
