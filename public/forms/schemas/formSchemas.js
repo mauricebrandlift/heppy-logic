@@ -1829,9 +1829,11 @@ export function getFormSchema(name) {
           label: 'Reden voor opzegging',
           inputType: 'textarea',
           sanitizers: ['trim'],
-          validators: ['optional'],
+          validators: ['required'],
           persist: 'none',
-          messages: {}
+          messages: {
+            required: 'Reden voor opzegging is verplicht'
+          }
         }
       },
       globalMessages: combineMessages(
