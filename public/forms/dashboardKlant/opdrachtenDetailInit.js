@@ -20,6 +20,42 @@ function formatDatum(dateString) {
 }
 
 /**
+ * Formatteer dagdelen voorkeur voor weergave
+ * @param {Object} dagdelenVoorkeur - Object met dagdelen: { "maandag": ["ochtend", "middag"] }
+ * @param {boolean} geenVoorkeur - Of "geen voorkeur" is geselecteerd
+ * @returns {string} - Geformatteerde string
+ */
+function formatDagdelen(dagdelenVoorkeur, geenVoorkeur) {
+  if (geenVoorkeur) {
+    return 'Geen voorkeur';
+  }
+  
+  if (!dagdelenVoorkeur || Object.keys(dagdelenVoorkeur).length === 0) {
+    return '-';
+  }
+  
+  // Afkortingen voor dagen
+  const dagAfkortingen = {
+    maandag: 'Ma',
+    dinsdag: 'Di',
+    woensdag: 'Wo',
+    donderdag: 'Do',
+    vrijdag: 'Vr',
+    zaterdag: 'Za',
+    zondag: 'Zo'
+  };
+  
+  const dagdelenStrings = [];
+  for (const [dag, dagdelen] of Object.entries(dagdelenVoorkeur)) {
+    const dagAfkorting = dagAfkortingen[dag] || dag;
+    const dagdeelLabels = dagdelen.join(', ');
+    dagdelenStrings.push(`${dagAfkorting}: ${dagdeelLabels}`);
+  }
+  
+  return dagdelenStrings.join(' • ');
+}
+
+/**
  * Formatteer type opdracht voor weergave
  */
 function formatType(type) {
@@ -88,11 +124,11 @@ function addBetaalstatusClass(element, betaalstatus) {
   if (!element) return;
   
   const statusClassMap = {
-    'n.v.t.': 'is-pending',
-    'openstaand': 'is-pending',
-    'betaald': 'is-success',
-    'mislukt': 'is-unactive',
-    'terugbetaald': 'is-unactive'
+    'n.v.t.': 'is-pending',        // Geel - nog geen betaling nodig (bv wacht op offerte)
+    'openstaand': 'is-pending',    // Geel - moet nog betalen
+    'betaald': 'is-active',        // Groen - betaling voltooid
+    'mislukt': 'is-unactive',      // Rood - betaling mislukt
+    'terugbetaald': 'is-unactive'  // Rood - terugbetaald (geannuleerd)
   };
   
   const statusClass = statusClassMap[betaalstatus] || 'is-pending';
@@ -150,38 +186,55 @@ function showError(message) {
  * Bouw detail info string op basis van type en gegevens
  */
 function buildDetailInfo(type, gegevens) {
-  if (!gegevens || Object.keys(gegevens).length === 0) return '-';
+  if (!gegevens || Object.keys(gegevens).length === 0) return 'Geen details beschikbaar';
   
   // Type-specifieke detail formatting
   switch(type) {
     case 'dieptereiniging':
-      //Voorbeeld: "3-kamer woning, 120 m²"
-      const kamers = gegevens.aantal_kamers || '-';
-      const m2 = gegevens.vierkante_meters || '-';
-      return `${kamers} kamers, ${m2} m²`;
+      // Voorbeeld: "3 slaapkamers, 2 badkamers, 1 toilet, 120 m²"
+      const parts = [];
+      if (gegevens.aantal_slaapkamers) parts.push(`${gegevens.aantal_slaapkamers} ${gegevens.aantal_slaapkamers === 1 ? 'slaapkamer' : 'slaapkamers'}`);
+      if (gegevens.aantal_badkamers) parts.push(`${gegevens.aantal_badkamers} ${gegevens.aantal_badkamers === 1 ? 'badkamer' : 'badkamers'}`);
+      if (gegevens.aantal_toiletten) parts.push(`${gegevens.aantal_toiletten} ${gegevens.aantal_toiletten === 1 ? 'toilet' : 'toiletten'}`);
+      if (gegevens.vierkante_meters) parts.push(`${gegevens.vierkante_meters} m²`);
+      return parts.length > 0 ? parts.join(', ') : 'Geen details beschikbaar';
       
     case 'verhuis':
-      // Bijvoorbeeld: "3-kamer woning"
-      return `${gegevens.aantal_kamers || '-'} kamers`;
+      // Bijvoorbeeld: "3 kamers, 120 m²"
+      const verhuisParts = [];
+      if (gegevens.aantal_kamers) verhuisParts.push(`${gegevens.aantal_kamers} ${gegevens.aantal_kamers === 1 ? 'kamer' : 'kamers'}`);
+      if (gegevens.vierkante_meters) verhuisParts.push(`${gegevens.vierkante_meters} m²`);
+      return verhuisParts.length > 0 ? verhuisParts.join(', ') : 'Geen details beschikbaar';
       
     case 'tapijt':
       // Bijvoorbeeld: "15 m² tapijt"
-      return `${gegevens.vierkante_meters || '-'} m²`;
+      return gegevens.vierkante_meters ? `${gegevens.vierkante_meters} m²` : 'Geen details beschikbaar';
       
     case 'vloer':
       // Bijvoorbeeld: "Parket, 45 m²"
-      const vloertype = gegevens.vloertype || '-';
-      const vloerm2 = gegevens.vierkante_meters || '-';
-      return `${vloertype}, ${vloerm2} m²`;
+      const vloerParts = [];
+      if (gegevens.vloertype) vloerParts.push(gegevens.vloertype);
+      if (gegevens.vierkante_meters) vloerParts.push(`${gegevens.vierkante_meters} m²`);
+      return vloerParts.length > 0 ? vloerParts.join(', ') : 'Geen details beschikbaar';
       
     case 'bank':
-      // Bijvoorbeeld: "3-zits, Stof"
-      const zitplaatsen = gegevens.aantal_zitplaatsen || '-';
-      const materiaal = gegevens.materiaal || '-';
-      return `${zitplaatsen}-zits, ${materiaal}`;
+      // Bijvoorbeeld: "2 banken, 4 stoelen, 8 zitvlakken, 4 kussens"
+      const bankParts = [];
+      const banken = parseInt(gegevens.rbs_banken) || 0;
+      const stoelen = parseInt(gegevens.rbs_stoelen) || 0;
+      const zitvlakken = parseInt(gegevens.rbs_zitvlakken) || 0;
+      const kussens = parseInt(gegevens.rbs_kussens) || 0;
+      
+      if (banken > 0) bankParts.push(`${banken} ${banken === 1 ? 'bank' : 'banken'}`);
+      if (stoelen > 0) bankParts.push(`${stoelen} ${stoelen === 1 ? 'stoel' : 'stoelen'}`);
+      if (zitvlakken > 0) bankParts.push(`${zitvlakken} ${zitvlakken === 1 ? 'zitvlak' : 'zitvlakken'}`);
+      if (kussens > 0) bankParts.push(`${kussens} ${kussens === 1 ? 'kussen' : 'kussens'}`);
+      
+      return bankParts.length > 0 ? bankParts.join(', ') : 'Geen details beschikbaar';
       
     default:
-      return '-';
+      // Fallback voor onbekende types
+      return 'Details niet beschikbaar voor dit type opdracht';
   }
 }
 
@@ -207,10 +260,18 @@ function populateOpdrachtHeader(data) {
     detailInfoEl.textContent = buildDetailInfo(data.type, data.gegevens);
   }
 
-  // Gewenste datum
+  // Gewenste datum OF dagdelen voorkeur
   const gewensteDatumEl = document.querySelector('[data-eo-gewenste-datum]');
   if (gewensteDatumEl) {
-    gewensteDatumEl.textContent = formatDatum(data.gewenste_datum);
+    // Check of er een gewenste_datum is, anders toon dagdelen
+    if (data.gewenste_datum) {
+      gewensteDatumEl.textContent = formatDatum(data.gewenste_datum);
+    } else if (data.gegevens?.dagdelenVoorkeur || data.gegevens?.geenVoorkeurDagdelen) {
+      // Toon dagdelen voorkeur
+      gewensteDatumEl.textContent = formatDagdelen(data.gegevens.dagdelenVoorkeur, data.gegevens.geenVoorkeurDagdelen);
+    } else {
+      gewensteDatumEl.textContent = 'Geen voorkeur opgegeven';
+    }
   }
 
   // Geplande datum (kan nog null zijn)
@@ -226,14 +287,26 @@ function populateOpdrachtHeader(data) {
   // Status
   const statusEl = document.querySelector('[data-eo-status]');
   if (statusEl) {
-    statusEl.textContent = formatStatus(data.status);
+    // Vind het kind element met text-size-small
+    const textEl = statusEl.querySelector('.text-size-small');
+    if (textEl) {
+      textEl.textContent = formatStatus(data.status);
+    } else {
+      statusEl.textContent = formatStatus(data.status);
+    }
     addStatusClass(statusEl, data.status);
   }
 
   // Betaalstatus
   const betaalstatusEl = document.querySelector('[data-eo-betaalstatus]');
   if (betaalstatusEl) {
-    betaalstatusEl.textContent = data.betaalstatus || 'n.v.t.';
+    // Vind het kind element met text-size-small
+    const textEl = betaalstatusEl.querySelector('.text-size-small');
+    if (textEl) {
+      textEl.textContent = data.betaalstatus || 'n.v.t.';
+    } else {
+      betaalstatusEl.textContent = data.betaalstatus || 'n.v.t.';
+    }
     addBetaalstatusClass(betaalstatusEl, data.betaalstatus);
   }
 
@@ -351,7 +424,13 @@ function handleConditionalWrappers(data) {
       const offerteButton = offerteWrapper.querySelector('[data-invoice-button]');
 
       if (offerteStatusEl) {
-        offerteStatusEl.textContent = formatOfferteStatus(data.offerte_status);
+        // Vind het kind element met text-size-small
+        const textEl = offerteStatusEl.querySelector('.text-size-small');
+        if (textEl) {
+          textEl.textContent = formatOfferteStatus(data.offerte_status);
+        } else {
+          offerteStatusEl.textContent = formatOfferteStatus(data.offerte_status);
+        }
         addStatusClass(offerteStatusEl, data.offerte_status);
       }
       if (offerteBedragEl) {
