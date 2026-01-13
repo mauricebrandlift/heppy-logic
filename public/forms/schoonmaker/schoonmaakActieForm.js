@@ -122,75 +122,95 @@ export async function initSchoonmaakActieForm() {
   console.log('[schoonmaakActieForm] Initialiseren...');
   
   const { matchId, action } = parseParams();
+  console.log('[schoonmaakActieForm] URL parameters:', { matchId, action });
   
   // Validatie
   if (!matchId) {
+    console.error('[schoonmaakActieForm] Geen match_id in URL!');
     showStateBlock('error');
     const errorBlock = document.querySelector('[data-state-block="error"]');
     if (errorBlock) {
       showError('Geen match ID gevonden in de URL.', errorBlock);
+    } else {
+      console.error('[schoonmaakActieForm] Error block niet gevonden!');
     }
     return;
   }
   
   // Toon loading
+  console.log('[schoonmaakActieForm] Toon loading state...');
   showStateBlock('loading');
   
   try {
     // Haal match details op
-    console.log('[schoonmaakActieForm] Ophalen match details...', matchId);
+    console.log('[schoonmaakActieForm] Ophalen match details voor match_id:', matchId);
     const matchData = await fetchMatchDetails(matchId);
-    console.log('[schoonmaakActieForm] Match details:', matchData);
+    console.log('[schoonmaakActieForm] ✅ Match details ontvangen:', matchData);
     
     // Check of match al verwerkt is
     if (matchData.status !== 'open') {
-      console.log('[schoonmaakActieForm] Match is al verwerkt:', matchData.status);
+      console.warn('[schoonmaakActieForm] ⚠️ Match is al verwerkt, status:', matchData.status);
       showStateBlock('expired');
       return;
     }
     
+    console.log('[schoonmaakActieForm] Match status is open, kan doorgaan');
+    
     // Bind match info naar UI
+    console.log('[schoonmaakActieForm] Binding match info naar UI elementen...');
     bindMatchInfo(matchData);
+    console.log('[schoonmaakActieForm] ✅ Match info gebind');
     
     // Toon formulier
+    console.log('[schoonmaakActieForm] Toon form state...');
     showStateBlock('form');
     
     // Haal schema op
+    console.log('[schoonmaakActieForm] Ophalen schema:', FORM_NAME);
     const schema = getFormSchema(FORM_NAME);
     if (!schema) {
+      console.error('[schoonmaakActieForm] ❌ Schema niet gevonden voor:', FORM_NAME);
       throw new Error(`Schema niet gevonden voor ${FORM_NAME}`);
     }
+    console.log('[schoonmaakActieForm] ✅ Schema gevonden:', schema);
     
     // Zoek form element
+    console.log('[schoonmaakActieForm] Zoeken naar form element:', FORM_NAME);
     const formElement = document.querySelector(`[data-form-name="${FORM_NAME}"]`);
     if (!formElement) {
+      console.error('[schoonmaakActieForm] ❌ Form element niet gevonden:', FORM_NAME);
       throw new Error(`Form element niet gevonden: ${FORM_NAME}`);
     }
+    console.log('[schoonmaakActieForm] ✅ Form element gevonden');
     
     // Preselecteer action als in URL
     if (action === 'approve' || action === 'decline') {
+      console.log('[schoonmaakActieForm] Preselecteren action uit URL:', action);
       const radio = formElement.querySelector(`[data-field-name="action"][value="${action}"]`);
       if (radio) {
         radio.checked = true;
         toggleRedenWrapper(action);
+        console.log('[schoonmaakActieForm] ✅ Action radio geselecteerd:', action);
+      } else {
+        console.warn('[schoonmaakActieForm] ⚠️ Action radio niet gevonden voor value:', action);
       }
     }
     
     // Event listeners voor action radio
+    console.log('[schoonmaakActieForm] Toevoegen event listeners voor action radios...');
     const actionRadios = formElement.querySelectorAll('[data-field-name="action"]');
+    console.log('[schoonmaakActieForm] Gevonden action radios:', actionRadios.length);
     actionRadios.forEach(radio => {
       radio.addEventListener('change', (e) => {
-        toggleRedenWrapper(e.target.value);
-      });
-    });
-    
-    // Submit action met validatie
-    const submitAction = async (formData) => {
+        coole.log('[schoonmaakActieForm] Submit action gestart met formData:', formData);
       const action = formData.action;
       const reden = formData.reden?.trim() || '';
       
+      console.log('[schoonmaakActieForm] Action:', action, 'Reden:', reden);
+      
       // Valideer dat reden verplicht is bij afwijzen
       if (action === 'decline' && !reden) {
+        console.error('[schoonmaakActieForm] ❌ Reden verplicht bij afwijzen');
         throw {
           code: 'DECLINE_REASON_REQUIRED',
           message: 'Geef een reden op voor het afwijzen van deze opdracht.'
@@ -199,31 +219,54 @@ export async function initSchoonmaakActieForm() {
       
       // Call juiste API
       if (action === 'approve') {
-        console.log('[schoonmaakActieForm] Goedkeuren match...', matchId);
+        console.log('[schoonmaakActieForm] 🟢 Goedkeuren match...', matchId);
         await approveMatch(matchId);
+        console.log('[schoonmaakActieForm] ✅ Match goedgekeurd');
         return { success: true, message: 'Opdracht geaccepteerd!' };
       } else {
-        console.log('[schoonmaakActieForm] Afwijzen match...', matchId, reden);
+        console.log('[schoonmaakActieForm] 🔴 Afwijzen match...', matchId, reden);
         await rejectMatch(matchId, reden);
+        console.log('[schoonmaakActieForm] ✅ Match afgewezen');
         return { success: true, message: 'Opdracht afgewezen. We zoeken een andere schoonmaker.' };
       }
     };
     
     // Initialiseer formHandler
+    console.log('[schoonmaakActieForm] Initialiseren formHandler...');
     formHandler.init({
       formName: FORM_NAME,
       schema,
       onSubmit: submitAction,
       onSuccess: (result) => {
-        console.log('[schoonmaakActieForm] Submit succesvol', result);
+        console.log('[schoonmaakActieForm] ✅ Submit succesvol', result);
         // formHandler toont automatisch success state
       },
-      onError: (error) => {
-        console.error('[schoonmaakActieForm] Submit fout', error);
-        // formHandler toont automatisch error
-      }
+      onError: (error) => {❌ Fout bij initialiseren:', error);
+    console.error('[schoonmaakActieForm] Error details:', {
+      message: error.message,
+      code: error.code,
+      stack: error.stack
     });
     
+    // Toon error state
+    if (error.code === 'MATCH_NOT_FOUND') {
+      console.log('[schoonmaakActieForm] Toon expired state (match niet gevonden)');
+      showStateBlock('expired');
+    } else {
+      console.log('[schoonmaakActieForm] Toon error state');
+      showStateBlock('error');
+      const errorBlock = document.querySelector('[data-state-block="error"]');
+      if (errorBlock) {
+        const message = error.message || 'Er is een fout opgetreden bij het laden van de gegevens.';
+        showError(message, errorBlock);
+        console.log('[schoonmaakActieForm] Error bericht getoond:', message);
+      } else {
+        console.error('[schoonmaakActieForm] Error block niet gevonden in DOM!');
+      }
+    }
+  }
+  
+  console.log('[schoonmaakActieForm] Init functie voltooid'); 
   } catch (error) {
     console.error('[schoonmaakActieForm] Fout bij initialiseren:', error);
     
