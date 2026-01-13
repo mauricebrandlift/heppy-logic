@@ -202,7 +202,14 @@ export async function initSchoonmaakActieForm() {
     console.log('[schoonmaakActieForm] Gevonden action radios:', actionRadios.length);
     actionRadios.forEach(radio => {
       radio.addEventListener('change', (e) => {
-        coole.log('[schoonmaakActieForm] Submit action gestart met formData:', formData);
+        console.log('[schoonmaakActieForm] Action gewijzigd naar:', e.target.value);
+        toggleRedenWrapper(e.target.value);
+      });
+    });
+    
+    // Submit action met validatie
+    const submitAction = async (formData) => {
+      console.log('[schoonmaakActieForm] Submit action gestart met formData:', formData);
       const action = formData.action;
       const reden = formData.reden?.trim() || '';
       
