@@ -94,10 +94,10 @@ export function matchToegewezenSchoonmaker(data) {
     
     <div style="text-align: center; margin: 40px 0;">
       <p>
-        <a href="#" class="button" style="background: #10b981; margin-right: 10px;">
+        <a href="https://heppy-frontend-code.vercel.app/schoonmaak-actie?match_id=${matchId}&action=approve" class="button" style="background: #10b981; margin-right: 10px;">
           ✓ Accepteer Aanvraag
         </a>
-        <a href="#" class="button" style="background: #ef4444;">
+        <a href="https://heppy-frontend-code.vercel.app/schoonmaak-actie?match_id=${matchId}&action=decline" class="button" style="background: #ef4444;">
           ✗ Weiger Aanvraag
         </a>
       </p>
@@ -110,7 +110,7 @@ export function matchToegewezenSchoonmaker(data) {
     </div>
     
     <p style="margin-top: 30px;">
-      <a href="#" class="button">Bekijk Volledige Details</a>
+      <a href="https://heppy-frontend-code.vercel.app/dashboard-schoonmaker" class="button">Bekijk Volledige Details</a>
     </p>
     
     <div class="info-box" style="background: #f0f9ff; border-left-color: #0284c7; margin-top: 40px;">

@@ -11,10 +11,15 @@
  * 5. Abonnement krijgt definitieve schoonmaker
  * 6. Aanvraag status wordt 'geaccepteerd'
  * 
- * Request Body:
+ * Request Body (Option 1 - via dashboard):
  * {
  *   "aanvraag_id": "uuid",
  *   "schoonmaker_id": "uuid"
+ * }
+ * 
+ * Request Body (Option 2 - via mail link, veiliger):
+ * {
+ *   "match_id": "uuid"
  * }
  * 
  * Response Success (200):
@@ -69,14 +74,48 @@ export default async function handler(req, res) {
   try {
     console.log(`[approve] ========== START ========== [${correlationId}]`);
     
-    // Request body validatie
-    const { aanvraag_id, schoonmaker_id } = req.body;
+    // Request body validatie - support both match_id AND aanvraag_id+schoonmaker_id
+    const { match_id, aanvraag_id, schoonmaker_id } = req.body;
 
+    // UUID format validatie (basic)
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Option 1: match_id (via mail link - preferred, more secure)
+    if (match_id) {
+      if (!uuidPattern.test(match_id)) {
+        console.warn(`[approve] Invalid match_id format [${correlationId}]`, match_id);
+        return res.status(400).json({
+          error: 'Bad Request',
+          details: 'match_id must be a valid UUID'
+        });
+      }
+
+      console.log(`[approve] Request validated (via match_id) [${correlationId}]`, { match_id });
+
+      // Roep service functie aan met match_id (just pass the string, not an object)
+      const result = await aanvraagService.approveByMatchId(match_id, correlationId);
+
+      console.log(`[approve] ========== SUCCESS ========== [${correlationId}]`);
+
+      return res.status(200).json({
+        success: true,
+        message: 'Aanvraag succesvol goedgekeurd',
+        data: {
+          aanvraag_id: result.aanvraag.id,
+          abonnement_id: result.abonnement.id,
+          schoonmaker_id: result.schoonmaker.id,
+          match_id: result.match.id,
+          status: result.match.status
+        }
+      });
+    }
+
+    // Option 2: aanvraag_id + schoonmaker_id (via dashboard - backward compatible)
     if (!aanvraag_id) {
-      console.warn(`[approve] Missing aanvraag_id [${correlationId}]`);
+      console.warn(`[approve] Missing aanvraag_id or match_id [${correlationId}]`);
       return res.status(400).json({
         error: 'Bad Request',
-        details: 'aanvraag_id is required'
+        details: 'Either match_id or both aanvraag_id and schoonmaker_id are required'
       });
     }
 
@@ -84,12 +123,10 @@ export default async function handler(req, res) {
       console.warn(`[approve] Missing schoonmaker_id [${correlationId}]`);
       return res.status(400).json({
         error: 'Bad Request',
-        details: 'schoonmaker_id is required'
+        details: 'schoonmaker_id is required when using aanvraag_id'
       });
     }
 
-    // UUID format validatie (basic)
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidPattern.test(aanvraag_id)) {
       console.warn(`[approve] Invalid aanvraag_id format [${correlationId}]`, aanvraag_id);
       return res.status(400).json({
@@ -106,7 +143,7 @@ export default async function handler(req, res) {
       });
     }
 
-    console.log(`[approve] Request validated [${correlationId}]`, {
+    console.log(`[approve] Request validated (via aanvraag_id) [${correlationId}]`, {
       aanvraag_id,
       schoonmaker_id
     });

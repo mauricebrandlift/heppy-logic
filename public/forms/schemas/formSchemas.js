@@ -103,6 +103,41 @@ export function getFormSchema(name) {
         }
       )
     },
+    'schoonmaak-actie-form': {
+      name: 'schoonmaak-actie-form',
+      selector: '[data-form-name="schoonmaak-actie-form"]',
+      fields: {
+        action: {
+          label: 'Actie',
+          inputType: 'radio',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none',
+          messages: {
+            required: 'Kies eerst of je de opdracht accepteert of afwijst'
+          }
+        },
+        reden: {
+          label: 'Reden bij afwijzen',
+          inputType: 'textarea',
+          sanitizers: ['trim'],
+          validators: [],
+          persist: 'none',
+          messages: {
+            required: 'Geef een reden op bij afwijzen'
+          }
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          DECLINE_REASON_REQUIRED: 'Geef een reden op bij afwijzen',
+          MATCH_ALREADY_PROCESSED: 'Deze opdracht is al verwerkt',
+          MATCH_NOT_FOUND: 'Opdracht niet gevonden'
+        }
+      )
+    },
     'abb_adres-form': {
       name: 'abb_adres-form',
       selector: '[data-form-name="abb_adres-form"]',

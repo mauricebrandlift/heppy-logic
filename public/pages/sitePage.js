@@ -4,6 +4,7 @@
  * Laadt algemene functionaliteit voor alle pagina's
  */
 import '../utils/auth/siteAuth.js';
+import './schoonmakerActiesRouter.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🌐 [SitePage] Pagina geladen');

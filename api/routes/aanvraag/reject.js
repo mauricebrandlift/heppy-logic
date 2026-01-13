@@ -86,9 +86,44 @@ export default async function handler(req, res) {
   try {
     console.log(`[reject] ========== START ========== [${correlationId}]`);
     
-    // Request body validatie
-    const { aanvraag_id, schoonmaker_id, reden } = req.body;
+    // Request body validatie - support both match_id AND aanvraag_id+schoonmaker_id
+    const { match_id, aanvraag_id, schoonmaker_id, reden } = req.body;
 
+    // UUID format validatie (basic)
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    // Option 1: match_id (via mail link - preferred, more secure)
+    if (match_id) {
+      if (!uuidPattern.test(match_id)) {
+        console.warn(`[reject] Invalid match_id format [${correlationId}]`, match_id);
+        return res.status(400).json({
+          error: 'Bad Request',
+          details: 'match_id must be a valid UUID'
+        });
+      }
+
+      console.log(`[reject] Request validated (via match_id) [${correlationId}]`, { match_id, reden });
+
+      // Roep service functie aan met match_id
+      const result = await aanvraagService.rejectByMatchId(match_id, reden, correlationId);
+
+      console.log(`[reject] ========== SUCCESS ========== [${correlationId}]`);
+
+      return res.status(200).json({
+        success: true,
+        message: result.newMatch 
+          ? 'Aanvraag afgewezen, nieuwe schoonmaker gevonden'
+          : 'Aanvraag afgewezen, geen nieuwe schoonmaker beschikbaar',
+        data: {
+          aanvraag_id: result.aanvraag?.id,
+          rejected_match_id: result.rejectedMatch?.id,
+          new_match: result.newMatch || null,
+          requires_admin_action: !result.newMatch
+        }
+      });
+    }
+
+    // Option 2: aanvraag_id + schoonmaker_id (via dashboard - backward compatible)
     if (!aanvraag_id) {
       console.warn(`[reject] Missing aanvraag_id [${correlationId}]`);
       return res.status(400).json({

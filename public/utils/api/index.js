@@ -15,6 +15,7 @@ export { fetchPricingConfiguration } from './pricing.js';
 export { fetchAvailableCleaners } from './cleaners.js';
 export { submitSollicitatie } from './sollicitatie.js';
 export { submitWaitlistEntry } from './waitlist.js';
+export { fetchMatchDetails, approveMatch, rejectMatch } from './match.js';
 
 // Voeg hier exports toe voor andere API modules als die worden gemaakt, bijv.:
 // export { fetchSomeOtherData } from './someOtherModule.js';

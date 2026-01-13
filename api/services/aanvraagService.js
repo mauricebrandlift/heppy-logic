@@ -5,6 +5,7 @@ import * as schoonmaakMatchService from './schoonmaakMatchService.js';
 import * as schoonmakerService from './schoonmakerService.js';
 import { auditService } from './auditService.js';
 import { sendEmail } from './emailService.js';
+import { matchService } from './matchService.js';
 import { 
   matchGoedgekeurdKlant,
   matchAfgewezenAdmin,
@@ -1094,5 +1095,38 @@ export const aanvraagService = {
         schoonmaker_naam: newSchoonmaker?.voornaam || null
       } : null
     };
+  },
+
+  /**
+   * Approve aanvraag by match_id (reusable wrapper for matchService)
+   * @param {string} matchId - The match_id UUID
+   * @param {string} correlationId - For logging
+   * @returns {object} Result with match details
+   */
+  async approveByMatchId(matchId, correlationId) {
+    console.log(`[aanvraagService.approveByMatchId] START [${correlationId}]`, { matchId });
+    
+    // Delegate to reusable matchService
+    const result = await matchService.approveMatch(matchId, correlationId);
+    
+    console.log(`[aanvraagService.approveByMatchId] SUCCESS [${correlationId}]`);
+    return result;
+  },
+
+  /**
+   * Reject aanvraag by match_id (reusable wrapper for matchService)
+   * @param {string} matchId - The match_id UUID
+   * @param {string} reden - Reason for rejection
+   * @param {string} correlationId - For logging
+   * @returns {object} Result with match details and potential new match
+   */
+  async rejectByMatchId(matchId, reden, correlationId) {
+    console.log(`[aanvraagService.rejectByMatchId] START [${correlationId}]`, { matchId, reden });
+    
+    // Delegate to reusable matchService
+    const result = await matchService.rejectMatch(matchId, reden, correlationId);
+    
+    console.log(`[aanvraagService.rejectByMatchId] SUCCESS [${correlationId}]`);
+    return result;
   }
 };
