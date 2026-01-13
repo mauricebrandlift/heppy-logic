@@ -241,7 +241,15 @@ export async function initSchoonmaakActieForm() {
         console.log('[schoonmaakActieForm] ✅ Submit succesvol', result);
         // formHandler toont automatisch success state
       },
-      onError: (error) => {❌ Fout bij initialiseren:', error);
+      onError: (error) => {
+        console.error('[schoonmaakActieForm] ❌ Submit fout', error);
+        // formHandler toont automatisch error
+      }
+    });
+    console.log('[schoonmaakActieForm] ✅ FormHandler geïnitialiseerd');
+    
+  } catch (error) {
+    console.error('[schoonmaakActieForm] ❌ Fout bij initialiseren:', error);
     console.error('[schoonmaakActieForm] Error details:', {
       message: error.message,
       code: error.code,
@@ -266,20 +274,5 @@ export async function initSchoonmaakActieForm() {
     }
   }
   
-  console.log('[schoonmaakActieForm] Init functie voltooid'); 
-  } catch (error) {
-    console.error('[schoonmaakActieForm] Fout bij initialiseren:', error);
-    
-    // Toon error state
-    if (error.code === 'MATCH_NOT_FOUND') {
-      showStateBlock('expired');
-    } else {
-      showStateBlock('error');
-      const errorBlock = document.querySelector('[data-state-block="error"]');
-      if (errorBlock) {
-        const message = error.message || 'Er is een fout opgetreden bij het laden van de gegevens.';
-        showError(message, errorBlock);
-      }
-    }
-  }
+  console.log('[schoonmaakActieForm] Init functie voltooid');
 }
