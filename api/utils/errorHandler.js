@@ -5,11 +5,11 @@
 
 /**
  * Verstuurt een gestandaardiseerde JSON error response.
- * @param {Error} error Het error object.
  * @param {object} res Het Express response object (of vergelijkbaar).
+ * @param {Error} error Het error object.
  * @param {string} [correlationId] Optionele correlation ID.
  */
-export function handleErrorResponse(error, res, correlationId) {
+export function handleErrorResponse(res, error, correlationId) {
   // Support error.status (primary), error.statusCode, and error.code
   const statusCode = error.status || error.statusCode || (typeof error.code === 'number' ? error.code : 500);
   const message = error.message || 'An unexpected error occurred.';

@@ -58,7 +58,6 @@ export default async function handler(req, res) {
     console.log(JSON.stringify({ ...logMeta, level: 'INFO', message: 'Adres succesvol opgehaald en verstuurd.' /*, adres: addressDetails*/ })); // PII in adres niet standaard loggen
     return res.status(200).json(addressDetails);
   } catch (error) {
-    // handleErrorResponse met correcte parameter volgorde: (error, res, correlationId)
-    return handleErrorResponse(error, res, logMeta.correlationId);
+    return handleErrorResponse(res, error, logMeta.correlationId);
   }
 }

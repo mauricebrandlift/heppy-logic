@@ -146,6 +146,6 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('[cleaners-dieptereiniging] Unexpected error:', err);
-    return handleErrorResponse(res, err, 500, correlationId);
+    return handleErrorResponse(res, err, correlationId);
   }
 }
