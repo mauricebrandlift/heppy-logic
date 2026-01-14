@@ -66,6 +66,6 @@ export default async function handler(req, res) {// Stel CORS headers in voor AL
       pricing: pricingData,
     });
   } catch (error) {
-    return handleErrorResponse(res, error, correlationId);
+    return handleErrorResponse(error, res, correlationId, 'Error fetching pricing configuration');
   }
 }

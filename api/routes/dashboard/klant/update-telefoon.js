@@ -248,6 +248,6 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    return handleErrorResponse(res, error, correlationId);
+    return handleErrorResponse(error, res, correlationId);
   }
 }
