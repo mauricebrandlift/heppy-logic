@@ -201,7 +201,7 @@ function bindMatchInfo(matchData) {
     adres: (() => {
       const source = matchData.aanvraag || matchData.opdracht || {};
       console.log('[bindMatchInfo] adres source:', source);
-      const straat = source.straatnaam || '';
+      const straat = source.straat || '';
       const huisnummer = source.huisnummer || '';
       const toevoeging = source.toevoeging || '';
       const adres = `${straat} ${huisnummer}${toevoeging ? ` ${toevoeging}` : ''}`.trim();
@@ -269,13 +269,19 @@ function bindMatchInfo(matchData) {
  * Toggle reden wrapper visibility based on action
  */
 function toggleRedenWrapper(selectedAction) {
+  console.log('[toggleRedenWrapper] Selected action:', selectedAction);
   const redenWrapper = document.querySelector('[data-field-wrapper="reden"]');
-  if (!redenWrapper) return;
+  if (!redenWrapper) {
+    console.warn('[toggleRedenWrapper] Reden wrapper niet gevonden');
+    return;
+  }
   
   // Toon alleen bij afwijzen
-  if (selectedAction === 'decline') {
+  if (selectedAction === 'afkeuren') {
+    console.log('[toggleRedenWrapper] Toon reden wrapper');
     redenWrapper.style.display = 'block';
   } else {
+    console.log('[toggleRedenWrapper] Verberg reden wrapper');
     redenWrapper.style.display = 'none';
     // Clear reden field als niet nodig
     const redenField = document.querySelector('[data-field-name="reden"]');
@@ -380,6 +386,35 @@ export async function initSchoonmaakActieForm() {
       radio.addEventListener('change', (e) => {
         console.log('[schoonmaakActieForm] Action gewijzigd naar:', e.target.value);
         toggleRedenWrapper(e.target.value);
+        
+        // Update reden field required status
+        const redenField = document.querySelector('[data-field-name="reden"]');
+        if (e.target.value === 'afkeuren') {
+          console.log('[schoonmaakActieForm] Reden is nu verplicht');
+          if (redenField) {
+            redenField.setAttribute('required', 'required');
+            redenField.setAttribute('aria-required', 'true');
+          }
+          // Update schema validators dynamically
+          if (schema.fields.reden) {
+            schema.fields.reden.validators = ['required'];
+          }
+        } else {
+          console.log('[schoonmaakActieForm] Reden is nu optioneel');
+          if (redenField) {
+            redenField.removeAttribute('required');
+            redenField.removeAttribute('aria-required');
+          }
+          // Update schema validators dynamically
+          if (schema.fields.reden) {
+            schema.fields.reden.validators = [];
+          }
+        }
+        
+        // Trigger formHandler validation update
+        if (formHandler.validateForm) {
+          setTimeout(() => formHandler.validateForm(), 50);
+        }
       });
     });
     
@@ -392,7 +427,7 @@ export async function initSchoonmaakActieForm() {
       console.log('[schoonmaakActieForm] Action:', action, 'Reden:', reden);
       
       // Valideer dat reden verplicht is bij afwijzen
-      if (action === 'decline' && !reden) {
+      if (action === 'afkeuren' && !reden) {
         console.error('[schoonmaakActieForm] ❌ Reden verplicht bij afwijzen');
         const error = new Error('Geef een reden op voor het afwijzen van deze opdracht.');
         error.code = 'DECLINE_REASON_REQUIRED';
@@ -401,7 +436,7 @@ export async function initSchoonmaakActieForm() {
       }
       
       // Call juiste API
-      if (action === 'approve') {
+      if (action === 'goedkeuren') {
         console.log('[schoonmaakActieForm] 🟢 Goedkeuren match...', matchId);
         await approveMatch(matchId);
         console.log('[schoonmaakActieForm] ✅ Match goedgekeurd');

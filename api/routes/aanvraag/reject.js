@@ -140,8 +140,7 @@ export default async function handler(req, res) {
       });
     }
 
-    // UUID format validatie (basic)
-    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    // UUID format validatie (reuse pattern from above)
     if (!uuidPattern.test(aanvraag_id)) {
       console.warn(`[reject] Invalid aanvraag_id format [${correlationId}]`, aanvraag_id);
       return res.status(400).json({
