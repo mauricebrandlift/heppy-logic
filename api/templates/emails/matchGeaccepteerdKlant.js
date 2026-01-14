@@ -120,8 +120,5 @@ export function matchGeaccepteerdKlant(data) {
     </div>
   `;
 
-  return baseLayout({
-    title: 'Match Geaccepteerd',
-    content
-  });
+  return baseLayout(content, 'Match Geaccepteerd - Heppy Schoonmaak');
 }

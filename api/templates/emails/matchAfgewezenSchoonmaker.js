@@ -92,8 +92,5 @@ export function matchAfgewezenSchoonmaker(data) {
     </div>
   `;
 
-  return baseLayout({
-    title: 'Afwijzing Bevestigd',
-    content
-  });
+  return baseLayout(content, 'Afwijzing Bevestigd - Heppy Schoonmaak');
 }

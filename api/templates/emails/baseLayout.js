@@ -164,7 +164,8 @@ export function baseLayout(content, title = 'Heppy Schoonmaak') {
           </div>
           <div class="footer">
             <p>Dit is een automatisch gegenereerde email van Heppy Schoonmaak.</p>
-            <p>Voor vragen kunt u antwoorden op deze email of contact opnemen via ${emailConfig.replyToEmail}</p>
+            <p>Voor vragen kunt u contact opnemen via <a href="mailto:${emailConfig.replyToEmail}" style="color: #667eea;">${emailConfig.replyToEmail}</a></p>
+            <p style="font-size: 11px; color: #9ca3af;">Let op: Dit is een no-reply adres. Antwoord niet op deze email.</p>
             <p>&copy; ${new Date().getFullYear()} Heppy Schoonmaak. Alle rechten voorbehouden.</p>
           </div>
         </div>

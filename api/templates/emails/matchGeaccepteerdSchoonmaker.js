@@ -139,8 +139,5 @@ export function matchGeaccepteerdSchoonmaker(data) {
     </div>
   `;
 
-  return baseLayout({
-    title: 'Opdracht Geaccepteerd',
-    content
-  });
+  return baseLayout(content, 'Opdracht Geaccepteerd - Heppy Schoonmaak');
 }

@@ -126,8 +126,5 @@ export function matchGeaccepteerdAdmin(data) {
     </div>
   `;
 
-  return baseLayout({
-    title: 'Match Geaccepteerd (Admin)',
-    content
-  });
+  return baseLayout(content, 'Match Geaccepteerd - Heppy Admin');
 }

@@ -102,8 +102,5 @@ export function matchAfgewezenKlant(data) {
     </div>
   `;
 
-  return baseLayout({
-    title: 'Update over je aanvraag',
-    content
-  });
+  return baseLayout(content, 'Update over je aanvraag - Heppy Schoonmaak');
 }

@@ -149,8 +149,5 @@ export function schoonmakerWeigertAdmin(data) {
     </ul>
   `;
 
-  return baseLayout({
-    title: 'Match Afgewezen - Actie Vereist',
-    content
-  });
+  return baseLayout(content, 'Match Afgewezen - Actie Vereist - Heppy Admin');
 }
