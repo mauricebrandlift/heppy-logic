@@ -183,7 +183,8 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
           const currentAdres = adresHist[0];
           console.log(`[matchService.getMatchDetails] Adres historiek fetched [${correlationId}]`, {
             has_current_adres: !!currentAdres,
-            adres_id: currentAdres?.adres_id
+            adres_id: currentAdres?.adres_id,
+            count: adresHist.length
           });
           
           if (currentAdres && currentAdres.adres_id) {
@@ -211,9 +212,21 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
                 opdracht.postcode = adres.postcode;
                 opdracht.plaats = adres.plaats;
               }
+            } else {
+              console.warn(`[matchService.getMatchDetails] Adres query failed [${correlationId}]`, {
+                status: adresResp.status
+              });
             }
+          } else {
+            console.warn(`[matchService.getMatchDetails] No current adres found in historiek [${correlationId}]`);
           }
+        } else {
+          console.warn(`[matchService.getMatchDetails] Adres historiek query failed [${correlationId}]`, {
+            status: adresHistResp.status
+          });
         }
+      } else {
+        console.warn(`[matchService.getMatchDetails] No gebruiker_id in opdracht [${correlationId}]`);
       }
     }
   }
