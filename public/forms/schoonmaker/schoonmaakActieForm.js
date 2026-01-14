@@ -132,7 +132,8 @@ function getMatchDetails(matchData) {
     return `${freq}, ${uren} uur per schoonmaak`;
   } else {
     // Opdracht: toon aantal uren (kritisch voor schoonmaker!)
-    const uren = matchData.opdracht?.uren;
+    // Probeer eerst opdracht.uren, anders gegevens.dr_uren
+    const uren = matchData.opdracht?.uren || matchData.opdracht?.gegevens?.dr_uren;
     
     if (uren) {
       return `${uren} uur`;
@@ -224,8 +225,15 @@ function bindMatchInfo(matchData) {
     : matchData.opdracht?.voornaam || '';
   
   console.log('[bindMatchInfo] klantNaam:', klantNaam);
+  
+  // Voor opdrachten: ook het specifieke type ophalen (dieptereiniging, verhuis, etc.)
+  const specificType = !isAanvraag && matchData.opdracht?.type 
+    ? getMatchType({ type: 'opdracht', opdracht: matchData.opdracht })
+    : null;
+  
   const mappings = {
     type: getMatchType(matchData),
+    specifictype: specificType, // Null voor aanvragen, specifiek type voor opdrachten
     details: getMatchDetails(matchData),
     plaats: matchData.aanvraag?.plaats || matchData.opdracht?.plaats || '',
     adres: (() => {
