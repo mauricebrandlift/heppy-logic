@@ -33,17 +33,37 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
         type,
         status,
         gewenste_startweek,
+        gewenste_frequentie,
+        gewenste_uren,
+        straatnaam,
+        huisnummer,
+        toevoeging,
+        postcode,
+        plaats,
         abonnement:abonnementen(
           id,
           uren_per_week,
           klant:klanten(id, voornaam, achternaam, email, telefoon, adres, postcode, plaats)
+        ),
+        voorkeursdagdelen:aanvraag_voorkeursdagdelen(
+          dag,
+          ochtend,
+          middag,
+          avond
         )
       ),
       opdracht:opdrachten(
         id,
-        type,
+        soort_opdracht,
         status,
         gewenste_datum,
+        uren,
+        admin_notities,
+        straatnaam,
+        huisnummer,
+        toevoeging,
+        postcode,
+        plaats,
         klant:klanten(id, voornaam, achternaam, email, telefoon, adres, postcode, plaats)
       )
     `)

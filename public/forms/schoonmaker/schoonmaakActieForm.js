@@ -16,6 +16,9 @@ import { fetchMatchDetails, approveMatch, rejectMatch } from '../../utils/api/in
 
 const FORM_NAME = 'schoonmaak-actie-form';
 
+// Store match data globally for use in success state
+let currentMatchData = null;
+
 /**
  * Parse URL parameters
  */
@@ -31,11 +34,24 @@ function parseParams() {
  * Toon specifiek state block en verberg anderen
  */
 function showStateBlock(state) {
-  const blocks = ['loading', 'form', 'expired', 'error'];
+  const blocks = ['loading', 'form', 'expired', 'error', 'success'];
   blocks.forEach(blockName => {
     const block = document.querySelector(`[data-state-block="${blockName}"]`);
     if (block) {
       block.style.display = (blockName === state) ? 'block' : 'none';
+    }
+  });
+}
+
+/**
+ * Toon specifieke success wrapper en verberg anderen
+ */
+function showSuccessWrapper(wrapperName) {
+  const wrappers = ['approved-abonnement', 'approved-opdracht', 'declined'];
+  wrappers.forEach(name => {
+    const wrapper = document.querySelector(`[data-success-wrapper="${name}"]`);
+    if (wrapper) {
+      wrapper.style.display = (name === wrapperName) ? 'block' : 'none';
     }
   });
 }
@@ -75,6 +91,8 @@ function getMatchDetails(matchData) {
  * Bind match info naar data-match-info elementen
  */
 function bindMatchInfo(matchData) {
+  const isAanvraag = matchData.type === 'aanvraag';
+  
   const mappings = {
     type: getMatchType(matchData),
     details: getMatchDetails(matchData),
@@ -89,12 +107,98 @@ function bindMatchInfo(matchData) {
     naam: matchData.klant?.voornaam || ''
   };
 
+  // Bind basis info
   Object.entries(mappings).forEach(([key, value]) => {
     const el = document.querySelector(`[data-match-info="${key}"]`);
     if (el && value !== undefined) {
       el.textContent = value;
     }
   });
+  
+  // Bind en toon/verberg conditionale velden
+  if (isAanvraag) {
+    // Toon startweek voor abonnementen
+    const startweek = matchData.aanvraag?.gewenste_startweek || '';
+    const startweekEl = document.querySelector('[data-match-info="startweek"]');
+    const startweekWrapper = document.querySelector('[data-match-info-wrapper="startweek"]');
+    if (startweekEl) startweekEl.textContent = startweek;
+    if (startweekWrapper) startweekWrapper.style.display = 'block';
+    
+    // Toon dagdelen voor abonnementen
+    const dagdelen = formatDagdelen(matchData.aanvraag?.voorkeursdagdelen);
+    const dagdelenEl = document.querySelector('[data-match-info="dagdelen"]');
+    const dagdelenWrapper = document.querySelector('[data-match-info-wrapper="dagdelen"]');
+    if (dagdelenEl) dagdelenEl.innerHTML = dagdelen; // innerHTML voor <br> tags
+    if (dagdelenWrapper) dagdelenWrapper.style.display = 'block';
+    
+    // Verberg startdatum wrapper
+    const startdatumWrapper = document.querySelector('[data-match-info-wrapper="startdatum"]');
+    if (startdatumWrapper) startdatumWrapper.style.display = 'none';
+    
+  } else {
+    // Toon startdatum voor opdrachten
+    const startdatum = matchData.opdracht?.gewenste_datum 
+      ? formatDatum(matchData.opdracht.gewenste_datum) 
+      : '';
+    const startdatumEl = document.querySelector('[data-match-info="startdatum"]');
+    const startdatumWrapper = document.querySelector('[data-match-info-wrapper="startdatum"]');
+    if (startdatumEl) startdatumEl.textContent = startdatum;
+    if (startdatumWrapper) startdatumWrapper.style.display = 'block';
+    
+    // Verberg abonnement wrappers
+    const startweekWrapper = document.querySelector('[data-match-info-wrapper="startweek"]');
+    const dagdelenWrapper = document.querySelector('[data-match-info-wrapper="dagdelen"]');
+    if (startweekWrapper) startweekWrapper.style.display = 'none';
+    if (dagdelenWrapper) dagdelenWrapper.style.display = 'none';
+  }
+}
+
+/**
+ * Formatteer datum naar leesbare Nederlandse string
+ */
+function formatDatum(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('nl-NL', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+}
+
+/**
+ * Formatteer dagdelen naar leesbare lijst
+ */
+function formatDagdelen(voorkeursdagdelen) {
+  if (!voorkeursdagdelen || voorkeursdagdelen.length === 0) {
+    return 'Geen voorkeur opgegeven';
+  }
+  
+  const dagNamen = {
+    'maandag': 'Maandag',
+    'dinsdag': 'Dinsdag',
+    'woensdag': 'Woensdag',
+    'donderdag': 'Donderdag',
+    'vrijdag': 'Vrijdag',
+    'zaterdag': 'Zaterdag',
+    'zondag': 'Zondag'
+  };
+  
+  return voorkeursdagdelen
+    .map(vd => {
+      const dagdelen = [];
+      if (vd.ochtend) dagdelen.push('ochtend');
+      if (vd.middag) dagdelen.push('middag');
+      if (vd.avond) dagdelen.push('avond');
+      
+      if (dagdelen.length === 0) return null;
+      
+      const dagNaam = dagNamen[vd.dag.toLowerCase()] || vd.dag;
+      return `${dagNaam}: ${dagdelen.join(', ')}`;
+    })
+    .filter(Boolean)
+    .join('<br>');
 }
 
 /**
@@ -155,6 +259,9 @@ export async function initSchoonmaakActieForm() {
     }
     
     console.log('[schoonmaakActieForm] Match status is open, kan doorgaan');
+    
+    // Sla match data op voor later gebruik in success state
+    currentMatchData = matchData;
     
     // Bind match info naar UI
     console.log('[schoonmaakActieForm] Binding match info naar UI elementen...');
@@ -226,17 +333,45 @@ export async function initSchoonmaakActieForm() {
       
       // Call juiste API
       if (action === 'approve') {
-        console.log('[schoonmaakActieForm] 🟢 Goedkeuren match...', matchId);
-        await approveMatch(matchId);
-        console.log('[schoonmaakActieForm] ✅ Match goedgekeurd');
-        return { success: true, message: 'Opdracht geaccepteerd!' };
+        console.l
+          success: true, 
+          message: 'Opdracht geaccepteerd!',
+          action: 'approve',
+          matchType: currentMatchData?.type
+        };
       } else {
         console.log('[schoonmaakActieForm] 🔴 Afwijzen match...', matchId, reden);
+        await rejectMatch(matchId, reden);
+        console.log('[schoonmaakActieForm] ✅ Match afgewezen');
+        return { 
+          success: true, 
+          message: 'Opdracht afgewezen. We zoeken een andere schoonmaker.',
+          action: 'decline',
+          matchType: currentMatchData?.type
+       
         await rejectMatch(matchId, reden);
         console.log('[schoonmaakActieForm] ✅ Match afgewezen');
         return { success: true, message: 'Opdracht afgewezen. We zoeken een andere schoonmaker.' };
       }
     };
+        // Bind match info ook in success state (voor naam, plaats, datum, etc.)
+        bindMatchInfo(currentMatchData);
+        
+        // Toon success state
+        showStateBlock('success');
+        
+        // Bepaal welke success wrapper te tonen
+        let wrapperName;
+        if (result.action === 'decline') {
+          wrapperName = 'declined';
+        } else if (result.matchType === 'aanvraag') {
+          wrapperName = 'approved-abonnement';
+        } else {
+          wrapperName = 'approved-opdracht';
+        }
+        
+        console.log('[schoonmaakActieForm] Toon success wrapper:', wrapperName);
+        showSuccessWrapper(wrapperName);
     
     // Initialiseer formHandler
     console.log('[schoonmaakActieForm] Initialiseren formHandler...');
