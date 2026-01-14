@@ -14,8 +14,8 @@ import { initOpdrachtDetail } from '../forms/dashboardKlant/opdrachtenDetailInit
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('🏠 [KlantDashboard] Pagina geladen');
 
-  // Initialiseer authenticatie met rol controle
-  const user = initDashboardAuth({
+  // Initialiseer authenticatie met rol controle (nu async vanwege server-side verificatie)
+  const user = await initDashboardAuth({
     requiredRole: 'klant',
     redirectIfWrongRole: true
   });

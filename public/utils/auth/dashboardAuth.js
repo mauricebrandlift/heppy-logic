@@ -24,7 +24,7 @@ const DASHBOARD_PATHS = {
  * @param {boolean} options.redirectIfWrongRole - Of gebruiker omgeleid moet worden bij verkeerde rol
  * @returns {Object|null} Authenticated user object or null if not authenticated
  */
-export function initDashboardAuth(options = {}) {
+export async function initDashboardAuth(options = {}) {
   const { requiredRole = null, redirectIfWrongRole = true } = options;
   
   console.log('🔒 [DashboardAuth] Initialiseren...');
@@ -36,15 +36,33 @@ export function initDashboardAuth(options = {}) {
     return null;
   }
   
-  // Haal auth state op (dit checkt ook token expiry)
+  // Haal auth state op (dit checkt ook token expiry timestamp)
   const authState = authClient.getAuthState();
   
-  // Als getAuthState null teruggeeft, is de token expired
+  // Als getAuthState null teruggeeft, is de token expired (op basis van timestamp)
   if (!authState) {
-    console.log('🔒 [DashboardAuth] Token expired, redirecting naar login pagina');
+    console.log('🔒 [DashboardAuth] Token expired (timestamp), redirecting naar login pagina');
     window.location.href = '/inloggen?message=Je sessie is verlopen. Log opnieuw in.';
     return null;
   }
+  
+  // EXTRA: Verifieer token server-side via /auth/me endpoint
+  // Dit vangt tokens die geïnvalideerd zijn door Supabase (bijv. na wachtwoord wijziging)
+  try {
+    const { apiClient } = await import('../api/client.js');
+    await apiClient('/auth/me', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${authState.access_token}` }
+    });
+    console.log('✅ [DashboardAuth] Token verificatie geslaagd');
+  } catch (error) {
+    console.warn('⚠️ [DashboardAuth] Token verificatie gefaald:', error.message);
+    // Token is invalid, clear en redirect
+    localStorage.removeItem('heppy_auth');
+    window.location.href = '/inloggen?message=Je sessie is ongeldig. Log opnieuw in.';
+    return null;
+  }
+  
   const userRole = authState?.user?.role;
   
   if (!userRole) {
