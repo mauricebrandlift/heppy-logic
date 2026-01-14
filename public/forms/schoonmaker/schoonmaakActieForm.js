@@ -88,6 +88,54 @@ function getMatchDetails(matchData) {
 }
 
 /**
+ * Formatteer datum naar leesbare Nederlandse string
+ */
+function formatDatum(dateString) {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('nl-NL', { 
+    weekday: 'long', 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+}
+
+/**
+ * Formatteer dagdelen naar leesbare lijst
+ */
+function formatDagdelen(voorkeursdagdelen) {
+  if (!voorkeursdagdelen || voorkeursdagdelen.length === 0) {
+    return 'Geen voorkeur opgegeven';
+  }
+  
+  const dagNamen = {
+    'maandag': 'Maandag',
+    'dinsdag': 'Dinsdag',
+    'woensdag': 'Woensdag',
+    'donderdag': 'Donderdag',
+    'vrijdag': 'Vrijdag',
+    'zaterdag': 'Zaterdag',
+    'zondag': 'Zondag'
+  };
+  
+  return voorkeursdagdelen
+    .map(vd => {
+      const dagdelen = [];
+      if (vd.ochtend) dagdelen.push('ochtend');
+      if (vd.middag) dagdelen.push('middag');
+      if (vd.avond) dagdelen.push('avond');
+      
+      if (dagdelen.length === 0) return null;
+      
+      const dagNaam = dagNamen[vd.dag.toLowerCase()] || vd.dag;
+      return `${dagNaam}: ${dagdelen.join(', ')}`;
+    })
+    .filter(Boolean)
+    .join('<br>');
+}
+
+/**
  * Bind match info naar data-match-info elementen
  */
 function bindMatchInfo(matchData) {
@@ -151,54 +199,6 @@ function bindMatchInfo(matchData) {
     if (startweekWrapper) startweekWrapper.style.display = 'none';
     if (dagdelenWrapper) dagdelenWrapper.style.display = 'none';
   }
-}
-
-/**
- * Formatteer datum naar leesbare Nederlandse string
- */
-function formatDatum(dateString) {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('nl-NL', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
-  });
-}
-
-/**
- * Formatteer dagdelen naar leesbare lijst
- */
-function formatDagdelen(voorkeursdagdelen) {
-  if (!voorkeursdagdelen || voorkeursdagdelen.length === 0) {
-    return 'Geen voorkeur opgegeven';
-  }
-  
-  const dagNamen = {
-    'maandag': 'Maandag',
-    'dinsdag': 'Dinsdag',
-    'woensdag': 'Woensdag',
-    'donderdag': 'Donderdag',
-    'vrijdag': 'Vrijdag',
-    'zaterdag': 'Zaterdag',
-    'zondag': 'Zondag'
-  };
-  
-  return voorkeursdagdelen
-    .map(vd => {
-      const dagdelen = [];
-      if (vd.ochtend) dagdelen.push('ochtend');
-      if (vd.middag) dagdelen.push('middag');
-      if (vd.avond) dagdelen.push('avond');
-      
-      if (dagdelen.length === 0) return null;
-      
-      const dagNaam = dagNamen[vd.dag.toLowerCase()] || vd.dag;
-      return `${dagNaam}: ${dagdelen.join(', ')}`;
-    })
-    .filter(Boolean)
-    .join('<br>');
 }
 
 /**
@@ -333,7 +333,10 @@ export async function initSchoonmaakActieForm() {
       
       // Call juiste API
       if (action === 'approve') {
-        console.l
+        console.log('[schoonmaakActieForm] 🟢 Goedkeuren match...', matchId);
+        await approveMatch(matchId);
+        console.log('[schoonmaakActieForm] ✅ Match goedgekeurd');
+        return { 
           success: true, 
           message: 'Opdracht geaccepteerd!',
           action: 'approve',
@@ -348,12 +351,19 @@ export async function initSchoonmaakActieForm() {
           message: 'Opdracht afgewezen. We zoeken een andere schoonmaker.',
           action: 'decline',
           matchType: currentMatchData?.type
-       
-        await rejectMatch(matchId, reden);
-        console.log('[schoonmaakActieForm] ✅ Match afgewezen');
-        return { success: true, message: 'Opdracht afgewezen. We zoeken een andere schoonmaker.' };
+        };
       }
     };
+    
+    // Initialiseer formHandler
+    console.log('[schoonmaakActieForm] Initialiseren formHandler...');
+    formHandler.init({
+      formName: FORM_NAME,
+      schema,
+      onSubmit: submitAction,
+      onSuccess: (result) => {
+        console.log('[schoonmaakActieForm] ✅ Submit succesvol', result);
+        
         // Bind match info ook in success state (voor naam, plaats, datum, etc.)
         bindMatchInfo(currentMatchData);
         
@@ -372,16 +382,6 @@ export async function initSchoonmaakActieForm() {
         
         console.log('[schoonmaakActieForm] Toon success wrapper:', wrapperName);
         showSuccessWrapper(wrapperName);
-    
-    // Initialiseer formHandler
-    console.log('[schoonmaakActieForm] Initialiseren formHandler...');
-    formHandler.init({
-      formName: FORM_NAME,
-      schema,
-      onSubmit: submitAction,
-      onSuccess: (result) => {
-        console.log('[schoonmaakActieForm] ✅ Submit succesvol', result);
-        // formHandler toont automatisch success state
       },
       onError: (error) => {
         console.error('[schoonmaakActieForm] ❌ Submit fout', error);
