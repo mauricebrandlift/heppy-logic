@@ -70,7 +70,8 @@ function formatStatus(status) {
     'wachtrij': 'Wachtrij',
     'actief': 'Actief',
     'gepauzeerd': 'Gepauzeerd',
-    'gestopt': 'Gestopt'
+    'gestopt': 'Gestopt',
+    'opgezegd': 'Opgezegd'
   };
   return mapping[status] || status;
 }
@@ -85,7 +86,8 @@ function addStatusClass(element, status) {
     'actief': 'is-active',
     'wachtrij': 'is-pending',
     'gepauzeerd': 'is-unactive',
-    'gestopt': 'is-unactive'
+    'gestopt': 'is-unactive',
+    'opgezegd': 'is-unactive'
   };
   
   const statusClass = statusClassMap[status] || 'is-pending';
@@ -98,6 +100,38 @@ function addStatusClass(element, status) {
 function formatBedrag(cents) {
   if (!cents && cents !== 0) return '-';
   return `€${(cents / 100).toFixed(2).replace('.', ',')}`;
+}
+
+/**
+ * Bereken volgende factuur datum op basis van startdatum en frequentie
+ */
+function berekenVolgendeFactuur(startdatum, frequentie, sessionsPerCycle) {
+  if (!startdatum) return null;
+  
+  const start = new Date(startdatum);
+  const nu = new Date();
+  
+  // Bepaal dagen tussen facturen op basis van frequentie
+  let dagenTussenFacturen;
+  if (frequentie === 'weekly' || frequentie === 'perweek') {
+    dagenTussenFacturen = 28; // 4 weken cycle
+  } else if (frequentie === 'pertweeweek') {
+    dagenTussenFacturen = 28; // 4 weken cycle (2x per cycle)
+  } else if (frequentie === 'pervierweken') {
+    dagenTussenFacturen = 28; // 4 weken cycle
+  } else {
+    dagenTussenFacturen = 28; // Default 4 weken
+  }
+  
+  // Bereken hoeveel cycles zijn verstreken sinds start
+  const dagenVerstreken = Math.floor((nu - start) / (1000 * 60 * 60 * 24));
+  const cyclesVerstreken = Math.floor(dagenVerstreken / dagenTussenFacturen);
+  
+  // Bereken volgende factuur datum
+  const volgendeFactuur = new Date(start);
+  volgendeFactuur.setDate(volgendeFactuur.getDate() + ((cyclesVerstreken + 1) * dagenTussenFacturen));
+  
+  return volgendeFactuur;
 }
 
 /**
@@ -180,11 +214,28 @@ function populateAbonnementHeader(data) {
   const frequentieEl = document.querySelector('[data-abo-frequentie]');
   const urenEl = document.querySelector('[data-abo-uren]');
   const kostenEl = document.querySelector('[data-abo-kosten]');
+  const prijsPerSessieEl = document.querySelector('[data-abo-prijs-per-sessie]');
+  const volgendeFactuurEl = document.querySelector('[data-abo-volgende-factuur]');
 
   if (frequentieEl) frequentieEl.textContent = formatFrequentie(data.frequentie);
   if (urenEl) urenEl.textContent = `${data.uren} uur`;
   if (kostenEl && data.bundle_amount_cents) {
     kostenEl.textContent = formatBedrag(data.bundle_amount_cents);
+  }
+  
+  // Prijs per sessie
+  if (prijsPerSessieEl && data.prijs_per_sessie_cents) {
+    prijsPerSessieEl.textContent = formatBedrag(data.prijs_per_sessie_cents);
+  }
+  
+  // Volgende factuur (alleen bij actieve abonnementen)
+  if (volgendeFactuurEl && data.status === 'actief' && data.startdatum) {
+    const volgendeFactuur = berekenVolgendeFactuur(data.startdatum, data.frequentie, data.sessions_per_4w);
+    if (volgendeFactuur) {
+      volgendeFactuurEl.textContent = formatDatum(volgendeFactuur.toISOString());
+    }
+  } else if (volgendeFactuurEl) {
+    volgendeFactuurEl.textContent = '-';
   }
 }
 
