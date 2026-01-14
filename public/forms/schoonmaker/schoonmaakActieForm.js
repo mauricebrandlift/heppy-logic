@@ -394,10 +394,10 @@ export async function initSchoonmaakActieForm() {
       // Valideer dat reden verplicht is bij afwijzen
       if (action === 'decline' && !reden) {
         console.error('[schoonmaakActieForm] ❌ Reden verplicht bij afwijzen');
-        throw {
-          code: 'DECLINE_REASON_REQUIRED',
-          message: 'Geef een reden op voor het afwijzen van deze opdracht.'
-        };
+        const error = new Error('Geef een reden op voor het afwijzen van deze opdracht.');
+        error.code = 'DECLINE_REASON_REQUIRED';
+        error.fieldName = 'reden';
+        throw error;
       }
       
       // Call juiste API
@@ -424,13 +424,9 @@ export async function initSchoonmaakActieForm() {
       }
     };
     
-    // Initialiseer formHandler
-    console.log('[schoonmaakActieForm] Initialiseren formHandler...');
-    formHandler.init({
-      formName: FORM_NAME,
-      formElement: formElement,
-      schema,
-      onSubmit: submitAction,
+    // Voeg submit handlers toe aan schema
+    schema.submit = {
+      action: submitAction,
       onSuccess: (result) => {
         console.log('[schoonmaakActieForm] ✅ Submit succesvol', result);
         
@@ -452,12 +448,12 @@ export async function initSchoonmaakActieForm() {
         
         console.log('[schoonmaakActieForm] Toon success wrapper:', wrapperName);
         showSuccessWrapper(wrapperName);
-      },
-      onError: (error) => {
-        console.error('[schoonmaakActieForm] ❌ Submit fout', error);
-        // formHandler toont automatisch error
       }
-    });
+    };
+    
+    // Initialiseer formHandler
+    console.log('[schoonmaakActieForm] Initialiseren formHandler...');
+    formHandler.init(schema);
     console.log('[schoonmaakActieForm] ✅ FormHandler geïnitialiseerd');
     
   } catch (error) {

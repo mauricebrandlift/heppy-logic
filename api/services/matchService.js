@@ -90,6 +90,31 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
     if (aanvraagResp.ok) {
       const aanvragen = await aanvraagResp.json();
       aanvraag = aanvragen[0] || null;
+      
+      // Fetch adres if aanvraag has adres_id
+      if (aanvraag && aanvraag.adres_id) {
+        const adresUrl = `${supabaseConfig.url}/rest/v1/adressen?id=eq.${aanvraag.adres_id}&select=straat,huisnummer,toevoeging,postcode,plaats`;
+        const adresResp = await httpClient(adresUrl, {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${supabaseConfig.anonKey}`
+          }
+        }, correlationId);
+        
+        if (adresResp.ok) {
+          const adressen = await adresResp.json();
+          const adres = adressen[0] || null;
+          // Merge adres data into aanvraag
+          if (adres) {
+            aanvraag.straat = adres.straat;
+            aanvraag.huisnummer = adres.huisnummer;
+            aanvraag.toevoeging = adres.toevoeging;
+            aanvraag.postcode = adres.postcode;
+            aanvraag.plaats = adres.plaats;
+          }
+        }
+      }
     }
   } else if (match.opdracht_id) {
     const opdrachtUrl = `${supabaseConfig.url}/rest/v1/opdrachten?id=eq.${match.opdracht_id}&select=*`;
