@@ -8,6 +8,12 @@
 import { supabaseConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
 import { sendEmail } from './emailService.js';
+import { matchGeaccepteerdKlant } from '../templates/emails/matchGeaccepteerdKlant.js';
+import { matchGeaccepteerdSchoonmaker } from '../templates/emails/matchGeaccepteerdSchoonmaker.js';
+import { matchGeaccepteerdAdmin } from '../templates/emails/matchGeaccepteerdAdmin.js';
+import { matchAfgewezenKlant } from '../templates/emails/matchAfgewezenKlant.js';
+import { matchAfgewezenSchoonmaker } from '../templates/emails/matchAfgewezenSchoonmaker.js';
+import { schoonmakerWeigertAdmin } from '../templates/emails/schoonmakerWeigertAdmin.js';
 
 /**
  * Get match details met aanvraag/opdracht en klant info
@@ -339,25 +345,98 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
 
   // Send confirmation emails
   try {
-    // Get klant email from aanvraag or opdracht
-    const klantEmail = matchDetails.type === 'aanvraag' 
+    const isAanvraag = matchDetails.type === 'aanvraag';
+    
+    // Get klant details
+    const klantEmail = isAanvraag 
       ? matchDetails.aanvraag?.email 
       : matchDetails.opdracht?.email;
     
-    const klantNaam = matchDetails.type === 'aanvraag'
+    const klantNaam = isAanvraag
       ? `${matchDetails.aanvraag?.voornaam || ''} ${matchDetails.aanvraag?.achternaam || ''}`.trim()
-      : 'klant'; // Opdrachten hebben geen voornaam/achternaam in tabel
+      : matchDetails.opdracht?.voornaam || 'klant';
     
+    // Get opdracht type voor opdrachten
+    const opdrachtTypeMap = {
+      'dieptereiniging': 'Dieptereiniging',
+      'verhuis': 'Verhuisschoonmaak',
+      'tapijt': 'Tapijtreiniging',
+      'vloer': 'Vloerreiniging',
+      'eindschoonmaak': 'Eindschoonmaak'
+    };
+    const typeNaam = !isAanvraag && matchDetails.opdracht?.type
+      ? opdrachtTypeMap[matchDetails.opdracht.type]
+      : null;
+    
+    // Frequentie voor abonnementen
+    const frequentie = isAanvraag && matchDetails.aanvraag?.schoonmaak_optie
+      ? matchDetails.aanvraag.schoonmaak_optie === 'perweek'
+        ? '1x per week'
+        : matchDetails.aanvraag.schoonmaak_optie === 'pertweeweek'
+          ? '1x per 2 weken'
+          : null
+      : null;
+    
+    // Adres samenstellen
+    const adresData = isAanvraag ? matchDetails.aanvraag : matchDetails.opdracht;
+    const adres = `${adresData?.straat || ''} ${adresData?.huisnummer || ''}${adresData?.toevoeging ? ` ${adresData.toevoeging}` : ''}`.trim();
+    const plaats = adresData?.plaats || '';
+    
+    // Uren
+    const uren = isAanvraag ? matchDetails.aanvraag?.uren : matchDetails.opdracht?.uren;
+    
+    // Gewenste datum voor opdrachten
+    const gewensteDatum = !isAanvraag ? matchDetails.opdracht?.gewenste_datum : null;
+    
+    const schoonmakerNaam = `${matchDetails.schoonmaker.voornaam} ${matchDetails.schoonmaker.achternaam}`;
+    
+    const emailData = {
+      klantNaam,
+      schoonmakerNaam,
+      type: matchDetails.type,
+      typeNaam,
+      plaats,
+      adres,
+      uren,
+      frequentie,
+      gewensteDatum,
+      matchId: matchDetails.id,
+      aanvraagId: matchDetails.aanvraag?.id,
+      opdrachtId: matchDetails.opdracht?.id,
+      klantEmail,
+      schoonmakerEmail: matchDetails.schoonmaker.email,
+      klantTelefoon: isAanvraag ? matchDetails.aanvraag?.telefoon : null
+    };
+    
+    // 1. Email naar klant
     if (klantEmail && matchDetails.schoonmaker) {
       await sendEmail({
         to: klantEmail,
-        subject: 'Schoonmaker geaccepteerd',
-        html: `<p>Beste ${klantNaam},</p>
-               <p>Uw ${matchDetails.type === 'aanvraag' ? 'abonnement' : 'opdracht'} is geaccepteerd door ${matchDetails.schoonmaker.voornaam} ${matchDetails.schoonmaker.achternaam}.</p>`
+        subject: `✅ ${schoonmakerNaam} heeft je ${isAanvraag ? 'aanvraag' : 'opdracht'} geaccepteerd!`,
+        html: matchGeaccepteerdKlant(emailData)
       });
-
-      console.log(`[matchService.approveMatch] Confirmation emails sent [${correlationId}]`);
+      console.log(`[matchService.approveMatch] Email sent to klant [${correlationId}]`);
     }
+    
+    // 2. Email naar schoonmaker
+    if (matchDetails.schoonmaker.email) {
+      await sendEmail({
+        to: matchDetails.schoonmaker.email,
+        subject: `✅ Je hebt de ${isAanvraag ? 'aanvraag' : 'opdracht'} geaccepteerd - Neem contact op!`,
+        html: matchGeaccepteerdSchoonmaker(emailData)
+      });
+      console.log(`[matchService.approveMatch] Email sent to schoonmaker [${correlationId}]`);
+    }
+    
+    // 3. Email naar admin
+    await sendEmail({
+      to: 'info@heppy.nl',
+      subject: `🎉 Match geaccepteerd: ${schoonmakerNaam} → ${klantNaam}`,
+      html: matchGeaccepteerdAdmin(emailData)
+    });
+    console.log(`[matchService.approveMatch] Email sent to admin [${correlationId}]`);
+    
+    console.log(`[matchService.approveMatch] All confirmation emails sent [${correlationId}]`);
   } catch (emailError) {
     console.error(`[matchService.approveMatch] Email sending failed [${correlationId}]`, emailError);
     // Don't throw - match is already approved
@@ -446,25 +525,100 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
 
   // Send notification emails
   try {
-    // Get klant info from aanvraag or opdracht  
-    const klantNaam = matchDetails.type === 'aanvraag'
+    const isAanvraag = matchDetails.type === 'aanvraag';
+    
+    // Get klant details
+    const klantEmail = isAanvraag 
+      ? matchDetails.aanvraag?.email 
+      : matchDetails.opdracht?.email;
+    
+    const klantNaam = isAanvraag
       ? `${matchDetails.aanvraag?.voornaam || ''} ${matchDetails.aanvraag?.achternaam || ''}`.trim()
-      : 'klant';
+      : matchDetails.opdracht?.voornaam || 'klant';
+    
+    // Get opdracht type voor opdrachten
+    const opdrachtTypeMap = {
+      'dieptereiniging': 'Dieptereiniging',
+      'verhuis': 'Verhuisschoonmaak',
+      'tapijt': 'Tapijtreiniging',
+      'vloer': 'Vloerreiniging',
+      'eindschoonmaak': 'Eindschoonmaak'
+    };
+    const typeNaam = !isAanvraag && matchDetails.opdracht?.type
+      ? opdrachtTypeMap[matchDetails.opdracht.type]
+      : null;
+    
+    // Frequentie voor abonnementen
+    const frequentie = isAanvraag && matchDetails.aanvraag?.schoonmaak_optie
+      ? matchDetails.aanvraag.schoonmaak_optie === 'perweek'
+        ? '1x per week'
+        : matchDetails.aanvraag.schoonmaak_optie === 'pertweeweek'
+          ? '1x per 2 weken'
+          : null
+      : null;
+    
+    // Adres samenstellen
+    const adresData = isAanvraag ? matchDetails.aanvraag : matchDetails.opdracht;
+    const adres = `${adresData?.straat || ''} ${adresData?.huisnummer || ''}${adresData?.toevoeging ? ` ${adresData.toevoeging}` : ''}`.trim();
+    const plaats = adresData?.plaats || '';
+    
+    // Uren
+    const uren = isAanvraag ? matchDetails.aanvraag?.uren : matchDetails.opdracht?.uren;
+    
+    // Gewenste datum voor opdrachten
+    const gewensteDatum = !isAanvraag ? matchDetails.opdracht?.gewenste_datum : null;
     
     const schoonmakerNaam = matchDetails.schoonmaker 
       ? `${matchDetails.schoonmaker.voornaam} ${matchDetails.schoonmaker.achternaam}`
       : 'onbekend';
 
-    // Email to admin
+    const emailData = {
+      klantNaam,
+      schoonmakerNaam,
+      type: matchDetails.type,
+      typeNaam,
+      plaats,
+      adres,
+      uren,
+      frequentie,
+      gewensteDatum,
+      reden,
+      matchId: matchDetails.id,
+      aanvraagId: matchDetails.aanvraag?.id,
+      opdrachtId: matchDetails.opdracht?.id,
+      klantEmail,
+      schoonmakerEmail: matchDetails.schoonmaker?.email
+    };
+    
+    // 1. Email naar klant - stel gerust dat we een nieuwe schoonmaker zoeken
+    if (klantEmail) {
+      await sendEmail({
+        to: klantEmail,
+        subject: `Update over je ${isAanvraag ? 'aanvraag' : 'opdracht'} - We zoeken een nieuwe schoonmaker`,
+        html: matchAfgewezenKlant(emailData)
+      });
+      console.log(`[matchService.rejectMatch] Email sent to klant [${correlationId}]`);
+    }
+    
+    // 2. Email naar schoonmaker - bevestig afwijzing
+    if (matchDetails.schoonmaker?.email) {
+      await sendEmail({
+        to: matchDetails.schoonmaker.email,
+        subject: 'Afwijzing bevestigd',
+        html: matchAfgewezenSchoonmaker(emailData)
+      });
+      console.log(`[matchService.rejectMatch] Email sent to schoonmaker [${correlationId}]`);
+    }
+    
+    // 3. Email naar admin - actie vereist!
     await sendEmail({
-      to: 'admin@heppy-schoonmaak.nl',
-      subject: 'Match afgewezen',
-      html: `<p>Match ${matchId} is afgewezen door ${schoonmakerNaam}.</p>
-             <p>Reden: ${reden}</p>
-             <p>Klant: ${klantNaam}</p>`
+      to: 'info@heppy.nl',
+      subject: `🚨 ACTIE: ${schoonmakerNaam} heeft match afgewezen - ${klantNaam} in ${plaats}`,
+      html: schoonmakerWeigertAdmin(emailData)
     });
+    console.log(`[matchService.rejectMatch] Email sent to admin [${correlationId}]`);
 
-    console.log(`[matchService.rejectMatch] Notification emails sent [${correlationId}]`);
+    console.log(`[matchService.rejectMatch] All notification emails sent [${correlationId}]`);
   } catch (emailError) {
     console.error(`[matchService.rejectMatch] Email sending failed [${correlationId}]`, emailError);
     // Don't throw - match is already rejected
