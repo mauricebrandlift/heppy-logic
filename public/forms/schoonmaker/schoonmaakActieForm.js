@@ -259,8 +259,12 @@ export async function initSchoonmaakActieForm() {
   try {
     // Haal match details op
     console.log('[schoonmaakActieForm] Ophalen match details voor match_id:', matchId);
-    const matchData = await fetchMatchDetails(matchId);
-    console.log('[schoonmaakActieForm] ✅ Match details ontvangen:', matchData);
+    const response = await fetchMatchDetails(matchId);
+    console.log('[schoonmaakActieForm] ✅ Match details response ontvangen:', response);
+    
+    // Unpack data from response
+    const matchData = response.data;
+    console.log('[schoonmaakActieForm] Match data:', matchData);
     
     // Check of match al verwerkt is
     if (matchData.status !== 'open') {
