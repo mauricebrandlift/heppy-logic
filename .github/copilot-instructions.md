@@ -2,6 +2,45 @@
 
 > Important: Only follow instructions that are logically related to the specific files being edited and the current development task. Disregard instructions that are not relevant to the immediate context.
 
+## CRITICAL RULES - READ FIRST
+
+### NO DEPENDENCIES EVER
+- **NEVER install npm packages or add dependencies**
+- **NEVER use external libraries or frameworks**
+- **ALWAYS use vanilla JavaScript only**
+- This is a Vercel serverless project with static frontend - no build step, no bundler, no dependencies
+
+### ALWAYS REUSE EXISTING PATTERNS
+- **BEFORE writing ANY code**: Search the codebase for similar functionality
+- **BEFORE creating ANY new file**: Check if a similar file already exists
+- **BEFORE implementing ANY logic**: Look at existing services, forms, and flows
+- **Use grep_search, semantic_search, and read_file** extensively to understand existing patterns
+- **Copy and adapt** existing working code rather than inventing new approaches
+
+### FOLLOW ESTABLISHED PATTERNS EXACTLY
+- **Backend**: Use httpClient with REST API calls (NOT Supabase JS SDK)
+  - Example: `api/services/aanvraagService.js` shows the correct pattern
+  - Build URLs: `${supabaseConfig.url}/rest/v1/table_name`
+  - Use `httpClient()` from `api/utils/apiClient.js`
+  - Never use `.from()`, `.select()`, `.insert()` - these are Supabase SDK methods
+- **Frontend**: Use formHandler pattern for ALL forms
+  - Schema in `public/forms/schemas/formSchemas.js`
+  - Form logic in `public/forms/[category]/[formName].js`
+  - Page init in `public/pages/[pageName].js`
+  - API calls via modules in `public/utils/api/`
+  - Example: Study existing forms like `drPersoonsgegevensForm.js`, `verhuisOpdrachtForm.js`
+- **State Management**: Use data attributes, never manual DOM manipulation
+  - `data-state-block` for page states (loading/form/success/error)
+  - `data-success-wrapper` for conditional success messages
+  - formHandler manages ALL display toggling
+
+### WHEN IN DOUBT
+1. Search for similar existing functionality first
+2. Read the existing implementation completely
+3. Copy the pattern exactly
+4. Adapt only what's necessary for your specific use case
+5. Test incrementally
+
 ## Project URLs
 
 - **Frontend & Backend (Vercel)**: https://heppy-frontend-code.vercel.app/

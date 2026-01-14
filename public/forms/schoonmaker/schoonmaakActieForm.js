@@ -409,9 +409,11 @@ export async function initSchoonmaakActieForm() {
       const errorBlock = document.querySelector('[data-state-block="error"]');
       if (errorBlock) {
         const message = error.message || 'Er is een fout opgetreden bij het laden van de gegevens.';
-        const errorContainer = errorBlock.querySelector('[data-error-for="global"]') || errorBlock;
-        showError(message, errorContainer);
-        console.log('[schoonmaakActieForm] Error bericht getoond:', message);
+        const errorElement = errorBlock.querySelector('[data-error-message]');
+        if (errorElement) {
+          errorElement.textContent = message;
+          console.log('[schoonmaakActieForm] Error bericht getoond:', message);
+        }
       } else {
         console.error('[schoonmaakActieForm] Error block niet gevonden in DOM!');
       }

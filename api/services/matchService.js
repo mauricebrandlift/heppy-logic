@@ -32,7 +32,7 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
     'opdracht:opdrachten(id,soort_opdracht,status,gewenste_datum,uren,admin_notities,straatnaam,huisnummer,toevoeging,postcode,plaats,klant:klanten(id,voornaam,achternaam,email,telefoon,adres,postcode,plaats))'
   ].join(','));
 
-  const matchUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_matches?id=eq.${matchId}&select=${select}`;
+  const matchUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?id=eq.${matchId}&select=${select}`;
   
   const matchResp = await httpClient(matchUrl, {
     method: 'GET',
@@ -103,7 +103,7 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
   }
 
   // Update match status to geaccepteerd
-  const updateUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_matches?id=eq.${matchId}`;
+  const updateUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?id=eq.${matchId}`;
   const updateResp = await httpClient(updateUrl, {
     method: 'PATCH',
     headers: {
@@ -219,7 +219,7 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
   }
 
   // Update match status to geweigerd
-  const updateUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_matches?id=eq.${matchId}`;
+  const updateUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?id=eq.${matchId}`;
   const updateResp = await httpClient(updateUrl, {
     method: 'PATCH',
     headers: {
