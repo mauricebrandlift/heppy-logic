@@ -19,6 +19,7 @@ const {
   MAIL_NOTIFICATIONS,
   MAIL_FROM,
   MAIL_REPLY_TO,
+  FRONTEND_URL,
   CURRENCY = 'EUR',
   COUNTRY = 'NL',
 } = process.env;
@@ -97,4 +98,8 @@ export const emailConfig = {
   notificationsEmail: MAIL_NOTIFICATIONS || MAIL_ADMIN, // Fallback naar MAIL_ADMIN voor backwards compatibility
   fromEmail: MAIL_FROM,
   replyToEmail: MAIL_REPLY_TO,
+};
+
+export const frontendConfig = {
+  baseUrl: FRONTEND_URL || 'https://heppy-frontend-code.vercel.app', // Fallback voor development
 };

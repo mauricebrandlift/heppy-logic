@@ -6,6 +6,7 @@
  */
 
 import { baseLayout, formatDatum, formatBedrag } from './baseLayout.js';
+import { frontendConfig } from '../../config/index.js';
 
 /**
  * Genereer HTML voor dieptereiniging opdracht toewijzing (Schoonmaker)
@@ -119,12 +120,12 @@ export function dieptereinigingToegewezenSchoonmaker(data) {
     </ul>
     
     <div style="margin: 30px 0; text-align: center;">
-      <a href="https://heppy-frontend-code.vercel.app/schoonmaak-actie?match_id=${matchId}&action=approve" class="button" style="background: #10b981; margin-right: 10px;">✓ Accepteer Opdracht</a>
-      <a href="https://heppy-frontend-code.vercel.app/schoonmaak-actie?match_id=${matchId}&action=decline" class="button" style="background: #ef4444;">✗ Weiger Opdracht</a>
+      <a href="${frontendConfig.baseUrl}/schoonmaak-actie?match_id=${matchId}&action=approve" class="button" style="background: #10b981; margin-right: 10px;">✓ Accepteer Opdracht</a>
+      <a href="${frontendConfig.baseUrl}/schoonmaak-actie?match_id=${matchId}&action=decline" class="button" style="background: #ef4444;">✗ Weiger Opdracht</a>
     </div>
     
     <p style="margin-top: 30px; text-align: center;">
-      <a href="https://heppy-frontend-code.vercel.app/dashboard-schoonmaker" style="color: #3b82f6; text-decoration: underline; font-size: 14px;">Bekijk volledige opdracht details →</a>
+      <a href="${frontendConfig.baseUrl}/schoonmaker-dashboard" style="color: #3b82f6; text-decoration: underline; font-size: 14px;">Bekijk volledige opdracht details →</a>
     </p>
     
     <div style="background: #f3f4f6; padding: 15px; margin-top: 40px; border-radius: 4px; font-size: 12px; color: #6b7280;">

@@ -42,6 +42,14 @@
 - Verify foreign key relationships for Supabase REST API joins
 - Never guess table/column names - always check schema.sql first
 
+### FRONTEND BASE URL
+- **NEVER hardcode Vercel URLs** in backend code or email templates
+- **ALWAYS use `frontendConfig.baseUrl`** from `api/config/index.js`
+- Import: `import { frontendConfig } from '../../config/index.js';`
+- Usage: `${frontendConfig.baseUrl}/schoonmaak-actie?match_id=${matchId}`
+- This uses the `FRONTEND_URL` environment variable (e.g., custom domain instead of vercel.app)
+- Frontend config has fallback for development: `'https://heppy-frontend-code.vercel.app'`
+
 ### WHEN IN DOUBT
 1. Search for similar existing functionality first
 2. Read the existing implementation completely

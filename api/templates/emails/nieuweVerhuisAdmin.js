@@ -6,6 +6,7 @@
  */
 
 import { baseLayout, formatDatum, formatBedrag } from './baseLayout.js';
+import { frontendConfig } from '../../config/index.js';
 
 /**
  * Genereer HTML voor nieuwe verhuis/opleverschoonmaak notificatie (Admin)
@@ -125,7 +126,7 @@ export function nieuweVerhuisAdmin(data) {
     </ul>
     
     <p style="margin-top: 30px;">
-      <a href="https://heppy-frontend-code.vercel.app/admin-dashboard" class="button">Bekijk in Dashboard</a>
+      <a href="${frontendConfig.baseUrl}/admin-dashboard" class="button">Bekijk in Dashboard</a>
     </p>
   `;
 
