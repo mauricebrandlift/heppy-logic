@@ -131,35 +131,15 @@ function getMatchDetails(matchData) {
     const uren = matchData.aanvraag?.uren || 4;
     return `${freq}, ${uren} uur per schoonmaak`;
   } else {
-    // Opdracht details from gegevens JSONB
-    const gegevens = matchData.opdracht?.gegevens || {};
-    const opdrachtType = matchData.opdracht?.type || '';
+    // Opdracht: toon aantal uren (kritisch voor schoonmaker!)
+    const uren = matchData.opdracht?.uren;
     
-    // Build details based on available data
-    const details = [];
-    
-    // Common fields across all types
-    if (gegevens.m2) details.push(`${gegevens.m2}m²`);
-    if (gegevens.uren) details.push(`${gegevens.uren} uur`);
-    
-    // Type-specific fields
-    if (opdrachtType === 'verhuis') {
-      if (gegevens.toiletten) details.push(`${gegevens.toiletten} toilet${gegevens.toiletten > 1 ? 'ten' : ''}`);
-      if (gegevens.badkamers) details.push(`${gegevens.badkamers} badkamer${gegevens.badkamers > 1 ? 's' : ''}`);
-    } else if (opdrachtType === 'tapijt' || opdrachtType === 'vloer') {
-      if (gegevens.materiaal) details.push(gegevens.materiaal);
-      if (gegevens.kamers) details.push(`${gegevens.kamers} kamer${gegevens.kamers > 1 ? 's' : ''}`);
-    } else if (opdrachtType === 'dieptereiniging') {
-      if (gegevens.type_woning) details.push(gegevens.type_woning);
-      if (gegevens.aantal_kamers) details.push(`${gegevens.aantal_kamers} kamers`);
+    if (uren) {
+      return `${uren} uur`;
     }
     
-    // Fallback if no details found in gegevens
-    if (details.length === 0) {
-      return 'Meer info in je dashboard';
-    }
-    
-    return details.join(', ');
+    // Fallback if no uren found
+    return 'Meer info in je dashboard';
   }
 }
 

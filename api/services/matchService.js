@@ -210,6 +210,14 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
       } else {
         console.warn(`[matchService.getMatchDetails] No gebruiker_id in opdracht [${correlationId}]`);
       }
+      
+      // Extract aantal uren from gegevens JSONB (critical for schoonmaker to know workload)
+      if (opdracht.gegevens && opdracht.gegevens.dr_uren) {
+        opdracht.uren = opdracht.gegevens.dr_uren;
+        console.log(`[matchService.getMatchDetails] Extracted uren from gegevens [${correlationId}]`, {
+          uren: opdracht.uren
+        });
+      }
     }
   }
 
