@@ -102,10 +102,17 @@ function getMatchType(matchData) {
   if (matchData.type === 'aanvraag') {
     return 'Schoonmaak Abonnement';
   } else {
-    const soort = matchData.opdracht?.soort_opdracht || '';
-    if (soort === 'dieptereiniging') return 'Eenmalige Opdracht: Dieptereiniging';
-    if (soort === 'verhuis') return 'Eenmalige Opdracht: Verhuisreiniging';
-    return 'Eenmalige Opdracht';
+    // For opdrachten: use type field from opdrachten table
+    const opdrachtType = matchData.opdracht?.type || 'eenmalig';
+    const typeMap = {
+      'dieptereiniging': 'Dieptereiniging',
+      'tapijt': 'Tapijtreiniging',
+      'vloer': 'Vloerreiniging',
+      'verhuis': 'Verhuisschoonmaak',
+      'eenmalig': 'Eenmalige schoonmaak',
+      'onbekend': 'Eenmalige schoonmaak'
+    };
+    return typeMap[opdrachtType] || 'Eenmalige schoonmaak';
   }
 }
 
@@ -124,10 +131,35 @@ function getMatchDetails(matchData) {
     const uren = matchData.aanvraag?.uren || 4;
     return `${freq}, ${uren} uur per schoonmaak`;
   } else {
-    // Opdrachten: gebruik gegevens.uren of vaste kolom (schema heeft geen 'uren' kolom!)
-    // Check schema: opdrachten heeft geen uren kolom, alleen gegevens (jsonb)
-    const adminNotes = matchData.opdracht?.opmerking || '';
-    return adminNotes || 'Eenmalige schoonmaak';
+    // Opdracht details from gegevens JSONB
+    const gegevens = matchData.opdracht?.gegevens || {};
+    const opdrachtType = matchData.opdracht?.type || '';
+    
+    // Build details based on available data
+    const details = [];
+    
+    // Common fields across all types
+    if (gegevens.m2) details.push(`${gegevens.m2}m²`);
+    if (gegevens.uren) details.push(`${gegevens.uren} uur`);
+    
+    // Type-specific fields
+    if (opdrachtType === 'verhuis') {
+      if (gegevens.toiletten) details.push(`${gegevens.toiletten} toilet${gegevens.toiletten > 1 ? 'ten' : ''}`);
+      if (gegevens.badkamers) details.push(`${gegevens.badkamers} badkamer${gegevens.badkamers > 1 ? 's' : ''}`);
+    } else if (opdrachtType === 'tapijt' || opdrachtType === 'vloer') {
+      if (gegevens.materiaal) details.push(gegevens.materiaal);
+      if (gegevens.kamers) details.push(`${gegevens.kamers} kamer${gegevens.kamers > 1 ? 's' : ''}`);
+    } else if (opdrachtType === 'dieptereiniging') {
+      if (gegevens.type_woning) details.push(gegevens.type_woning);
+      if (gegevens.aantal_kamers) details.push(`${gegevens.aantal_kamers} kamers`);
+    }
+    
+    // Fallback if no details found in gegevens
+    if (details.length === 0) {
+      return 'Meer info in je dashboard';
+    }
+    
+    return details.join(', ');
   }
 }
 

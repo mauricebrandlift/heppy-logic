@@ -129,6 +129,67 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
     if (opdrachtResp.ok) {
       const opdrachten = await opdrachtResp.json();
       opdracht = opdrachten[0] || null;
+      
+      // For opdrachten: get gebruiker (klant) info and adres
+      if (opdracht && opdracht.gebruiker_id) {
+        // Get user_profile for voornaam/achternaam
+        const userUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${opdracht.gebruiker_id}&select=voornaam,achternaam,email`;
+        const userResp = await httpClient(userUrl, {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${supabaseConfig.anonKey}`
+          }
+        }, correlationId);
+        
+        if (userResp.ok) {
+          const users = await userResp.json();
+          const user = users[0];
+          if (user) {
+            opdracht.voornaam = user.voornaam;
+            opdracht.achternaam = user.achternaam;
+            opdracht.email = opdracht.email || user.email; // Fallback to user email if opdracht doesn't have one
+          }
+        }
+        
+        // Get current adres via adressen_historiek
+        const adresHistUrl = `${supabaseConfig.url}/rest/v1/adressen_historiek?user_id=eq.${opdracht.gebruiker_id}&geldig_tot=is.null&select=adres_id`;
+        const adresHistResp = await httpClient(adresHistUrl, {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${supabaseConfig.anonKey}`
+          }
+        }, correlationId);
+        
+        if (adresHistResp.ok) {
+          const adresHist = await adresHistResp.json();
+          const currentAdres = adresHist[0];
+          
+          if (currentAdres && currentAdres.adres_id) {
+            const adresUrl = `${supabaseConfig.url}/rest/v1/adressen?id=eq.${currentAdres.adres_id}&select=straat,huisnummer,toevoeging,postcode,plaats`;
+            const adresResp = await httpClient(adresUrl, {
+              method: 'GET',
+              headers: {
+                'apikey': supabaseConfig.anonKey,
+                'Authorization': `Bearer ${supabaseConfig.anonKey}`
+              }
+            }, correlationId);
+            
+            if (adresResp.ok) {
+              const adressen = await adresResp.json();
+              const adres = adressen[0];
+              if (adres) {
+                opdracht.straat = adres.straat;
+                opdracht.huisnummer = adres.huisnummer;
+                opdracht.toevoeging = adres.toevoeging;
+                opdracht.postcode = adres.postcode;
+                opdracht.plaats = adres.plaats;
+              }
+            }
+          }
+        }
+      }
     }
   }
 

@@ -97,16 +97,26 @@ export default async function handler(req, res) {
 
       console.log(`[approve] ========== SUCCESS ========== [${correlationId}]`);
 
+      // Handle both aanvraag and opdracht responses
+      const responseData = {
+        schoonmaker_id: result.schoonmaker.id,
+        match_id: result.match.id,
+        status: result.match.status
+      };
+      
+      if (result.aanvraag) {
+        responseData.aanvraag_id = result.aanvraag.id;
+        responseData.abonnement_id = result.abonnement.id;
+      }
+      
+      if (result.opdracht) {
+        responseData.opdracht_id = result.opdracht.id;
+      }
+
       return res.status(200).json({
         success: true,
-        message: 'Aanvraag succesvol goedgekeurd',
-        data: {
-          aanvraag_id: result.aanvraag.id,
-          abonnement_id: result.abonnement.id,
-          schoonmaker_id: result.schoonmaker.id,
-          match_id: result.match.id,
-          status: result.match.status
-        }
+        message: result.aanvraag ? 'Aanvraag succesvol goedgekeurd' : 'Opdracht succesvol goedgekeurd',
+        data: responseData
       });
     }
 
