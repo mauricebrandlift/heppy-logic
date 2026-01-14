@@ -16,6 +16,12 @@ import { matchAfgewezenSchoonmaker } from '../templates/emails/matchAfgewezenSch
 import { schoonmakerWeigertAdmin } from '../templates/emails/schoonmakerWeigertAdmin.js';
 
 /**
+ * Delay helper om rate limits te vermijden
+ * @param {number} ms - Milliseconds to wait
+ */
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+/**
  * Get match details met aanvraag/opdracht en klant info
  * @param {string} matchId - UUID van de match
  * @param {string} correlationId - Correlation ID voor logging
@@ -408,6 +414,12 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
       klantTelefoon: isAanvraag ? matchDetails.aanvraag?.telefoon : null
     };
     
+    console.log(`[matchService.approveMatch] Sending emails [${correlationId}]`, {
+      klantEmail,
+      schoonmakerEmail: matchDetails.schoonmaker.email,
+      adminEmail: 'info@heppy.nl'
+    });
+    
     // 1. Email naar klant
     if (klantEmail && matchDetails.schoonmaker) {
       await sendEmail({
@@ -416,6 +428,7 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
         html: matchGeaccepteerdKlant(emailData)
       });
       console.log(`[matchService.approveMatch] Email sent to klant [${correlationId}]`);
+      await delay(600); // Wait 600ms to avoid rate limit (Resend: 2 req/sec)
     }
     
     // 2. Email naar schoonmaker
@@ -426,6 +439,7 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
         html: matchGeaccepteerdSchoonmaker(emailData)
       });
       console.log(`[matchService.approveMatch] Email sent to schoonmaker [${correlationId}]`);
+      await delay(600); // Wait 600ms to avoid rate limit
     }
     
     // 3. Email naar admin
@@ -590,6 +604,12 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
       schoonmakerEmail: matchDetails.schoonmaker?.email
     };
     
+    console.log(`[matchService.rejectMatch] Sending emails [${correlationId}]`, {
+      klantEmail,
+      schoonmakerEmail: matchDetails.schoonmaker?.email,
+      adminEmail: 'info@heppy.nl'
+    });
+    
     // 1. Email naar klant - stel gerust dat we een nieuwe schoonmaker zoeken
     if (klantEmail) {
       await sendEmail({
@@ -598,6 +618,7 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
         html: matchAfgewezenKlant(emailData)
       });
       console.log(`[matchService.rejectMatch] Email sent to klant [${correlationId}]`);
+      await delay(600); // Wait 600ms to avoid rate limit
     }
     
     // 2. Email naar schoonmaker - bevestig afwijzing
@@ -608,6 +629,7 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
         html: matchAfgewezenSchoonmaker(emailData)
       });
       console.log(`[matchService.rejectMatch] Email sent to schoonmaker [${correlationId}]`);
+      await delay(600); // Wait 600ms to avoid rate limit
     }
     
     // 3. Email naar admin - actie vereist!
