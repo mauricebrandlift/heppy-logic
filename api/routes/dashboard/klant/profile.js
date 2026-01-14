@@ -91,6 +91,6 @@ export default async function handler(req, res) {
 
   } catch (error) {
     console.error('❌ [Profile API] Error:', error);
-    return handleErrorResponse(error, res, correlationId);
+    return handleErrorResponse(res, error, correlationId);
   }
 }
