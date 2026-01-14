@@ -285,7 +285,12 @@ function toggleRedenWrapper(selectedAction) {
     redenWrapper.style.display = 'none';
     // Clear reden field als niet nodig
     const redenField = document.querySelector('[data-field-name="reden"]');
-    if (redenField) redenField.value = '';
+    if (redenField) {
+      redenField.value = '';
+      // Trigger change event to update formHandler state
+      redenField.dispatchEvent(new Event('input', { bubbles: true }));
+      redenField.dispatchEvent(new Event('change', { bubbles: true }));
+    }
   }
 }
 
@@ -365,16 +370,16 @@ export async function initSchoonmaakActieForm() {
     }
     console.log('[schoonmaakActieForm] ✅ Form element gevonden');
     
-    // Preselecteer action als in URL
+    // Preselecteer action als in URL (map approve/decline to goedkeuren/afkeuren)
     if (action === 'approve' || action === 'decline') {
-      console.log('[schoonmaakActieForm] Preselecteren action uit URL:', action);
-      const radio = formElement.querySelector(`[data-field-name="action"][value="${action}"]`);
+      const mappedAction = action === 'approve' ? 'goedkeuren' : 'afkeuren';
+      console.log('[schoonmaakActieForm] Preselecteren action uit URL:', action, '→', mappedAction);
+      const radio = formElement.querySelector(`[data-field-name="action"][value="${mappedAction}"]`);
       if (radio) {
         radio.checked = true;
-        toggleRedenWrapper(action);
-        console.log('[schoonmaakActieForm] ✅ Action radio geselecteerd:', action);
+        console.log('[schoonmaakActieForm] ✅ Action radio geselecteerd:', mappedAction);
       } else {
-        console.warn('[schoonmaakActieForm] ⚠️ Action radio niet gevonden voor value:', action);
+        console.warn('[schoonmaakActieForm] ⚠️ Action radio niet gevonden voor value:', mappedAction);
       }
     }
     
@@ -490,6 +495,23 @@ export async function initSchoonmaakActieForm() {
     console.log('[schoonmaakActieForm] Initialiseren formHandler...');
     formHandler.init(schema);
     console.log('[schoonmaakActieForm] ✅ FormHandler geïnitialiseerd');
+    
+    // Check initial state for pre-selected action
+    const checkedRadio = formElement.querySelector('[data-field-name="action"]:checked');
+    if (checkedRadio) {
+      console.log('[schoonmaakActieForm] Initial action pre-selected:', checkedRadio.value);
+      toggleRedenWrapper(checkedRadio.value);
+      
+      // Update schema validators if afkeuren is pre-selected
+      if (checkedRadio.value === 'afkeuren' && schema.fields.reden) {
+        schema.fields.reden.validators = ['required'];
+        const redenField = document.querySelector('[data-field-name="reden"]');
+        if (redenField) {
+          redenField.setAttribute('required', 'required');
+          redenField.setAttribute('aria-required', 'true');
+        }
+      }
+    }
     
   } catch (error) {
     console.error('[schoonmaakActieForm] ❌ Fout bij initialiseren:', error);

@@ -216,8 +216,8 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
     }, correlationId);
 
     // Update abonnement with schoonmaker if exists
-    if (match.abonnement_id) {
-      const abonnementUpdateUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${match.abonnement_id}`;
+    if (matchDetails.aanvraag?.abonnement_id) {
+      const abonnementUpdateUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${matchDetails.aanvraag.abonnement_id}`;
       await httpClient(abonnementUpdateUrl, {
         method: 'PATCH',
         headers: {
@@ -226,7 +226,7 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ 
-          schoonmaker_id: match.schoonmaker_id,
+          schoonmaker_id: matchDetails.schoonmaker.id,
           status: 'actief'
         })
       }, correlationId);
@@ -243,7 +243,7 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
       },
       body: JSON.stringify({ 
         status: 'gepland',
-        schoonmaker_id: match.schoonmaker_id
+        schoonmaker_id: matchDetails.schoonmaker.id
       })
     }, correlationId);
   }
