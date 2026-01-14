@@ -128,7 +128,7 @@ export function dieptereinigingBevestigingKlant(data) {
     </div>
     
     <p style="margin-top: 30px;">
-      <a href="#" class="button">Bekijk Mijn Opdracht</a>
+      <a href="https://heppy-frontend-code.vercel.app/klant-dashboard" class="button">Bekijk Mijn Opdracht</a>
     </p>
     
     <p style="margin-top: 40px; font-size: 14px; color: #6b7280;">

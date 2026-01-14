@@ -103,7 +103,7 @@ export function nieuweAanvraagAdmin(data) {
     </ul>
     
     <p style="margin-top: 30px;">
-      <a href="#" class="button">Bekijk in Dashboard</a>
+      <a href="https://heppy-frontend-code.vercel.app/admin-dashboard" class="button">Bekijk in Dashboard</a>
     </p>
   `;
 
