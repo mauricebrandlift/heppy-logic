@@ -130,8 +130,17 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
       const opdrachten = await opdrachtResp.json();
       opdracht = opdrachten[0] || null;
       
+      console.log(`[matchService.getMatchDetails] Opdracht fetched [${correlationId}]`, {
+        has_opdracht: !!opdracht,
+        gebruiker_id: opdracht?.gebruiker_id
+      });
+      
       // For opdrachten: get gebruiker (klant) info and adres
       if (opdracht && opdracht.gebruiker_id) {
+        console.log(`[matchService.getMatchDetails] Fetching user info for opdracht [${correlationId}]`, {
+          gebruiker_id: opdracht.gebruiker_id
+        });
+        
         // Get user_profile for voornaam/achternaam
         const userUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${opdracht.gebruiker_id}&select=voornaam,achternaam,email`;
         const userResp = await httpClient(userUrl, {
@@ -145,6 +154,10 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
         if (userResp.ok) {
           const users = await userResp.json();
           const user = users[0];
+          console.log(`[matchService.getMatchDetails] User fetched [${correlationId}]`, {
+            has_user: !!user,
+            voornaam: user?.voornaam
+          });
           if (user) {
             opdracht.voornaam = user.voornaam;
             opdracht.achternaam = user.achternaam;
@@ -153,6 +166,9 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
         }
         
         // Get current adres via adressen_historiek
+        console.log(`[matchService.getMatchDetails] Fetching adres historiek [${correlationId}]`, {
+          gebruiker_id: opdracht.gebruiker_id
+        });
         const adresHistUrl = `${supabaseConfig.url}/rest/v1/adressen_historiek?user_id=eq.${opdracht.gebruiker_id}&geldig_tot=is.null&select=adres_id`;
         const adresHistResp = await httpClient(adresHistUrl, {
           method: 'GET',
@@ -165,6 +181,10 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
         if (adresHistResp.ok) {
           const adresHist = await adresHistResp.json();
           const currentAdres = adresHist[0];
+          console.log(`[matchService.getMatchDetails] Adres historiek fetched [${correlationId}]`, {
+            has_current_adres: !!currentAdres,
+            adres_id: currentAdres?.adres_id
+          });
           
           if (currentAdres && currentAdres.adres_id) {
             const adresUrl = `${supabaseConfig.url}/rest/v1/adressen?id=eq.${currentAdres.adres_id}&select=straat,huisnummer,toevoeging,postcode,plaats`;
@@ -179,6 +199,11 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
             if (adresResp.ok) {
               const adressen = await adresResp.json();
               const adres = adressen[0];
+              console.log(`[matchService.getMatchDetails] Adres fetched [${correlationId}]`, {
+                has_adres: !!adres,
+                plaats: adres?.plaats,
+                straat: adres?.straat
+              });
               if (adres) {
                 opdracht.straat = adres.straat;
                 opdracht.huisnummer = adres.huisnummer;

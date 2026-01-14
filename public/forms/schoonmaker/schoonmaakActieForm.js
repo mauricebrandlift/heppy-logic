@@ -245,11 +245,14 @@ function bindMatchInfo(matchData) {
   
   console.log('[bindMatchInfo] mappings:', mappings);
 
-  // Bind basis info
+  // Bind basis info - use querySelectorAll to update ALL elements with same attribute (form + success state)
   Object.entries(mappings).forEach(([key, value]) => {
-    const el = document.querySelector(`[data-match-info="${key}"]`);
-    if (el && value !== undefined) {
-      el.textContent = value;
+    const elements = document.querySelectorAll(`[data-match-info="${key}"]`);
+    if (elements.length > 0 && value !== undefined) {
+      console.log(`[bindMatchInfo] Updating ${elements.length} element(s) for ${key}:`, value);
+      elements.forEach(el => {
+        el.textContent = value;
+      });
     }
   });
   
@@ -261,39 +264,43 @@ function bindMatchInfo(matchData) {
       : null;
     console.log('[bindMatchInfo] startweek number:', startweekNumber, 'from startdatum:', matchData.aanvraag?.startdatum);
     
-    const startweekEl = document.querySelector('[data-match-info="startweek"]');
-    const startweekWrapper = document.querySelector('[data-match-info-wrapper="startweek"]');
-    if (startweekEl && startweekNumber) {
-      startweekEl.textContent = formatStartweek(startweekNumber);
-      if (startweekWrapper) startweekWrapper.style.display = 'block';
+    // Update ALL startweek elements (form + success state)
+    const startweekElements = document.querySelectorAll('[data-match-info="startweek"]');
+    const startweekWrappers = document.querySelectorAll('[data-match-info-wrapper="startweek"]');
+    if (startweekElements.length > 0 && startweekNumber) {
+      const formattedWeek = formatStartweek(startweekNumber);
+      startweekElements.forEach(el => el.textContent = formattedWeek);
+      startweekWrappers.forEach(wrapper => wrapper.style.display = 'block');
     } else {
       console.log('[bindMatchInfo] Geen startweek gevonden of element niet aanwezig');
     }
     
     // Dagdelen: Deze komen niet uit de basis aanvraag query, skip voorlopig
     // TODO: Fetch voorkeursdagdelen separately if needed
-    const dagdelenWrapper = document.querySelector('[data-match-info-wrapper="dagdelen"]');
-    if (dagdelenWrapper) dagdelenWrapper.style.display = 'none';
+    const dagdelenWrappers = document.querySelectorAll('[data-match-info-wrapper="dagdelen"]');
+    dagdelenWrappers.forEach(wrapper => wrapper.style.display = 'none');
     
-    // Verberg startdatum wrapper
-    const startdatumWrapper = document.querySelector('[data-match-info-wrapper="startdatum"]');
-    if (startdatumWrapper) startdatumWrapper.style.display = 'none';
+    // Verberg startdatum wrappers
+    const startdatumWrappers = document.querySelectorAll('[data-match-info-wrapper="startdatum"]');
+    startdatumWrappers.forEach(wrapper => wrapper.style.display = 'none');
     
   } else {
     // Toon startdatum voor opdrachten
     const startdatum = matchData.opdracht?.gewenste_datum 
       ? formatDatum(matchData.opdracht.gewenste_datum) 
       : '';
-    const startdatumEl = document.querySelector('[data-match-info="startdatum"]');
-    const startdatumWrapper = document.querySelector('[data-match-info-wrapper="startdatum"]');
-    if (startdatumEl) startdatumEl.textContent = startdatum;
-    if (startdatumWrapper) startdatumWrapper.style.display = 'block';
+    
+    // Update ALL startdatum elements (form + success state)
+    const startdatumElements = document.querySelectorAll('[data-match-info="startdatum"]');
+    const startdatumWrappers = document.querySelectorAll('[data-match-info-wrapper="startdatum"]');
+    startdatumElements.forEach(el => el.textContent = startdatum);
+    startdatumWrappers.forEach(wrapper => wrapper.style.display = 'block');
     
     // Verberg abonnement wrappers
-    const startweekWrapper = document.querySelector('[data-match-info-wrapper="startweek"]');
-    const dagdelenWrapper = document.querySelector('[data-match-info-wrapper="dagdelen"]');
-    if (startweekWrapper) startweekWrapper.style.display = 'none';
-    if (dagdelenWrapper) dagdelenWrapper.style.display = 'none';
+    const startweekWrappers = document.querySelectorAll('[data-match-info-wrapper="startweek"]');
+    const dagdelenWrappers = document.querySelectorAll('[data-match-info-wrapper="dagdelen"]');
+    startweekWrappers.forEach(wrapper => wrapper.style.display = 'none');
+    dagdelenWrappers.forEach(wrapper => wrapper.style.display = 'none');
   }
 }
 
