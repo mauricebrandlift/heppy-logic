@@ -219,13 +219,31 @@ function bindMatchInfo(matchData) {
   console.log('[bindMatchInfo] aanvraag data:', matchData.aanvraag);
   console.log('[bindMatchInfo] opdracht data:', matchData.opdracht);
   
+  // Extra detailed logging for opdracht
+  if (matchData.opdracht) {
+    console.log('[bindMatchInfo] OPDRACHT DETAILS:', {
+      voornaam: matchData.opdracht.voornaam,
+      achternaam: matchData.opdracht.achternaam,
+      email: matchData.opdracht.email,
+      straat: matchData.opdracht.straat,
+      huisnummer: matchData.opdracht.huisnummer,
+      toevoeging: matchData.opdracht.toevoeging,
+      postcode: matchData.opdracht.postcode,
+      plaats: matchData.opdracht.plaats,
+      gebruiker_id: matchData.opdracht.gebruiker_id,
+      type: matchData.opdracht.type,
+      gegevens: matchData.opdracht.gegevens
+    });
+  }
+  
   const isAanvraag = matchData.type === 'aanvraag';
   
-  // Klant naam komt van aanvraag.voornaam of moet apart worden opgehaald voor opdrachten
+  // Klant naam - voor aanvragen uit aanvraag, voor opdrachten uit opdracht (via gebruiker_id lookup)
   const klantNaam = isAanvraag 
     ? matchData.aanvraag?.voornaam || ''
-    : ''; // Voor opdrachten hebben we geen naam in de tabel
+    : matchData.opdracht?.voornaam || '';
   
+  console.log('[bindMatchInfo] klantNaam:', klantNaam);
   const mappings = {
     type: getMatchType(matchData),
     details: getMatchDetails(matchData),
