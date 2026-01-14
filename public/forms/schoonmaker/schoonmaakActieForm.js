@@ -11,7 +11,7 @@
 
 import { formHandler } from '../logic/formHandler.js';
 import { getFormSchema } from '../schemas/formSchemas.js';
-import { showError, hideError } from '../ui/formUi.js';
+import { showError, hideError, syncRadioGroupStyles } from '../ui/formUi.js';
 import { fetchMatchDetails, approveMatch, rejectMatch } from '../../utils/api/index.js';
 
 const FORM_NAME = 'schoonmaak-actie-form';
@@ -414,6 +414,7 @@ export async function initSchoonmaakActieForm() {
       const radio = formElement.querySelector(`[data-field-name="action"][value="${mappedAction}"]`);
       if (radio) {
         radio.checked = true;
+        syncRadioGroupStyles(formElement, 'action');
         console.log('[schoonmaakActieForm] ✅ Action radio geselecteerd:', mappedAction);
       } else {
         console.warn('[schoonmaakActieForm] ⚠️ Action radio niet gevonden voor value:', mappedAction);
