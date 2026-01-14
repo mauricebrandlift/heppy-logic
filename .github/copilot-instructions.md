@@ -23,6 +23,7 @@
   - Build URLs: `${supabaseConfig.url}/rest/v1/table_name`
   - Use `httpClient()` from `api/utils/apiClient.js`
   - Never use `.from()`, `.select()`, `.insert()` - these are Supabase SDK methods
+  - **ALWAYS check `docs/database/schema.sql`** for correct table names, column names, and foreign keys BEFORE writing database queries
 - **Frontend**: Use formHandler pattern for ALL forms
   - Schema in `public/forms/schemas/formSchemas.js`
   - Form logic in `public/forms/[category]/[formName].js`
@@ -33,6 +34,13 @@
   - `data-state-block` for page states (loading/form/success/error)
   - `data-success-wrapper` for conditional success messages
   - formHandler manages ALL display toggling
+
+### DATABASE SCHEMA
+- **ALWAYS read `docs/database/schema.sql`** when working with database tables
+- Verify table names (e.g., `schoonmaak_match` not `schoonmaak_matches`, `schoonmaak_aanvragen` not `aanvragen`)
+- Verify column names (e.g., `schoonmaak_aanvraag_id`, `opdracht_id`, `aangemaakt_op`)
+- Verify foreign key relationships for Supabase REST API joins
+- Never guess table/column names - always check schema.sql first
 
 ### WHEN IN DOUBT
 1. Search for similar existing functionality first

@@ -75,15 +75,20 @@ function getMatchType(matchData) {
  */
 function getMatchDetails(matchData) {
   if (matchData.type === 'aanvraag') {
-    const freq = matchData.aanvraag?.gewenste_frequentie === 'weekly' 
+    // schoonmaak_optie: 'perweek', 'pertweeweek', 'eenmalig'
+    const optie = matchData.aanvraag?.schoonmaak_optie || 'perweek';
+    const freq = optie === 'perweek' 
       ? '1x per week' 
-      : '1x per 2 weken';
-    const uren = matchData.aanvraag?.gewenste_uren || 4;
+      : optie === 'pertweeweek'
+        ? '1x per 2 weken'
+        : 'Eenmalig';
+    const uren = matchData.aanvraag?.uren || 4;
     return `${freq}, ${uren} uur per schoonmaak`;
   } else {
-    const uren = matchData.opdracht?.uren || 0;
-    const adminNotes = matchData.opdracht?.admin_notities || '';
-    return adminNotes ? `${uren} uur - ${adminNotes}` : `${uren} uur`;
+    // Opdrachten: gebruik gegevens.uren of vaste kolom (schema heeft geen 'uren' kolom!)
+    // Check schema: opdrachten heeft geen uren kolom, alleen gegevens (jsonb)
+    const adminNotes = matchData.opdracht?.opmerking || '';
+    return adminNotes || 'Eenmalige schoonmaak';
   }
 }
 
@@ -141,6 +146,11 @@ function formatDagdelen(voorkeursdagdelen) {
 function bindMatchInfo(matchData) {
   const isAanvraag = matchData.type === 'aanvraag';
   
+  // Klant naam komt van aanvraag.voornaam of moet apart worden opgehaald voor opdrachten
+  const klantNaam = isAanvraag 
+    ? matchData.aanvraag?.voornaam || ''
+    : ''; // Voor opdrachten hebben we geen naam in de tabel
+  
   const mappings = {
     type: getMatchType(matchData),
     details: getMatchDetails(matchData),
@@ -152,7 +162,7 @@ function bindMatchInfo(matchData) {
       const toevoeging = source.toevoeging || '';
       return `${straat} ${huisnummer}${toevoeging ? ` ${toevoeging}` : ''}`.trim();
     })(),
-    naam: matchData.klant?.voornaam || ''
+    naam: klantNaam
   };
 
   // Bind basis info
@@ -165,19 +175,19 @@ function bindMatchInfo(matchData) {
   
   // Bind en toon/verberg conditionale velden
   if (isAanvraag) {
-    // Toon startweek voor abonnementen
+    // Toon startweek voor abonnementen (als het veld bestaat)
     const startweek = matchData.aanvraag?.gewenste_startweek || '';
     const startweekEl = document.querySelector('[data-match-info="startweek"]');
     const startweekWrapper = document.querySelector('[data-match-info-wrapper="startweek"]');
-    if (startweekEl) startweekEl.textContent = startweek;
-    if (startweekWrapper) startweekWrapper.style.display = 'block';
+    if (startweekEl && startweek) {
+      startweekEl.textContent = startweek;
+      if (startweekWrapper) startweekWrapper.style.display = 'block';
+    }
     
-    // Toon dagdelen voor abonnementen
-    const dagdelen = formatDagdelen(matchData.aanvraag?.voorkeursdagdelen);
-    const dagdelenEl = document.querySelector('[data-match-info="dagdelen"]');
+    // Dagdelen: Deze komen niet uit de basis aanvraag query, skip voorlopig
+    // TODO: Fetch voorkeursdagdelen separately if needed
     const dagdelenWrapper = document.querySelector('[data-match-info-wrapper="dagdelen"]');
-    if (dagdelenEl) dagdelenEl.innerHTML = dagdelen; // innerHTML voor <br> tags
-    if (dagdelenWrapper) dagdelenWrapper.style.display = 'block';
+    if (dagdelenWrapper) dagdelenWrapper.style.display = 'none';
     
     // Verberg startdatum wrapper
     const startdatumWrapper = document.querySelector('[data-match-info-wrapper="startdatum"]');

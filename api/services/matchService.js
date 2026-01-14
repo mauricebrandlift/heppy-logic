@@ -23,16 +23,10 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
     throw new Error('Match ID is required');
   }
 
-  // Build complex query with joins - Supabase REST API
-  // Note: Joins via foreign key columns (schoonmaak_aanvraag_id, opdracht_id, schoonmaker_id)
-  const select = encodeURIComponent([
-    '*',
-    'schoonmaker_id(id,voornaam,achternaam,email)',
-    'schoonmaak_aanvraag_id(id,type,status,gewenste_startweek,gewenste_frequentie,gewenste_uren,straatnaam,huisnummer,toevoeging,postcode,plaats)',
-    'opdracht_id(id,soort_opdracht,status,gewenste_datum,uren,admin_notities,straatnaam,huisnummer,toevoeging,postcode,plaats)'
-  ].join(','));
-
-  const matchUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?id=eq.${matchId}&select=${select}`;
+  // Build query - NOTE: schoonmakers table only has id/bio/status, voornaam/achternaam/email are in user_profiles
+  // We need to do multiple queries or simplify the response
+  // For now: just get match + basic foreign key data, fetch user_profiles separately
+  const matchUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?id=eq.${matchId}`;
   
   const matchResp = await httpClient(matchUrl, {
     method: 'GET',
@@ -58,26 +52,77 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
 
   const match = matches[0];
 
+  // Fetch related data separately
+  const isAanvraag = !!match.schoonmaak_aanvraag_id;
+  
+  // Fetch schoonmaker user_profile
+  let schoonmaker = null;
+  if (match.schoonmaker_id) {
+    const schoonmakerUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${match.schoonmaker_id}&select=id,voornaam,achternaam,email`;
+    const schoonmakerResp = await httpClient(schoonmakerUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`
+      }
+    }, correlationId);
+    
+    if (schoonmakerResp.ok) {
+      const schoonmakers = await schoonmakerResp.json();
+      schoonmaker = schoonmakers[0] || null;
+    }
+  }
+
+  // Fetch aanvraag or opdracht
+  let aanvraag = null;
+  let opdracht = null;
+
+  if (isAanvraag && match.schoonmaak_aanvraag_id) {
+    const aanvraagUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_aanvragen?id=eq.${match.schoonmaak_aanvraag_id}&select=*`;
+    const aanvraagResp = await httpClient(aanvraagUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`
+      }
+    }, correlationId);
+    
+    if (aanvraagResp.ok) {
+      const aanvragen = await aanvraagResp.json();
+      aanvraag = aanvragen[0] || null;
+    }
+  } else if (match.opdracht_id) {
+    const opdrachtUrl = `${supabaseConfig.url}/rest/v1/opdrachten?id=eq.${match.opdracht_id}&select=*`;
+    const opdrachtResp = await httpClient(opdrachtUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`
+      }
+    }, correlationId);
+    
+    if (opdrachtResp.ok) {
+      const opdrachten = await opdrachtResp.json();
+      opdracht = opdrachten[0] || null;
+    }
+  }
+
   console.log(`[matchService.getMatchDetails] Match found [${correlationId}]`, {
     match_id: match.id,
     status: match.status,
-    type: match.schoonmaak_aanvraag_id ? 'aanvraag' : 'opdracht',
-    raw_match: match
+    type: isAanvraag ? 'aanvraag' : 'opdracht',
+    has_schoonmaker: !!schoonmaker,
+    has_aanvraag: !!aanvraag,
+    has_opdracht: !!opdracht
   });
-
-  // Foreign keys zijn embedded objects via Supabase REST API joins
-  // schoonmaker_id -> user_profiles object
-  // schoonmaak_aanvraag_id -> schoonmaak_aanvragen object  
-  // opdracht_id -> opdrachten object
-  const isAanvraag = !!match.schoonmaak_aanvraag_id;
 
   return {
     match_id: match.id,
     status: match.status,
     type: isAanvraag ? 'aanvraag' : 'opdracht',
-    schoonmaker: match.schoonmaker_id, // Embedded object from join
-    aanvraag: match.schoonmaak_aanvraag_id, // Embedded object from join
-    opdracht: match.opdracht_id, // Embedded object from join
+    schoonmaker: schoonmaker,
+    aanvraag: aanvraag,
+    opdracht: opdracht,
     created_at: match.aangemaakt_op
   };
 }
@@ -117,7 +162,8 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
     },
     body: JSON.stringify({
       status: 'geaccepteerd',
-      geaccepteerd_op: new Date().toISOString()
+      match_datum: new Date().toISOString(),
+      bijgewerkt_op: new Date().toISOString()
     })
   }, correlationId);
 
@@ -144,9 +190,24 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
       body: JSON.stringify({ status: 'geaccepteerd' })
     }, correlationId);
 
-    // Update abonnement with schoonmaker (if exists via aanvraag)
-    // Note: Might need to fetch abonnement separately as it's not in the initial query
+    // Update abonnement with schoonmaker if exists
+    if (match.abonnement_id) {
+      const abonnementUpdateUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${match.abonnement_id}`;
+      await httpClient(abonnementUpdateUrl, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseConfig.serviceRoleKey,
+          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ 
+          schoonmaker_id: match.schoonmaker_id,
+          status: 'actief'
+        })
+      }, correlationId);
+    }
   } else {
+    // For opdrachten: status options are 'aangevraagd', 'gepland', 'voltooid', 'geannuleerd'
     const opdrachtUpdateUrl = `${supabaseConfig.url}/rest/v1/opdrachten?id=eq.${matchDetails.opdracht.id}`;
     await httpClient(opdrachtUpdateUrl, {
       method: 'PATCH',
@@ -155,21 +216,34 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
         'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ status: 'geaccepteerd' })
+      body: JSON.stringify({ 
+        status: 'gepland',
+        schoonmaker_id: match.schoonmaker_id
+      })
     }, correlationId);
   }
 
   // Send confirmation emails
   try {
-    // Email to klant
-    await sendEmail({
-      to: matchDetails.klant.email,
-      subject: 'Schoonmaker geaccepteerd',
-      html: `<p>Beste ${matchDetails.klant.voornaam},</p>
-             <p>Uw ${matchDetails.type === 'aanvraag' ? 'abonnement' : 'opdracht'} is geaccepteerd door ${matchDetails.schoonmaker.voornaam} ${matchDetails.schoonmaker.achternaam}.</p>`
-    });
+    // Get klant email from aanvraag or opdracht
+    const klantEmail = matchDetails.type === 'aanvraag' 
+      ? matchDetails.aanvraag?.email 
+      : matchDetails.opdracht?.email;
+    
+    const klantNaam = matchDetails.type === 'aanvraag'
+      ? `${matchDetails.aanvraag?.voornaam || ''} ${matchDetails.aanvraag?.achternaam || ''}`.trim()
+      : 'klant'; // Opdrachten hebben geen voornaam/achternaam in tabel
+    
+    if (klantEmail && matchDetails.schoonmaker) {
+      await sendEmail({
+        to: klantEmail,
+        subject: 'Schoonmaker geaccepteerd',
+        html: `<p>Beste ${klantNaam},</p>
+               <p>Uw ${matchDetails.type === 'aanvraag' ? 'abonnement' : 'opdracht'} is geaccepteerd door ${matchDetails.schoonmaker.voornaam} ${matchDetails.schoonmaker.achternaam}.</p>`
+      });
 
-    console.log(`[matchService.approveMatch] Confirmation emails sent [${correlationId}]`);
+      console.log(`[matchService.approveMatch] Confirmation emails sent [${correlationId}]`);
+    }
   } catch (emailError) {
     console.error(`[matchService.approveMatch] Email sending failed [${correlationId}]`, emailError);
     // Don't throw - match is already approved
@@ -223,7 +297,7 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
     body: JSON.stringify({
       status: 'geweigerd',
       afwijzing_reden: reden,
-      afgewezen_op: new Date().toISOString()
+      bijgewerkt_op: new Date().toISOString()
     })
   }, correlationId);
 
@@ -258,13 +332,22 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
 
   // Send notification emails
   try {
+    // Get klant info from aanvraag or opdracht  
+    const klantNaam = matchDetails.type === 'aanvraag'
+      ? `${matchDetails.aanvraag?.voornaam || ''} ${matchDetails.aanvraag?.achternaam || ''}`.trim()
+      : 'klant';
+    
+    const schoonmakerNaam = matchDetails.schoonmaker 
+      ? `${matchDetails.schoonmaker.voornaam} ${matchDetails.schoonmaker.achternaam}`
+      : 'onbekend';
+
     // Email to admin
     await sendEmail({
       to: 'admin@heppy-schoonmaak.nl',
       subject: 'Match afgewezen',
-      html: `<p>Match ${matchId} is afgewezen door ${matchDetails.schoonmaker.voornaam} ${matchDetails.schoonmaker.achternaam}.</p>
+      html: `<p>Match ${matchId} is afgewezen door ${schoonmakerNaam}.</p>
              <p>Reden: ${reden}</p>
-             <p>Klant: ${matchDetails.klant.voornaam} ${matchDetails.klant.achternaam}</p>`
+             <p>Klant: ${klantNaam}</p>`
     });
 
     console.log(`[matchService.rejectMatch] Notification emails sent [${correlationId}]`);
