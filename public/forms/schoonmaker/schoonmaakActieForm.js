@@ -436,9 +436,15 @@ export async function initSchoonmaakActieForm() {
         radio.checked = true;
         syncRadioGroupStyles(formElement, 'action');
         console.log('[schoonmaakActieForm] ✅ Action radio geselecteerd:', mappedAction);
+        // Toggle reden wrapper voor gepreselecteerde actie
+        toggleRedenWrapper(mappedAction);
       } else {
         console.warn('[schoonmaakActieForm] ⚠️ Action radio niet gevonden voor value:', mappedAction);
       }
+    } else {
+      // Geen preselectie - verberg reden wrapper standaard
+      console.log('[schoonmaakActieForm] Geen actie gepreselecteerd, verberg reden wrapper');
+      toggleRedenWrapper(null);
     }
     
     // Event listeners voor action radio

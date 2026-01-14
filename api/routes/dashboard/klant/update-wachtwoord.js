@@ -86,9 +86,12 @@ export default async function handler(req, res) {
         userId: user.id
       }));
       
-      return res.status(401).json({
+      // 400 Bad Request ipv 401 - dit is een validatiefout, geen auth probleem
+      // Voorkomt ongewenste auto-logout door apiClient.js
+      return res.status(400).json({
         correlationId,
-        message: 'Huidig wachtwoord is onjuist'
+        message: 'Huidig wachtwoord is onjuist',
+        code: 'INVALID_CURRENT_PASSWORD'
       });
     }
 

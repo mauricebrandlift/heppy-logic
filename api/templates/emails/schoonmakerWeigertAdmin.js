@@ -61,9 +61,9 @@ export function schoonmakerWeigertAdmin(data) {
     : '';
 
   const content = `
-    <h2>🚨 Match Afgewezen - Actie Vereist!</h2>
+    <h2>� Match Afgewezen - Ter Informatie</h2>
     
-    <p><strong>${schoonmakerNaam}</strong> heeft de match afgewezen. Er moet een nieuwe schoonmaker worden gezocht.</p>
+    <p><strong>${schoonmakerNaam}</strong> heeft de match afgewezen. Het systeem zoekt automatisch een nieuwe schoonmaker.</p>
     
     ${urgentie}
     
@@ -126,28 +126,20 @@ export function schoonmakerWeigertAdmin(data) {
       <li>✅ Afwijzingsreden geregistreerd</li>
       <li>📧 Bevestigingsmail verzonden naar schoonmaker</li>
       <li>📧 Informatiemail verzonden naar klant (we zoeken een nieuwe schoonmaker)</li>
+      <li>🔄 Systeem zoekt automatisch naar een nieuwe schoonmaker</li>
     </ul>
     
-    <h3>🚨 ACTIE VEREIST</h3>
-    <div class="info-box" style="background: #fee2e2; border-left: 3px solid #ef4444;">
-      <p style="color: #991b1b; font-weight: 600; margin: 0 0 12px 0;">Je moet NU een nieuwe schoonmaker zoeken voor deze klant!</p>
-      <ol style="margin: 0; padding-left: 20px; color: #991b1b;">
-        <li>Ga naar het dashboard en bekijk de ${isAanvraag ? 'aanvraag' : 'opdracht'}</li>
-        <li>Zoek een geschikte vervangende schoonmaker</li>
-        <li>Maak een nieuwe match aan</li>
-        ${!isAanvraag && gewensteDatum ? `<li><strong>LET OP:</strong> Gewenste datum is ${formatDatum(gewensteDatum)}!</li>` : ''}
-        <li>Informeer de klant zodra er een nieuwe schoonmaker is toegewezen</li>
-      </ol>
+    <h3>ℹ️ Wat Gebeurt Er Nu?</h3>
+    <div class="info-box" style="background: #e0f2fe; border-left: 3px solid #0ea5e9;">
+      <p style="margin: 0 0 12px 0;">Het matching systeem probeert automatisch een nieuwe schoonmaker te vinden voor deze ${isAanvraag ? 'aanvraag' : 'opdracht'}.</p>
+      <ul style="margin: 0; padding-left: 20px;">
+        <li>Als er beschikbare schoonmakers zijn, wordt er automatisch een nieuwe match aangemaakt</li>
+        <li>De nieuwe schoonmaker ontvangt ook een email om te accepteren of afwijzen</li>
+        ${!isAanvraag && gewensteDatum ? `<li><strong>Let op:</strong> Gewenste datum is ${formatDatum(gewensteDatum)} - houd dit in de gaten</li>` : ''}
+        <li>Alleen ingrijpen als er geen geschikte schoonmakers beschikbaar zijn</li>
+      </ul>
     </div>
-    
-    <h3>💡 Mogelijke Acties</h3>
-    <ul>
-      <li>🔍 Zoek in beschikbare schoonmakers in ${plaats}</li>
-      <li>📞 Bel potentiële schoonmakers om snelheid te garanderen</li>
-      ${!isAanvraag && gewensteDatum ? '<li>⚡ Bij spoed: overweeg een spoedtoeslag voor schoonmakers</li>' : ''}
-      <li>📧 Houd de klant op de hoogte van de voortgang</li>
-    </ul>
   `;
 
-  return baseLayout(content, 'Match Afgewezen - Actie Vereist - Heppy Admin');
+  return baseLayout(content, 'Match Afgewezen - Ter Informatie - Heppy Admin');
 }
