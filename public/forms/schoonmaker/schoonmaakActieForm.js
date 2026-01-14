@@ -234,7 +234,8 @@ export async function initSchoonmaakActieForm() {
     showStateBlock('error');
     const errorBlock = document.querySelector('[data-state-block="error"]');
     if (errorBlock) {
-      showError('Geen match ID gevonden in de URL.', errorBlock);
+      const errorContainer = errorBlock.querySelector('[data-error-for="global"]') || errorBlock;
+      showError('Geen match ID gevonden in de URL.', errorContainer);
     } else {
       console.error('[schoonmaakActieForm] Error block niet gevonden!');
     }
@@ -408,7 +409,8 @@ export async function initSchoonmaakActieForm() {
       const errorBlock = document.querySelector('[data-state-block="error"]');
       if (errorBlock) {
         const message = error.message || 'Er is een fout opgetreden bij het laden van de gegevens.';
-        showError(message, errorBlock);
+        const errorContainer = errorBlock.querySelector('[data-error-for="global"]') || errorBlock;
+        showError(message, errorContainer);
         console.log('[schoonmaakActieForm] Error bericht getoond:', message);
       } else {
         console.error('[schoonmaakActieForm] Error block niet gevonden in DOM!');

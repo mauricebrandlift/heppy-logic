@@ -6,7 +6,7 @@
  */
 
 import { supabase } from '../config/index.js';
-import { emailService } from './emailService.js';
+import { sendEmail } from './emailService.js';
 
 /**
  * Get match details met aanvraag/opdracht en klant info
