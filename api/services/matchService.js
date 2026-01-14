@@ -141,8 +141,8 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
           gebruiker_id: opdracht.gebruiker_id
         });
         
-        // Get user_profile for voornaam/achternaam
-        const userUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${opdracht.gebruiker_id}&select=voornaam,achternaam,email`;
+        // Get user_profile for voornaam/achternaam/email AND adres_id (huidige adres!)
+        const userUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${opdracht.gebruiker_id}&select=voornaam,achternaam,email,adres_id`;
         const userResp = await httpClient(userUrl, {
           method: 'GET',
           headers: {
@@ -156,73 +156,55 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
           const user = users[0];
           console.log(`[matchService.getMatchDetails] User fetched [${correlationId}]`, {
             has_user: !!user,
-            voornaam: user?.voornaam
+            voornaam: user?.voornaam,
+            adres_id: user?.adres_id
           });
           if (user) {
             opdracht.voornaam = user.voornaam;
             opdracht.achternaam = user.achternaam;
-            opdracht.email = opdracht.email || user.email; // Fallback to user email if opdracht doesn't have one
-          }
-        }
-        
-        // Get current adres via adressen_historiek
-        console.log(`[matchService.getMatchDetails] Fetching adres historiek [${correlationId}]`, {
-          gebruiker_id: opdracht.gebruiker_id
-        });
-        const adresHistUrl = `${supabaseConfig.url}/rest/v1/adressen_historiek?user_id=eq.${opdracht.gebruiker_id}&geldig_tot=is.null&select=adres_id`;
-        const adresHistResp = await httpClient(adresHistUrl, {
-          method: 'GET',
-          headers: {
-            'apikey': supabaseConfig.anonKey,
-            'Authorization': `Bearer ${supabaseConfig.anonKey}`
-          }
-        }, correlationId);
-        
-        if (adresHistResp.ok) {
-          const adresHist = await adresHistResp.json();
-          const currentAdres = adresHist[0];
-          console.log(`[matchService.getMatchDetails] Adres historiek fetched [${correlationId}]`, {
-            has_current_adres: !!currentAdres,
-            adres_id: currentAdres?.adres_id,
-            count: adresHist.length
-          });
-          
-          if (currentAdres && currentAdres.adres_id) {
-            const adresUrl = `${supabaseConfig.url}/rest/v1/adressen?id=eq.${currentAdres.adres_id}&select=straat,huisnummer,toevoeging,postcode,plaats`;
-            const adresResp = await httpClient(adresUrl, {
-              method: 'GET',
-              headers: {
-                'apikey': supabaseConfig.anonKey,
-                'Authorization': `Bearer ${supabaseConfig.anonKey}`
-              }
-            }, correlationId);
+            opdracht.email = opdracht.email || user.email;
             
-            if (adresResp.ok) {
-              const adressen = await adresResp.json();
-              const adres = adressen[0];
-              console.log(`[matchService.getMatchDetails] Adres fetched [${correlationId}]`, {
-                has_adres: !!adres,
-                plaats: adres?.plaats,
-                straat: adres?.straat
+            // Fetch current adres via user_profiles.adres_id (NIET adressen_historiek!)
+            if (user.adres_id) {
+              console.log(`[matchService.getMatchDetails] Fetching current adres [${correlationId}]`, {
+                adres_id: user.adres_id
               });
-              if (adres) {
-                opdracht.straat = adres.straat;
-                opdracht.huisnummer = adres.huisnummer;
-                opdracht.toevoeging = adres.toevoeging;
-                opdracht.postcode = adres.postcode;
-                opdracht.plaats = adres.plaats;
+              const adresUrl = `${supabaseConfig.url}/rest/v1/adressen?id=eq.${user.adres_id}&select=straat,huisnummer,toevoeging,postcode,plaats`;
+              const adresResp = await httpClient(adresUrl, {
+                method: 'GET',
+                headers: {
+                  'apikey': supabaseConfig.anonKey,
+                  'Authorization': `Bearer ${supabaseConfig.anonKey}`
+                }
+              }, correlationId);
+              
+              if (adresResp.ok) {
+                const adressen = await adresResp.json();
+                const adres = adressen[0];
+                console.log(`[matchService.getMatchDetails] Adres fetched [${correlationId}]`, {
+                  has_adres: !!adres,
+                  plaats: adres?.plaats,
+                  straat: adres?.straat
+                });
+                if (adres) {
+                  opdracht.straat = adres.straat;
+                  opdracht.huisnummer = adres.huisnummer;
+                  opdracht.toevoeging = adres.toevoeging;
+                  opdracht.postcode = adres.postcode;
+                  opdracht.plaats = adres.plaats;
+                }
+              } else {
+                console.warn(`[matchService.getMatchDetails] Adres query failed [${correlationId}]`, {
+                  status: adresResp.status
+                });
               }
             } else {
-              console.warn(`[matchService.getMatchDetails] Adres query failed [${correlationId}]`, {
-                status: adresResp.status
-              });
+              console.warn(`[matchService.getMatchDetails] No adres_id in user_profiles [${correlationId}]`);
             }
-          } else {
-            console.warn(`[matchService.getMatchDetails] No current adres found in historiek [${correlationId}]`);
           }
         } else {
-          console.warn(`[matchService.getMatchDetails] Adres historiek query failed [${correlationId}]`, {
-            status: adresHistResp.status
+          console.warn(`[matchService.getMatchDetails] User query failed [${correlationId}]`, {
+            status: userResp.status
           });
         }
       } else {
