@@ -96,24 +96,34 @@ function showSuccessWrapper(wrapperName) {
 }
 
 /**
- * Bepaal match type text voor display
+ * Bepaal match type (algemene categorie: Abonnement of Eenmalige schoonmaak)
  */
 function getMatchType(matchData) {
   if (matchData.type === 'aanvraag') {
     return 'Schoonmaak Abonnement';
   } else {
-    // For opdrachten: use type field from opdrachten table
-    const opdrachtType = matchData.opdracht?.type || 'eenmalig';
-    const typeMap = {
-      'dieptereiniging': 'Dieptereiniging',
-      'tapijt': 'Tapijtreiniging',
-      'vloer': 'Vloerreiniging',
-      'verhuis': 'Verhuisschoonmaak',
-      'eenmalig': 'Eenmalige schoonmaak',
-      'onbekend': 'Eenmalige schoonmaak'
-    };
-    return typeMap[opdrachtType] || 'Eenmalige schoonmaak';
+    return 'Eenmalige schoonmaak';
   }
+}
+
+/**
+ * Bepaal specifiek opdracht type (Dieptereiniging, Verhuis, etc.)
+ * Alleen voor opdrachten, niet voor abonnementen
+ */
+function getSpecificOpdrachtType(opdracht) {
+  if (!opdracht) return null;
+  
+  const opdrachtType = opdracht.type || 'eenmalig';
+  const typeMap = {
+    'dieptereiniging': 'Dieptereiniging',
+    'tapijt': 'Tapijtreiniging',
+    'vloer': 'Vloerreiniging',
+    'verhuis': 'Verhuisschoonmaak',
+    'eindschoonmaak': 'Eindschoonmaak',
+    'eenmalig': null,
+    'onbekend': null
+  };
+  return typeMap[opdrachtType] || null;
 }
 
 /**
@@ -226,14 +236,9 @@ function bindMatchInfo(matchData) {
   
   console.log('[bindMatchInfo] klantNaam:', klantNaam);
   
-  // Voor opdrachten: ook het specifieke type ophalen (dieptereiniging, verhuis, etc.)
-  const specificType = !isAanvraag && matchData.opdracht?.type 
-    ? getMatchType({ type: 'opdracht', opdracht: matchData.opdracht })
-    : null;
-  
   const mappings = {
     type: getMatchType(matchData),
-    specifictype: specificType, // Null voor aanvragen, specifiek type voor opdrachten
+    specifictype: isAanvraag ? null : getSpecificOpdrachtType(matchData.opdracht),
     details: getMatchDetails(matchData),
     plaats: matchData.aanvraag?.plaats || matchData.opdracht?.plaats || '',
     adres: (() => {
