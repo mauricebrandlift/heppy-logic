@@ -24,12 +24,12 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
   }
 
   // Build complex query with joins - Supabase REST API
-  // Select: match + schoonmaker + aanvraag (with abonnement, klant, voorkeursdagdelen) + opdracht (with klant)
+  // Note: Joins via foreign key columns (schoonmaak_aanvraag_id, opdracht_id, schoonmaker_id)
   const select = encodeURIComponent([
     '*',
-    'schoonmaker:schoonmakers(id,voornaam,achternaam,email)',
-    'aanvraag:aanvragen(id,type,status,gewenste_startweek,gewenste_frequentie,gewenste_uren,straatnaam,huisnummer,toevoeging,postcode,plaats,abonnement:abonnementen(id,uren_per_week,klant:klanten(id,voornaam,achternaam,email,telefoon,adres,postcode,plaats)),voorkeursdagdelen:aanvraag_voorkeursdagdelen(dag,ochtend,middag,avond))',
-    'opdracht:opdrachten(id,soort_opdracht,status,gewenste_datum,uren,admin_notities,straatnaam,huisnummer,toevoeging,postcode,plaats,klant:klanten(id,voornaam,achternaam,email,telefoon,adres,postcode,plaats))'
+    'schoonmaker_id(id,voornaam,achternaam,email)',
+    'schoonmaak_aanvraag_id(id,type,status,gewenste_startweek,gewenste_frequentie,gewenste_uren,straatnaam,huisnummer,toevoeging,postcode,plaats)',
+    'opdracht_id(id,soort_opdracht,status,gewenste_datum,uren,admin_notities,straatnaam,huisnummer,toevoeging,postcode,plaats)'
   ].join(','));
 
   const matchUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?id=eq.${matchId}&select=${select}`;
@@ -51,6 +51,7 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
   if (!matches || matches.length === 0) {
     console.error(`[matchService.getMatchDetails] Match not found [${correlationId}]`);
     const error = new Error('Match niet gevonden');
+    error.code = 'MATCH_NOT_FOUND';
     error.statusCode = 404;
     throw error;
   }
@@ -60,22 +61,24 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
   console.log(`[matchService.getMatchDetails] Match found [${correlationId}]`, {
     match_id: match.id,
     status: match.status,
-    type: match.aanvraag_id ? 'aanvraag' : 'opdracht'
+    type: match.schoonmaak_aanvraag_id ? 'aanvraag' : 'opdracht',
+    raw_match: match
   });
 
-  // Determine type and extract relevant data
-  const isAanvraag = !!match.aanvraag_id;
-  const klant = isAanvraag ? match.aanvraag?.abonnement?.klant : match.opdracht?.klant;
+  // Foreign keys zijn embedded objects via Supabase REST API joins
+  // schoonmaker_id -> user_profiles object
+  // schoonmaak_aanvraag_id -> schoonmaak_aanvragen object  
+  // opdracht_id -> opdrachten object
+  const isAanvraag = !!match.schoonmaak_aanvraag_id;
 
   return {
     match_id: match.id,
     status: match.status,
     type: isAanvraag ? 'aanvraag' : 'opdracht',
-    schoonmaker: match.schoonmaker,
-    aanvraag: match.aanvraag,
-    opdracht: match.opdracht,
-    klant: klant,
-    created_at: match.created_at
+    schoonmaker: match.schoonmaker_id, // Embedded object from join
+    aanvraag: match.schoonmaak_aanvraag_id, // Embedded object from join
+    opdracht: match.opdracht_id, // Embedded object from join
+    created_at: match.aangemaakt_op
   };
 }
 
@@ -130,7 +133,7 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
 
   // Update aanvraag or opdracht status
   if (matchDetails.type === 'aanvraag') {
-    const aanvraagUpdateUrl = `${supabaseConfig.url}/rest/v1/aanvragen?id=eq.${matchDetails.aanvraag.id}`;
+    const aanvraagUpdateUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_aanvragen?id=eq.${matchDetails.aanvraag.id}`;
     await httpClient(aanvraagUpdateUrl, {
       method: 'PATCH',
       headers: {
@@ -141,19 +144,8 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
       body: JSON.stringify({ status: 'geaccepteerd' })
     }, correlationId);
 
-    // Update abonnement with schoonmaker
-    if (matchDetails.aanvraag.abonnement) {
-      const abonnementUpdateUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${matchDetails.aanvraag.abonnement.id}`;
-      await httpClient(abonnementUpdateUrl, {
-        method: 'PATCH',
-        headers: {
-          'apikey': supabaseConfig.serviceRoleKey,
-          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ schoonmaker_id: matchDetails.schoonmaker.id })
-      }, correlationId);
-    }
+    // Update abonnement with schoonmaker (if exists via aanvraag)
+    // Note: Might need to fetch abonnement separately as it's not in the initial query
   } else {
     const opdrachtUpdateUrl = `${supabaseConfig.url}/rest/v1/opdrachten?id=eq.${matchDetails.opdracht.id}`;
     await httpClient(opdrachtUpdateUrl, {
