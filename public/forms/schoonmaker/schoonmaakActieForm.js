@@ -20,6 +20,45 @@ const FORM_NAME = 'schoonmaak-actie-form';
 let currentMatchData = null;
 
 /**
+ * Format startweek: "Week 12 (18 maart – 24 maart)"
+ */
+function formatStartweek(weekNumber) {
+  if (!weekNumber) return '';
+  
+  const year = new Date().getFullYear();
+  const startDate = getStartDateOfISOWeek(weekNumber, year);
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 6);
+  
+  return `Week ${weekNumber} (${formatDate(startDate)} – ${formatDate(endDate)})`;
+}
+
+function getStartDateOfISOWeek(week, year) {
+  const simple = new Date(Date.UTC(year, 0, 1 + (week - 1) * 7));
+  const dayOfWeek = simple.getUTCDay() || 7;
+  if (dayOfWeek > 4) {
+    simple.setUTCDate(simple.getUTCDate() + 8 - dayOfWeek);
+  } else {
+    simple.setUTCDate(simple.getUTCDate() - (dayOfWeek - 1));
+  }
+  return simple;
+}
+
+function formatDate(date) {
+  return `${date.getUTCDate()} ${date.toLocaleString('nl-NL', { month: 'long', timeZone: 'UTC' })}`;
+}
+
+function getISOWeekFromDate(dateString) {
+  const date = new Date(dateString);
+  const tmp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  // Donderdag in huidige week bepaalt weeknummer
+  tmp.setUTCDate(tmp.getUTCDate() + 4 - (tmp.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
+  const weekNo = Math.ceil((((tmp - yearStart) / 86400000) + 1) / 7);
+  return weekNo;
+}
+
+/**
  * Parse URL parameters
  */
 function parseParams() {
@@ -144,6 +183,10 @@ function formatDagdelen(voorkeursdagdelen) {
  * Bind match info naar data-match-info elementen
  */
 function bindMatchInfo(matchData) {
+  console.log('[bindMatchInfo] START - matchData:', matchData);
+  console.log('[bindMatchInfo] aanvraag data:', matchData.aanvraag);
+  console.log('[bindMatchInfo] opdracht data:', matchData.opdracht);
+  
   const isAanvraag = matchData.type === 'aanvraag';
   
   // Klant naam komt van aanvraag.voornaam of moet apart worden opgehaald voor opdrachten
@@ -157,13 +200,18 @@ function bindMatchInfo(matchData) {
     plaats: matchData.aanvraag?.plaats || matchData.opdracht?.plaats || '',
     adres: (() => {
       const source = matchData.aanvraag || matchData.opdracht || {};
+      console.log('[bindMatchInfo] adres source:', source);
       const straat = source.straatnaam || '';
       const huisnummer = source.huisnummer || '';
       const toevoeging = source.toevoeging || '';
-      return `${straat} ${huisnummer}${toevoeging ? ` ${toevoeging}` : ''}`.trim();
+      const adres = `${straat} ${huisnummer}${toevoeging ? ` ${toevoeging}` : ''}`.trim();
+      console.log('[bindMatchInfo] adres result:', adres);
+      return adres;
     })(),
     naam: klantNaam
   };
+  
+  console.log('[bindMatchInfo] mappings:', mappings);
 
   // Bind basis info
   Object.entries(mappings).forEach(([key, value]) => {
@@ -176,12 +224,18 @@ function bindMatchInfo(matchData) {
   // Bind en toon/verberg conditionale velden
   if (isAanvraag) {
     // Toon startweek voor abonnementen (als het veld bestaat)
-    const startweek = matchData.aanvraag?.gewenste_startweek || '';
+    const startweekNumber = matchData.aanvraag?.startdatum 
+      ? getISOWeekFromDate(matchData.aanvraag.startdatum)
+      : null;
+    console.log('[bindMatchInfo] startweek number:', startweekNumber, 'from startdatum:', matchData.aanvraag?.startdatum);
+    
     const startweekEl = document.querySelector('[data-match-info="startweek"]');
     const startweekWrapper = document.querySelector('[data-match-info-wrapper="startweek"]');
-    if (startweekEl && startweek) {
-      startweekEl.textContent = startweek;
+    if (startweekEl && startweekNumber) {
+      startweekEl.textContent = formatStartweek(startweekNumber);
       if (startweekWrapper) startweekWrapper.style.display = 'block';
+    } else {
+      console.log('[bindMatchInfo] Geen startweek gevonden of element niet aanwezig');
     }
     
     // Dagdelen: Deze komen niet uit de basis aanvraag query, skip voorlopig
@@ -374,6 +428,7 @@ export async function initSchoonmaakActieForm() {
     console.log('[schoonmaakActieForm] Initialiseren formHandler...');
     formHandler.init({
       formName: FORM_NAME,
+      formElement: formElement,
       schema,
       onSubmit: submitAction,
       onSuccess: (result) => {
