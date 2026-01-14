@@ -20,6 +20,7 @@ import { baseLayout, formatDatum } from './baseLayout.js';
  * @param {number} [data.uren] - Aantal uren (voor opdrachten of abonnement per sessie)
  * @param {string} [data.frequentie] - Frequentie voor abonnementen
  * @param {string} [data.gewensteDatum] - Gewenste datum voor opdrachten
+ * @param {boolean} [data.isSpoed] - Of opdracht spoed is
  * @param {string} [data.klantTelefoon] - Telefoonnummer klant
  * @param {string} [data.klantEmail] - Email klant
  * @returns {string} HTML string
@@ -35,6 +36,7 @@ export function matchGeaccepteerdSchoonmaker(data) {
     uren,
     frequentie,
     gewensteDatum,
+    isSpoed,
     klantTelefoon,
     klantEmail
   } = data;
@@ -54,20 +56,19 @@ export function matchGeaccepteerdSchoonmaker(data) {
   ` : `
     <h3>📋 Volgende Stappen</h3>
     <ol>
-      <li><strong>Neem contact op met ${klantNaam}</strong> - Bel of mail binnen 24 uur om de exacte starttijd af te spreken${gewensteDatum ? ` voor ${formatDatum(gewensteDatum)}` : ''}</li>
+      <li><strong>Neem contact op met ${klantNaam}</strong> - Bel of mail binnen ${isSpoed ? '24' : '48'} uur om de exacte starttijd af te spreken${gewensteDatum ? ` voor ${formatDatum(gewensteDatum)}` : ''}</li>
       <li><strong>Bevestig de afspraak</strong> - Spreek de datum, tijd en toegang tot de woning af</li>
-      <li><strong>Bereid je voor</strong> - Zorg dat je alle benodigde schoonmaakmiddelen en materialen bij je hebt</li>
-      <li><strong>Voer de schoonmaak uit</strong> - Werk volgens de afgesproken ${uren} uur en lever kwaliteit</li>
-      <li><strong>Meld voltooiing</strong> - Laat ons weten wanneer de opdracht is afgerond</li>
+      <li><strong>Check benodigdheden</strong> - Bespreek welke schoonmaakmiddelen en materialen aanwezig zijn</li>
+      <li><strong>Voer de schoonmaak uit</strong> - Werk volgens de afgesproken ${uren ? `${uren} uur` : 'tijd'} en lever kwaliteit</li>
     </ol>
   `;
 
   const contactInfo = (klantTelefoon || klantEmail) ? `
     <div class="info-box" style="background: #fef3c7; border-left: 3px solid #f59e0b;">
       <h3 style="margin-top: 0;">📞 Contact Klant</h3>
-      ${klantTelefoon ? `<p><strong>Telefoon:</strong> <a href="tel:${klantTelefoon}">${klantTelefoon}</a></p>` : ''}
+      ${klantTelefoon ? `<p><strong>Telefoon:</strong> <a href="tel:${klantTelefoon}" style="color: #f59e0b; font-size: 16px; font-weight: 600;">${klantTelefoon}</a></p>` : ''}
       ${klantEmail ? `<p><strong>Email:</strong> <a href="mailto:${klantEmail}">${klantEmail}</a></p>` : ''}
-      <p style="font-size: 14px; color: #92400e; margin: 8px 0 0 0;"><strong>⚡ Belangrijk:</strong> Neem binnen 24 uur contact op met de klant!</p>
+      <p style="font-size: 14px; color: #92400e; margin: 8px 0 0 0;"><strong>⚡ Belangrijk:</strong> Neem binnen ${isSpoed ? '24' : '48'} uur contact op met de klant!</p>
     </div>
   ` : '';
 

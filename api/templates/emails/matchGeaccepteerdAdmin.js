@@ -101,7 +101,7 @@ export function matchGeaccepteerdAdmin(data) {
     
     <div class="info-box">
       <h3 style="margin-top: 0;">🔗 Referenties</h3>
-      <p><strong>Match ID:</strong> <code style="font-size: 11px;">${matchId}</code></p>
+      <p><strong>Match ID:</strong> <code style="font-size: 11px;">${matchId || 'Onbekend'}</code></p>
       ${aanvraagId ? `<p><strong>Aanvraag ID:</strong> <code style="font-size: 11px;">${aanvraagId}</code></p>` : ''}
       ${opdrachtId ? `<p><strong>Opdracht ID:</strong> <code style="font-size: 11px;">${opdrachtId}</code></p>` : ''}
     </div>
@@ -120,10 +120,6 @@ export function matchGeaccepteerdAdmin(data) {
       ? 'De schoonmaker neemt contact op met de klant om de vaste dag(en) en starttijd af te spreken.' 
       : 'De schoonmaker neemt contact op met de klant om de exacte tijd af te spreken en de opdracht uit te voeren.'
     }</p>
-    
-    <div class="info-box" style="background: #fef3c7; border-left: 3px solid #f59e0b;">
-      <p style="margin: 0;"><strong>⚠️ Let op:</strong> Monitor of de schoonmaker inderdaad contact opneemt binnen 24-48 uur. Bij problemen, neem direct actie.</p>
-    </div>
   `;
 
   return baseLayout(content, 'Match Geaccepteerd - Heppy Admin');

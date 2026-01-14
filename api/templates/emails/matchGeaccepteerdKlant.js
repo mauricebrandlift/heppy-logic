@@ -57,7 +57,6 @@ export function matchGeaccepteerdKlant(data) {
       <li>✅ <strong>${schoonmakerNaam}</strong> heeft uw opdracht geaccepteerd</li>
       <li>📞 ${schoonmakerNaam} neemt spoedig contact met u op om de exacte starttijd af te spreken${gewensteDatum ? ` voor ${formatDatum(gewensteDatum)}` : ''}</li>
       <li>🧹 Op de afgesproken datum en tijd voert ${schoonmakerNaam} de schoonmaak uit</li>
-      <li>✨ Na afloop ontvangt u een bevestiging dat de opdracht is voltooid</li>
     </ul>
 
     <div class="info-box" style="background: #f0fdf4; border-left: 3px solid #22c55e;">

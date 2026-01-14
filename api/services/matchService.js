@@ -153,8 +153,8 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
           gebruiker_id: opdracht.gebruiker_id
         });
         
-        // Get user_profile for voornaam/achternaam/email AND adres_id (huidige adres!)
-        const userUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${opdracht.gebruiker_id}&select=voornaam,achternaam,email,adres_id`;
+        // Get user_profile for voornaam/achternaam/email/telefoon AND adres_id (huidige adres!)
+        const userUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${opdracht.gebruiker_id}&select=voornaam,achternaam,email,telefoon,adres_id`;
         const userResp = await httpClient(userUrl, {
           method: 'GET',
           headers: {
@@ -175,6 +175,7 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
             opdracht.voornaam = user.voornaam;
             opdracht.achternaam = user.achternaam;
             opdracht.email = opdracht.email || user.email;
+            opdracht.telefoon = user.telefoon;
             
             // Fetch current adres via user_profiles.adres_id (NIET adressen_historiek!)
             if (user.adres_id) {
@@ -224,11 +225,15 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
       }
       
       // Extract aantal uren from gegevens JSONB (critical for schoonmaker to know workload)
-      if (opdracht.gegevens && opdracht.gegevens.dr_uren) {
-        opdracht.uren = opdracht.gegevens.dr_uren;
-        console.log(`[matchService.getMatchDetails] Extracted uren from gegevens [${correlationId}]`, {
-          uren: opdracht.uren
-        });
+      // Zoek naar elk veld dat eindigt op '_uren' (dr_uren, vh_uren, etc.)
+      if (opdracht.gegevens) {
+        const urenVeld = Object.keys(opdracht.gegevens).find(key => key.endsWith('_uren'));
+        if (urenVeld) {
+          opdracht.uren = opdracht.gegevens[urenVeld];
+          console.log(`[matchService.getMatchDetails] Extracted uren from gegevens.${urenVeld} [${correlationId}]`, {
+            uren: opdracht.uren
+          });
+        }
       }
     }
   }
@@ -394,6 +399,9 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
     // Gewenste datum voor opdrachten
     const gewensteDatum = !isAanvraag ? matchDetails.opdracht?.gewenste_datum : null;
     
+    // Check of opdracht spoed is
+    const isSpoed = !isAanvraag ? matchDetails.opdracht?.is_spoed : false;
+    
     const schoonmakerNaam = `${matchDetails.schoonmaker.voornaam} ${matchDetails.schoonmaker.achternaam}`;
     
     const emailData = {
@@ -406,12 +414,13 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
       uren,
       frequentie,
       gewensteDatum,
-      matchId: matchDetails.id,
+      isSpoed,
+      matchId: matchDetails.match_id,
       aanvraagId: matchDetails.aanvraag?.id,
       opdrachtId: matchDetails.opdracht?.id,
       klantEmail,
       schoonmakerEmail: matchDetails.schoonmaker.email,
-      klantTelefoon: isAanvraag ? matchDetails.aanvraag?.telefoon : null
+      klantTelefoon: isAanvraag ? matchDetails.aanvraag?.telefoon : matchDetails.opdracht?.telefoon
     };
     
     console.log(`[matchService.approveMatch] Sending emails [${correlationId}]`, {
@@ -597,7 +606,7 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
       frequentie,
       gewensteDatum,
       reden,
-      matchId: matchDetails.id,
+      matchId: matchDetails.match_id,
       aanvraagId: matchDetails.aanvraag?.id,
       opdrachtId: matchDetails.opdracht?.id,
       klantEmail,

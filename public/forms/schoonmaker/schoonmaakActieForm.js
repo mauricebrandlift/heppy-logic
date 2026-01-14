@@ -142,8 +142,15 @@ function getMatchDetails(matchData) {
     return `${freq}, ${uren} uur per schoonmaak`;
   } else {
     // Opdracht: toon aantal uren (kritisch voor schoonmaker!)
-    // Probeer eerst opdracht.uren, anders gegevens.dr_uren
-    const uren = matchData.opdracht?.uren || matchData.opdracht?.gegevens?.dr_uren;
+    // Probeer eerst opdracht.uren, anders zoek in gegevens naar elk veld dat eindigt op '_uren'
+    let uren = matchData.opdracht?.uren;
+    
+    if (!uren && matchData.opdracht?.gegevens) {
+      const urenVeld = Object.keys(matchData.opdracht.gegevens).find(key => key.endsWith('_uren'));
+      if (urenVeld) {
+        uren = matchData.opdracht.gegevens[urenVeld];
+      }
+    }
     
     if (uren) {
       return `${uren} uur`;
