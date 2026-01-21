@@ -91,7 +91,7 @@ export async function generateFactuurNummer(correlationId) {
 export async function createStripeInvoice({ customerId, omschrijving, regels, totaalCents, paymentIntentId, metadata }, correlationId) {
   console.log(`📄 [FactuurService] Stripe Invoice aanmaken voor customer ${customerId} [${correlationId}]`);
 
-  // Haal payment_method op van PaymentIntent indien aanwezig
+  // Haal payment_method op van PaymentIntent indien aanwezig en attach aan customer
   let paymentMethodId = null;
   if (paymentIntentId) {
     try {
@@ -105,6 +105,29 @@ export async function createStripeInvoice({ customerId, omschrijving, regels, to
       if (piResponse.ok && paymentIntent.payment_method) {
         paymentMethodId = paymentIntent.payment_method;
         console.log(`🔗 [FactuurService] Payment method gevonden: ${paymentMethodId} [${correlationId}]`);
+        
+        // Attach payment method aan customer (indien nog niet attached)
+        const attachParams = new URLSearchParams();
+        attachParams.set('customer', customerId);
+        
+        const attachResponse = await fetch(`https://api.stripe.com/v1/payment_methods/${paymentMethodId}/attach`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${stripeConfig.secretKey}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: attachParams.toString(),
+        });
+        
+        if (attachResponse.ok) {
+          console.log(`✅ [FactuurService] Payment method attached aan customer [${correlationId}]`);
+        } else {
+          const attachError = await attachResponse.json();
+          // Als al attached is dat ook OK
+          if (attachError?.error?.code !== 'resource_already_exists') {
+            console.error(`⚠️ [FactuurService] Payment method attachen mislukt: ${attachError?.error?.message} [${correlationId}]`);
+          }
+        }
       }
     } catch (err) {
       console.error(`⚠️ [FactuurService] Payment method ophalen mislukt: ${err.message} [${correlationId}]`);
