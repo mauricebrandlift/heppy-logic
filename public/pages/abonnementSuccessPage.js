@@ -86,16 +86,21 @@ async function init() {
 function displayPaymentDetails(paymentIntent) {
   const amountEuros = (paymentIntent.amount / 100).toFixed(2);
   
-  document.querySelector('[data-payment-amount]').textContent = `€${amountEuros}`;
-  document.querySelector('[data-payment-id]').textContent = paymentIntent.id;
+  const amountEl = document.querySelector('[data-payment-amount]');
+  const idEl = document.querySelector('[data-payment-id]');
+  const methodEl = document.querySelector('[data-payment-method]');
+  const invoiceEl = document.querySelector('[data-invoice-number]');
+  
+  if (amountEl) amountEl.textContent = `€${amountEuros}`;
+  if (idEl) idEl.textContent = paymentIntent.id;
   
   // Payment method
   const paymentMethodType = getPaymentMethodType(paymentIntent);
-  document.querySelector('[data-payment-method]').textContent = paymentMethodType;
+  if (methodEl) methodEl.textContent = paymentMethodType;
   
   // Invoice number (if available in metadata)
   const invoiceNumber = paymentIntent.metadata?.factuur_nummer || 'Wordt gegenereerd...';
-  document.querySelector('[data-invoice-number]').textContent = invoiceNumber;
+  if (invoiceEl) invoiceEl.textContent = invoiceNumber;
 }
 
 /**
@@ -401,23 +406,36 @@ async function downloadInvoice() {
  * Show/hide loading state
  */
 function showLoading() {
-  document.querySelector('[data-success-container]').style.display = 'none';
-  document.querySelector('[data-loading-state]').style.display = 'block';
+  const successContainer = document.querySelector('[data-success-container]');
+  const loadingState = document.querySelector('[data-loading-state]');
+  
+  if (successContainer) successContainer.style.display = 'none';
+  if (loadingState) loadingState.style.display = 'block';
 }
 
 function hideLoading() {
-  document.querySelector('[data-loading-state]').style.display = 'none';
-  document.querySelector('[data-success-container]').style.display = 'block';
+  const loadingState = document.querySelector('[data-loading-state]');
+  const successContainer = document.querySelector('[data-success-container]');
+  
+  if (loadingState) loadingState.style.display = 'none';
+  if (successContainer) successContainer.style.display = 'block';
 }
 
 /**
  * Show error state
  */
 function showError(message) {
-  document.querySelector('[data-loading-state]').style.display = 'none';
-  document.querySelector('[data-success-container]').style.display = 'none';
-  document.querySelector('[data-error-state]').style.display = 'block';
-  document.querySelector('[data-error-message]').textContent = message;
+  const loadingState = document.querySelector('[data-loading-state]');
+  const successContainer = document.querySelector('[data-success-container]');
+  const errorState = document.querySelector('[data-error-state]');
+  const errorMessage = document.querySelector('[data-error-message]');
+  
+  if (loadingState) loadingState.style.display = 'none';
+  if (successContainer) successContainer.style.display = 'none';
+  if (errorState) errorState.style.display = 'block';
+  if (errorMessage) errorMessage.textContent = message;
+  
+  console.error('[AbonnementSuccess] Error shown:', message);
 }
 
 /**
