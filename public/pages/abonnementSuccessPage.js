@@ -10,9 +10,9 @@
  */
 
 import { apiClient } from '../utils/api/client.js';
-const stripe = window.Stripe(window.STRIPE_PUBLISHABLE_KEY || 'pk_test_51QqKNJQ0RBkv5CKzAT1RCHUrdWQ5bPVFoKpqhGLOWePjm1o6J7bYXr5IyLtdZtCLGGrm7C8IUc1NjkWa0S4zC3jU00gVL2koW5');
 
 // State
+let stripe = null;
 let paymentIntentData = null;
 let abonnementData = null;
 let setupIntentClientSecret = null;
@@ -23,6 +23,12 @@ let ibanElement = null;
  */
 async function init() {
   console.log('[AbonnementSuccess] Initializing...');
+  
+  // Initialize Stripe
+  if (!window.Stripe) {
+    throw new Error('Stripe library niet geladen. Voeg Stripe.js toe aan je pagina.');
+  }
+  stripe = window.Stripe(window.STRIPE_PUBLISHABLE_KEY || 'pk_test_51QqKNJQ0RBkv5CKzAT1RCHUrdWQ5bPVFoKpqhGLOWePjm1o6J7bYXr5IyLtdZtCLGGrm7C8IUc1NjkWa0S4zC3jU00gVL2koW5');
   
   // Show loading
   showLoading();
@@ -454,6 +460,9 @@ function calculateNextBilling(startDate) {
  * Event Listeners
  */
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize page
+  init();
+  
   // Dashboard button
   const dashboardBtn = document.querySelector('[data-goto-dashboard]');
   if (dashboardBtn) {
