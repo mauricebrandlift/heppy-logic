@@ -244,18 +244,42 @@ export async function createFactuurForBetaling({
 }, correlationId) {
   console.log(`💳 [FactuurService] Factuur aanmaken voor betaling ${betalingId} [${correlationId}]`);
 
-  // 1. Genereer factuurnummer
-  const factuurNummer = await generateFactuurNummer(correlationId);
-  console.log(`📋 [FactuurService] Factuurnummer: ${factuurNummer} [${correlationId}]`);
+  // 1. Check of factuur al bestaat voor deze PaymentIntent
+  if (stripePaymentIntentId) {
+    const checkUrl = `${supabaseConfig.url}/rest/v1/facturen?stripe_payment_intent_id=eq.${stripePaymentIntentId}&select=id,factuur_nummer`;
+    const checkResponse = await httpClient(checkUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+      },
+    }, correlationId);
 
-  // 2. Bereken BTW (aanname: bedrag is incl. BTW)
+    if (checkResponse.ok) {
+      const existing = await checkResponse.json();
+      if (existing && existing.length > 0) {
+        console.log(`ℹ️ [FactuurService] Factuur bestaat al voor PaymentIntent ${stripePaymentIntentId}: ${existing[0].id} [${correlationId}]`);
+        return existing[0];
+      }
+    }
+  }
+
+  // 2. Genereer factuurnummer (optioneel voor receipts)
+  let factuurNummer = null;
+  try {
+    factuurNummer = await generateFactuurNummer(correlationId);
+    console.log(`📋 [FactuurService] Factuurnummer: ${factuurNummer} [${correlationId}]`);
+  } catch (error) {
+    console.warn(`⚠️ [FactuurService] Factuurnummer genereren mislukt, gebruik null [${correlationId}]:`, error.message);
+  }
+
+  // 3. Bereken BTW (aanname: bedrag is incl. BTW)
   const btwPercentage = 21;
   const subtotaalCents = Math.round(totaalCents / (1 + btwPercentage / 100));
   const btwCents = totaalCents - subtotaalCents;
 
   console.log(`💰 [FactuurService] Bedragen - Subtotaal: €${(subtotaalCents / 100).toFixed(2)}, BTW (${btwPercentage}%): €${(btwCents / 100).toFixed(2)}, Totaal: €${(totaalCents / 100).toFixed(2)} [${correlationId}]`);
 
-  // 3. One-time betaling: gebruik Stripe Receipt (geen duplicates)
+  // 4. One-time betaling: gebruik Stripe Receipt (geen duplicates)
   //    Recurring betaling: gebruik Stripe Invoice (wordt later apart aangemaakt)
   let stripeInvoice = null;
   let pdfUrl = null;
@@ -304,7 +328,7 @@ export async function createFactuurForBetaling({
     console.log(`ℹ️ [FactuurService] Geen Stripe Customer ID - skip Stripe Receipt [${correlationId}]`);
   }
 
-  // 4. Sla factuur op in database
+  // 5. Sla factuur op in database
   const factuurId = crypto.randomUUID();
   const factuurdatum = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   
