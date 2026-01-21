@@ -9,9 +9,7 @@
  * - Schoonmaker status
  */
 
-import { ApiClient } from '../utils/api/client.js';
-
-const api = new ApiClient();
+import { apiClient } from '../utils/api/client.js';
 const stripe = window.Stripe(window.STRIPE_PUBLISHABLE_KEY || 'pk_test_51QqKNJQ0RBkv5CKzAT1RCHUrdWQ5bPVFoKpqhGLOWePjm1o6J7bYXr5IyLtdZtCLGGrm7C8IUc1NjkWa0S4zC3jU00gVL2koW5');
 
 // State
@@ -164,8 +162,11 @@ async function checkSepaSetupNeeded(paymentIntent, abonnementId) {
   
   // Request SetupIntent from backend
   try {
-    const response = await api.post('/api/routes/stripe/setup-sepa-mandate', {
-      abonnement_id: abonnementId
+    const response = await apiClient('/routes/stripe/setup-sepa-mandate', {
+      method: 'POST',
+      body: JSON.stringify({
+        abonnement_id: abonnementId
+      })
     });
     
     if (response.already_completed) {
@@ -306,9 +307,12 @@ async function handleSepaSubmit(event) {
  */
 async function finalizeSepaSetup(setupIntentId) {
   try {
-    const response = await api.post('/api/routes/stripe/confirm-sepa-setup', {
-      setup_intent_id: setupIntentId,
-      abonnement_id: abonnementData.id
+    const response = await apiClient('/routes/stripe/confirm-sepa-setup', {
+      method: 'POST',
+      body: JSON.stringify({
+        setup_intent_id: setupIntentId,
+        abonnement_id: abonnementData?.id
+      })
     });
     
     if (response.success) {

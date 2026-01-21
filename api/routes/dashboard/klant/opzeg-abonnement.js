@@ -266,9 +266,11 @@ async function opzegAbonnementHandler(req, res) {
 
     // === VERZEND EMAILS ===
     console.log('📧 [Opzeg Abonnement] Sending emails...');
+    console.log(`👤 [Opzeg Abonnement] Schoonmaker status: ${abonnement.schoonmaker_id ? `Toegewezen (${abonnement.schoonmaker_id})` : 'Niet toegewezen'}`);
 
     // Email naar klant
     try {
+      console.log(`📧 [Opzeg Abonnement] Sending klant email to: ${user.email}`);
       const klantEmailData = {
         voornaam: user.voornaam,
         achternaam: user.achternaam,
@@ -289,10 +291,12 @@ async function opzegAbonnementHandler(req, res) {
       console.log('✅ [Opzeg Abonnement] Klant email verzonden');
     } catch (error) {
       console.error('⚠️ [Opzeg Abonnement] Klant email failed:', error.message);
+      console.error('⚠️ [Opzeg Abonnement] Klant email error stack:', error.stack);
     }
 
     // Email naar schoonmaker (indien toegewezen)
     if (schoonmaker) {
+      console.log(`📧 [Opzeg Abonnement] Sending schoonmaker email to: ${schoonmaker.email}`);
       try {
         const schoonmakerEmailData = {
           schoonmakerNaam: schoonmaker.voornaam,
@@ -316,10 +320,14 @@ async function opzegAbonnementHandler(req, res) {
         console.log('✅ [Opzeg Abonnement] Schoonmaker email verzonden');
       } catch (error) {
         console.error('⚠️ [Opzeg Abonnement] Schoonmaker email failed:', error.message);
+        console.error('⚠️ [Opzeg Abonnement] Schoonmaker email error stack:', error.stack);
       }
+    } else {
+      console.log('ℹ️ [Opzeg Abonnement] Schoonmaker email skipped - geen schoonmaker toegewezen');
     }
 
     // Email naar admin
+    console.log(`📧 [Opzeg Abonnement] Sending admin email to: info@heppy-schoonmaak.nl`);
     try {
       const adminEmailData = {
         klantNaam: `${user.voornaam} ${user.achternaam}`,
@@ -346,6 +354,7 @@ async function opzegAbonnementHandler(req, res) {
       console.log('✅ [Opzeg Abonnement] Admin email verzonden');
     } catch (error) {
       console.error('⚠️ [Opzeg Abonnement] Admin email failed:', error.message);
+      console.error('⚠️ [Opzeg Abonnement] Admin email error stack:', error.stack);
     }
 
     return res.status(200).json({

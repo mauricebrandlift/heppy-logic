@@ -227,9 +227,11 @@ async function updateAbonnementHandler(req, res) {
 
     // === VERZEND EMAILS ===
     console.log('📧 [Update Abonnement] Sending emails...');
+    console.log(`👤 [Update Abonnement] Schoonmaker status: ${abonnement.schoonmaker_id ? `Toegewezen (${abonnement.schoonmaker_id})` : 'Niet toegewezen'}`);
 
     // Email naar klant
     try {
+      console.log(`📧 [Update Abonnement] Sending klant email to: ${user.email}`);
       const klantEmailData = {
         voornaam: user.voornaam,
         achternaam: user.achternaam,
@@ -280,10 +282,14 @@ async function updateAbonnementHandler(req, res) {
         console.log('✅ [Update Abonnement] Schoonmaker email verzonden');
       } catch (error) {
         console.error('⚠️ [Update Abonnement] Schoonmaker email failed:', error.message);
+        console.error('⚠️ [Update Abonnement] Schoonmaker email error stack:', error.stack);
       }
+    } else {
+      console.log('ℹ️ [Update Abonnement] Schoonmaker email skipped - geen schoonmaker toegewezen');
     }
 
     // Email naar admin
+    console.log(`📧 [Update Abonnement] Sending admin email to: info@heppy-schoonmaak.nl`);
     try {
       const adminEmailData = {
         klantNaam: `${user.voornaam} ${user.achternaam}`,
@@ -309,6 +315,7 @@ async function updateAbonnementHandler(req, res) {
       console.log('✅ [Update Abonnement] Admin email verzonden');
     } catch (error) {
       console.error('⚠️ [Update Abonnement] Admin email failed:', error.message);
+      console.error('⚠️ [Update Abonnement] Admin email error stack:', error.stack);
     }
 
     return res.status(200).json({
