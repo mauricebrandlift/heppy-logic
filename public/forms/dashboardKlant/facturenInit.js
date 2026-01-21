@@ -5,7 +5,6 @@
  */
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
-import { initInvoiceButton } from '../../utils/invoiceHelper.js';
 
 /**
  * Formatteer datum naar NL formaat (kort)
@@ -316,8 +315,7 @@ export async function initFacturenOverzicht() {
       
       renderFacturenList(facturen);
       
-      // Initialiseer alle invoice buttons
-      initInvoiceButton();
+      // Buttons hebben directe links (invoice_url) - geen initInvoiceButton() nodig
     }
 
     console.log('✅ [Facturen] Initialisatie voltooid');
