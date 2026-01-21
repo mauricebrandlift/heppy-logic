@@ -279,53 +279,32 @@ export async function createFactuurForBetaling({
 
   console.log(`💰 [FactuurService] Bedragen - Subtotaal: €${(subtotaalCents / 100).toFixed(2)}, BTW (${btwPercentage}%): €${(btwCents / 100).toFixed(2)}, Totaal: €${(totaalCents / 100).toFixed(2)} [${correlationId}]`);
 
-  // 4. One-time betaling: gebruik Stripe Receipt (geen duplicates)
-  //    Recurring betaling: gebruik Stripe Invoice (wordt later apart aangemaakt)
+  // 4. Maak Stripe Invoice aan voor alle betalingen (one-time en recurring)
   let stripeInvoice = null;
   let pdfUrl = null;
 
-  if (stripePaymentIntentId && stripeCustomerId) {
-    // One-time payment: haal receipt URL op van Charge
+  if (stripeCustomerId) {
     try {
-      console.log(`🧾 [FactuurService] Ophalen Receipt voor PaymentIntent ${stripePaymentIntentId} [${correlationId}]`);
+      console.log(`📄 [FactuurService] Stripe Invoice aanmaken voor customer ${stripeCustomerId} [${correlationId}]`);
       
-      const piResponse = await fetch(`https://api.stripe.com/v1/payment_intents/${stripePaymentIntentId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${stripeConfig.secretKey}`,
-        },
-      });
+      stripeInvoice = await createStripeInvoice({
+        customerId: stripeCustomerId,
+        paymentIntentId: stripePaymentIntentId, // Koppel aan bestaande payment
+        description: `${regels[0]?.omschrijving || 'Betaling'} - ${factuurNummer || 'Factuur'}`,
+        regels: regels,
+        metadata: metadata || {}
+      }, correlationId);
 
-      const paymentIntent = await piResponse.json();
-      
-      if (piResponse.ok && paymentIntent.latest_charge) {
-        // Haal Charge object op om receipt_url te krijgen
-        const chargeResponse = await fetch(`https://api.stripe.com/v1/charges/${paymentIntent.latest_charge}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${stripeConfig.secretKey}`,
-          },
-        });
-
-        const charge = await chargeResponse.json();
-        
-        if (chargeResponse.ok && charge.receipt_url) {
-          pdfUrl = charge.receipt_url;
-          console.log(`✅ [FactuurService] Receipt URL gevonden: ${pdfUrl} [${correlationId}]`);
-        } else {
-          console.error(`⚠️ [FactuurService] Geen receipt_url gevonden in Charge [${correlationId}]`);
-        }
-      } else {
-        console.error(`⚠️ [FactuurService] Geen latest_charge gevonden in PaymentIntent [${correlationId}]`);
+      if (stripeInvoice?.hosted_invoice_url) {
+        pdfUrl = stripeInvoice.hosted_invoice_url;
+        console.log(`✅ [FactuurService] Invoice aangemaakt: ${stripeInvoice.id} [${correlationId}]`);
       }
     } catch (error) {
-      console.error(`❌ [FactuurService] Receipt ophalen mislukt (niet fataal): ${error.message} [${correlationId}]`);
+      console.error(`❌ [FactuurService] Invoice aanmaken mislukt (niet fataal): ${error.message} [${correlationId}]`);
       // Continue - we slaan factuur alsnog op in database
     }
-  } else if (stripeCustomerId) {
-    console.log(`ℹ️ [FactuurService] Geen PaymentIntent - skip Receipt (recurring billing gebruikt Invoices) [${correlationId}]`);
   } else {
-    console.log(`ℹ️ [FactuurService] Geen Stripe Customer ID - skip Stripe Receipt [${correlationId}]`);
+    console.log(`ℹ️ [FactuurService] Geen Stripe Customer ID - skip Stripe Invoice [${correlationId}]`);
   }
 
   // 5. Sla factuur op in database
@@ -349,6 +328,7 @@ export async function createFactuurForBetaling({
     betaald_op: new Date().toISOString(),
     stripe_invoice_id: stripeInvoice?.id || null,
     stripe_payment_intent_id: stripePaymentIntentId || null,
+    stripe_invoice_id: stripeInvoice?.id || null,
     omschrijving,
     regels: JSON.stringify(regels),
     pdf_url: pdfUrl,

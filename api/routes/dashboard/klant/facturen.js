@@ -70,8 +70,9 @@ async function facturenHandler(req, res) {
       return {
         ...factuur,
         amount_cents: factuur.totaal_cents, // Frontend verwacht amount_cents
-        invoice_url: factuur.pdf_url, // Direct beschikbaar (Receipt of Invoice)
-        periode_display // Voor weergave in UI
+        invoice_url: factuur.pdf_url, // Voor fallback direct link (indien beschikbaar)
+        periode_display, // Voor weergave in UI
+        stripe_invoice_id: factuur.stripe_invoice_id // Voor dynamic Invoice URL fetching
       };
     });
 

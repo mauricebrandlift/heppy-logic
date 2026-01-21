@@ -5,6 +5,7 @@
  */
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
+import { initInvoiceButton } from '../../utils/invoiceHelper.js';
 
 /**
  * Formatteer datum naar NL formaat (kort)
@@ -221,15 +222,10 @@ function renderFacturenList(facturen) {
 
     // Download button (binnen dropdown wrapper)
     const buttonEl = clone.querySelector('[data-invoice-button]');
-    if (buttonEl && factuur.invoice_url) {
-      // Direct link naar Receipt/Invoice PDF
+    if (buttonEl && factuur.stripe_invoice_id) {
+      // Set Invoice ID voor dynamic URL fetching via invoiceHelper
+      buttonEl.setAttribute('data-invoice-id', factuur.stripe_invoice_id);
       buttonEl.style.display = ''; // Maak button zichtbaar
-      
-      // Voeg click handler toe
-      buttonEl.addEventListener('click', (e) => {
-        e.preventDefault();
-        window.open(factuur.invoice_url, '_blank');
-      });
       
       // Maak ook de dropdown wrapper zichtbaar
       const dropdownWrapper = buttonEl.closest('.w-dropdown');
@@ -237,7 +233,7 @@ function renderFacturenList(facturen) {
         dropdownWrapper.style.display = '';
       }
     } else if (buttonEl) {
-      // Geen invoice URL: verberg button en dropdown
+      // Geen invoice ID: verberg button en dropdown
       buttonEl.style.display = 'none';
       const dropdownWrapper = buttonEl.closest('.w-dropdown');
       if (dropdownWrapper) {
@@ -319,7 +315,8 @@ export async function initFacturenOverzicht() {
       
       renderFacturenList(facturen);
       
-      // Buttons hebben directe links (invoice_url) - geen initInvoiceButton() nodig
+      // Initialiseer Invoice buttons voor dynamic URL fetching
+      initInvoiceButton();
     }
 
     console.log('✅ [Facturen] Initialisatie voltooid');
