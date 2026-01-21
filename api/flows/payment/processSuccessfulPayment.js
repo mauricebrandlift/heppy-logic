@@ -11,7 +11,7 @@ import { intakeService } from '../../services/intakeService.js';
 import { voorkeursDagdelenService } from '../../services/voorkeursDagdelenService.js';
 import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
 import { sendEmail } from '../../services/emailService.js';
-import { emailConfig } from '../../config/index.js';
+import { emailConfig, frontendConfig } from '../../config/index.js';
 import { 
   nieuweAanvraagAdmin, 
   betalingBevestigingKlant,

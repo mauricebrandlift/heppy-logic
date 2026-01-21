@@ -96,8 +96,12 @@ async function init() {
 
 /**
  * Fetch abonnement_id from betalingen table
+ * Retry logic: webhook kan 1-2 seconden duren voordat betaling in database staat
+ * @param {string} paymentIntentId - Stripe PaymentIntent ID
+ * @param {number} retryCount - Huidige retry poging
+ * @param {number} maxRetries - Max aantal retries (3 = 1s + 2s + 4s = 7 seconden totaal)
  */
-async function fetchAbonnementId(paymentIntentId) {
+async function fetchAbonnementId(paymentIntentId, retryCount = 0, maxRetries = 3) {
   console.log('[AbonnementSuccess] Fetching abonnement_id for PaymentIntent:', paymentIntentId);
   
   try {
@@ -108,12 +112,22 @@ async function fetchAbonnementId(paymentIntentId) {
     if (response.found && response.abonnement_id) {
       abonnementId = response.abonnement_id;
       console.log('[AbonnementSuccess] ✅ Abonnement ID found:', abonnementId);
+      return true;
     } else {
       console.warn('[AbonnementSuccess] ⚠️ Abonnement nog niet aangemaakt - webhook mogelijk nog bezig');
+      return false;
     }
   } catch (error) {
-    console.error('[AbonnementSuccess] Fout bij ophalen abonnement_id:', error);
-    // Niet fataal - gebruiker kan later machtiging instellen via dashboard
+    // 404 = betaling nog niet in database, webhook nog bezig
+    if (error.status === 404 && retryCount < maxRetries) {
+      const delay = Math.pow(2, retryCount) * 1000; // 1s, 2s, 4s
+      console.log(`[AbonnementSuccess] ⏳ Retry ${retryCount + 1}/${maxRetries} over ${delay}ms (webhook processing)...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return fetchAbonnementId(paymentIntentId, retryCount + 1, maxRetries);
+    }
+    
+    console.error('[AbonnementSuccess] Fout bij ophalen abonnement_id na retries:', error);
+    return false;
   }
 }
 

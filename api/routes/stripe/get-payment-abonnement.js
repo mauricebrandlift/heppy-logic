@@ -57,7 +57,7 @@ export default async function handler(req, res) {
       url
     }));
     
-    const response = await httpClient(url, {
+    const httpResponse = await httpClient(url, {
       method: 'GET',
       headers: {
         'apikey': supabaseConfig.anonKey,
@@ -65,26 +65,29 @@ export default async function handler(req, res) {
       }
     });
 
+    // Parse JSON response
+    const data = await httpResponse.json();
+
     console.log(JSON.stringify({
       level: 'DEBUG',
       correlationId,
       route: 'stripe/get-payment-abonnement',
       action: 'database_response',
-      responseType: typeof response,
-      isArray: Array.isArray(response),
-      length: response?.length,
-      response: response
+      responseType: typeof data,
+      isArray: Array.isArray(data),
+      length: data?.length,
+      response: data
     }));
 
-    if (!response || !Array.isArray(response) || response.length === 0) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
       console.log(JSON.stringify({
         level: 'WARN',
         correlationId,
         route: 'stripe/get-payment-abonnement',
         action: 'not_found',
         paymentIntentId,
-        responseReceived: !!response,
-        responseLength: response?.length || 0
+        responseReceived: !!data,
+        responseLength: data?.length || 0
       }));
       
       return res.status(404).json({ 
@@ -94,7 +97,7 @@ export default async function handler(req, res) {
       });
     }
 
-    const betaling = response[0];
+    const betaling = data[0];
     
     if (!betaling) {
       console.log(JSON.stringify({
@@ -102,7 +105,7 @@ export default async function handler(req, res) {
         correlationId,
         route: 'stripe/get-payment-abonnement',
         action: 'betaling_undefined',
-        response
+        response: data
       }));
       
       return res.status(404).json({ 
