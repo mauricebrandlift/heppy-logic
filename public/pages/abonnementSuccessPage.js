@@ -325,7 +325,7 @@ function showSepaModal(metadata) {
 
   // Create Stripe Element container
   const stripeElementDiv = document.createElement('div');
-  stripeElementDiv.setAttribute('data-stripe-iban-element', '');
+  stripeElementDiv.setAttribute('data-element', 'stripe-iban-element');
   stripeElementDiv.className = 'form_input w-input'; // Match Webflow styling
   ibanInput.insertAdjacentElement('afterend', stripeElementDiv);
 
@@ -345,17 +345,25 @@ function showSepaModal(metadata) {
     }
   });
 
-  ibanElement.mount('[data-stripe-iban-element]');
+  ibanElement.mount('[data-element="stripe-iban-element"]');
 
   // IBAN validation errors + button state - use formUi helper
   const ibanError = modal.querySelector('[data-modal-error="sepa-iban"]');
   const submitButton = modal.querySelector('[data-modal-submit="sepa"]');
+  
+  // Initially disable submit button until IBAN is valid
+  if (submitButton) {
+    submitButton.disabled = true;
+    submitButton.classList.add('is-disabled');
+    submitButton.style.pointerEvents = 'none';
+  }
   
   ibanElement.on('change', (event) => {
     if (event.error) {
       showFormError(ibanError, event.error.message);
       // Disable button on error
       if (submitButton) {
+        submitButton.disabled = true;
         submitButton.classList.add('is-disabled');
         submitButton.style.pointerEvents = 'none';
       }
@@ -363,25 +371,20 @@ function showSepaModal(metadata) {
       hideError(ibanError);
       // Enable button when IBAN is valid and complete
       if (event.complete && submitButton) {
+        submitButton.disabled = false;
         submitButton.classList.remove('is-disabled');
         submitButton.style.pointerEvents = '';
         console.log('[AbonnementSuccess] ✅ Submit button enabled (IBAN valid)');
-      }
-    }
-  });
-    } else {
-      hideError(ibanError);
-      // Enable button when IBAN is valid and complete
-      if (event.complete && submitButton) {
-        submitButton.classList.remove('is-disabled');
-        submitButton.style.pointerEvents = '';
-        console.log('[AbonnementSuccess] ✅ Submit button enabled (IBAN valid)');
+      } else if (submitButton) {
+        // Incomplete but no error - keep disabled
+        submitButton.disabled = true;
+        submitButton.classList.add('is-disabled');
+        submitButton.style.pointerEvents = 'none';
       }
     }
   });
 
   // Submit button click handler (DIV button pattern)
-  const submitButton = modal.querySelector('[data-modal-submit="sepa"]');
   const submitHandler = (e) => {
     e.preventDefault();
     e.stopPropagation();
