@@ -180,9 +180,8 @@ function renderFacturenList(facturen) {
       // Abonnement: toon periode
       if (periodeTitle) periodeTitle.textContent = 'Periode';
       if (periodeDatum) {
-        // TODO: Als we weeknummers in de data hebben, toon die
-        // Voor nu: maand + jaar
-        periodeDatum.textContent = formatMaandJaar(factuur.aangemaakt_op);
+        // Gebruik periode_display van API (bijv. "2 feb - 2 mrt 2026")
+        periodeDatum.textContent = factuur.periode_display || formatMaandJaar(factuur.aangemaakt_op);
       }
     } else {
       // Eenmalig of Webshop: toon datum
@@ -223,8 +222,10 @@ function renderFacturenList(facturen) {
 
     // Download button (binnen dropdown wrapper)
     const buttonEl = clone.querySelector('[data-invoice-button]');
-    if (buttonEl && factuur.stripe_invoice_id) {
-      buttonEl.dataset.invoiceId = factuur.stripe_invoice_id;
+    if (buttonEl && factuur.invoice_url) {
+      // Direct link naar Receipt/Invoice PDF
+      buttonEl.href = factuur.invoice_url;
+      buttonEl.target = '_blank';
       buttonEl.style.display = ''; // Maak button zichtbaar
       
       // Maak ook de dropdown wrapper zichtbaar
@@ -233,7 +234,7 @@ function renderFacturenList(facturen) {
         dropdownWrapper.style.display = '';
       }
     } else if (buttonEl) {
-      // Geen invoice ID: verberg button en dropdown
+      // Geen invoice URL: verberg button en dropdown
       buttonEl.style.display = 'none';
       const dropdownWrapper = buttonEl.closest('.w-dropdown');
       if (dropdownWrapper) {
