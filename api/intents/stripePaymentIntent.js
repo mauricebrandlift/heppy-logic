@@ -156,5 +156,6 @@ export async function retrievePaymentIntent({ secretKey, id, correlationId }) {
     customer: data.customer,
     last_payment_error: data.last_payment_error || null,
     created: data.created,
+    metadata: data.metadata || {},
   };
 }

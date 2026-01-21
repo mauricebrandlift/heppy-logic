@@ -66,7 +66,12 @@ async function init() {
     }
     paymentIntentData = paymentIntent;
     
-    console.log('[AbonnementSuccess] PaymentIntent:', paymentIntent);
+    console.log('[AbonnementSuccess] PaymentIntent retrieved:', {
+      id: paymentIntent.id,
+      status: paymentIntent.status,
+      amount: paymentIntent.amount,
+      metadata: paymentIntent.metadata
+    });
     
     // Check status
     if (paymentIntent.status !== 'succeeded') {
@@ -76,10 +81,14 @@ async function init() {
     // Display payment details
     displayPaymentDetails(paymentIntent);
     
-    // Get abonnement data from metadata
+    // Get abonnement data from metadata (may not be set yet if webhook hasn't processed)
     const abonnementId = paymentIntent.metadata?.abonnement_id;
+    console.log('[AbonnementSuccess] Abonnement ID from metadata:', abonnementId);
+    
     if (!abonnementId) {
-      console.warn('[AbonnementSuccess] Geen abonnement_id in metadata');
+      console.warn('[AbonnementSuccess] ⚠️ Geen abonnement_id in metadata - webhook mogelijk nog niet verwerkt');
+      console.log('[AbonnementSuccess] Metadata flow:', paymentIntent.metadata?.flow);
+      console.log('[AbonnementSuccess] Metadata aanvraagId:', paymentIntent.metadata?.aanvraagId);
     } else {
       await loadAbonnementData(abonnementId);
     }
@@ -87,8 +96,8 @@ async function init() {
     // Check if SEPA setup needed
     await checkSepaSetupNeeded(paymentIntent, abonnementId);
     
-    // Display schoonmaker info
-    displaySchoonmakerInfo(paymentIntent.metadata);
+    // Display schoonmaker info (safe - handles missing metadata)
+    displaySchoonmakerInfo(paymentIntent.metadata || {});
     
     // Hide loading, show content
     hideLoading();
@@ -143,19 +152,36 @@ function getPaymentMethodType(paymentIntent) {
  */
 async function loadAbonnementData(abonnementId) {
   try {
+    console.log('[AbonnementSuccess] loadAbonnementData called with ID:', abonnementId);
+    
     // Fetch abonnement details (zou je via een endpoint moeten doen)
     // Voor nu gebruiken we metadata van PaymentIntent
     const metadata = paymentIntentData.metadata;
+    console.log('[AbonnementSuccess] Using metadata for abonnement display:', metadata);
     
-    document.querySelector('[data-start-date]').textContent = formatDate(metadata.startdatum);
-    document.querySelector('[data-frequency]').textContent = getFrequencyLabel(metadata.frequentie);
-    document.querySelector('[data-sessions-count]').textContent = metadata.sessions_per_4w || '4';
+    const startDateEl = document.querySelector('[data-start-date]');
+    const frequencyEl = document.querySelector('[data-frequency]');
+    const sessionsEl = document.querySelector('[data-sessions-count]');
+    const nextBillingEl = document.querySelector('[data-next-billing]');
+    
+    if (startDateEl && metadata.startdatum) {
+      startDateEl.textContent = formatDate(metadata.startdatum);
+    }
+    if (frequencyEl && metadata.frequentie) {
+      frequencyEl.textContent = getFrequencyLabel(metadata.frequentie);
+    }
+    if (sessionsEl) {
+      sessionsEl.textContent = metadata.sessions_per_4w || '4';
+    }
     
     // Next billing (startdatum + 28 dagen)
-    const nextBilling = calculateNextBilling(metadata.startdatum);
-    document.querySelector('[data-next-billing]').textContent = formatDate(nextBilling);
+    if (nextBillingEl && metadata.startdatum) {
+      const nextBilling = calculateNextBilling(metadata.startdatum);
+      nextBillingEl.textContent = formatDate(nextBilling);
+    }
     
     abonnementData = { id: abonnementId, ...metadata };
+    console.log('[AbonnementSuccess] Abonnement data loaded successfully');
     
   } catch (error) {
     console.error('[AbonnementSuccess] Failed to load abonnement data:', error);
@@ -392,13 +418,27 @@ function showSepaSetupLater() {
  * Display schoonmaker info
  */
 function displaySchoonmakerInfo(metadata) {
+  console.log('[AbonnementSuccess] displaySchoonmakerInfo called with:', metadata);
+  
+  if (!metadata) {
+    console.warn('[AbonnementSuccess] No metadata provided to displaySchoonmakerInfo');
+    return;
+  }
+  
   const schoonmakerNaam = metadata.schoonmaker_naam;
+  console.log('[AbonnementSuccess] Schoonmaker naam from metadata:', schoonmakerNaam);
+  
+  const assignedEl = document.querySelector('[data-schoonmaker-assigned]');
+  const nameEl = document.querySelector('[data-schoonmaker-name]');
+  const pendingEl = document.querySelector('[data-schoonmaker-pending]');
   
   if (schoonmakerNaam && schoonmakerNaam !== 'Niet toegewezen') {
-    document.querySelector('[data-schoonmaker-assigned]').style.display = 'block';
-    document.querySelector('[data-schoonmaker-name]').textContent = schoonmakerNaam;
+    console.log('[AbonnementSuccess] Showing assigned schoonmaker');
+    if (assignedEl) assignedEl.style.display = 'block';
+    if (nameEl) nameEl.textContent = schoonmakerNaam;
   } else {
-    document.querySelector('[data-schoonmaker-pending]').style.display = 'block';
+    console.log('[AbonnementSuccess] Showing pending schoonmaker');
+    if (pendingEl) pendingEl.style.display = 'block';
   }
 }
 

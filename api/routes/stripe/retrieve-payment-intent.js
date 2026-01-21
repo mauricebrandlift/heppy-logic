@@ -33,7 +33,27 @@ export default async function handler(req, res) {
       id = urlObj.searchParams.get('id');
     } catch (_) {}
 
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'stripe/retrieve-payment-intent',
+      action: 'retrieve_request',
+      paymentIntentId: id
+    }));
+
     const result = await retrievePaymentIntent({ secretKey, id, correlationId });
+    
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'stripe/retrieve-payment-intent',
+      action: 'retrieve_success',
+      paymentIntentId: result.id,
+      status: result.status,
+      amount: result.amount,
+      metadata: result.metadata || 'none'
+    }));
+    
     return res.status(200).json({ correlationId, ...result });
   } catch (error) {
     return handleErrorResponse(res, error, 500, correlationId);
