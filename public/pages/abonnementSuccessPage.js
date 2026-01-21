@@ -6,7 +6,6 @@
  * - Conditioneel SEPA setup tonen (alleen bij iDEAL/non-SEPA payment methods)
  * - SEPA mandate authorization flow
  * - Display abonnement info
- * - Schoonmaker status
  */
 
 import { apiClient } from '../utils/api/client.js';
@@ -14,7 +13,6 @@ import { apiClient } from '../utils/api/client.js';
 // State
 let stripe = null;
 let paymentIntentData = null;
-let abonnementData = null;
 let setupIntentClientSecret = null;
 let ibanElement = null;
 
@@ -26,18 +24,17 @@ async function init() {
   
   // Initialize Stripe
   if (!window.Stripe) {
-    throw new Error('Stripe library niet geladen. Voeg Stripe.js toe aan je pagina.');
+    console.error('[AbonnementSuccess] Stripe library niet geladen');
+    showError('Betaalprovider kan niet geladen worden. Herlaad de pagina.');
+    return;
   }
   stripe = window.Stripe(window.STRIPE_PUBLISHABLE_KEY || 'pk_test_51QqKNJQ0RBkv5CKzAT1RCHUrdWQ5bPVFoKpqhGLOWePjm1o6J7bYXr5IyLtdZtCLGGrm7C8IUc1NjkWa0S4zC3jU00gVL2koW5');
-  
-  // Show loading
-  showLoading();
   
   try {
     // Get URL params
     const urlParams = new URLSearchParams(window.location.search);
     const paymentIntentClientSecret = urlParams.get('payment_intent_client_secret');
-    const paymentIntentId = urlParams.get('payment_intent') || urlParams.get('pi'); // Support both
+    const paymentIntentId = urlParams.get('payment_intent') || urlParams.get('pi');
     
     console.log('[AbonnementSuccess] URL params:', {
       payment_intent_client_secret: paymentIntentClientSecret,
@@ -56,13 +53,11 @@ async function init() {
       const result = await stripe.retrievePaymentIntent(paymentIntentClientSecret);
       paymentIntent = result.paymentIntent;
     } else {
-      // Als we alleen ID hebben, gebruik backend endpoint
       const response = await apiClient(`/routes/stripe/retrieve-payment-intent?id=${paymentIntentId}`, {
         method: 'GET'
       });
-      // Response bevat PaymentIntent data direct (niet in .paymentIntent property)
-      const { correlationId, ...paymentIntentData } = response;
-      paymentIntent = paymentIntentData;
+      const { correlationId, ...piData } = response;
+      paymentIntent = piData;
     }
     paymentIntentData = paymentIntent;
     
@@ -70,6 +65,7 @@ async function init() {
       id: paymentIntent.id,
       status: paymentIntent.status,
       amount: paymentIntent.amount,
+      payment_method_types: paymentIntent.payment_method_types,
       metadata: paymentIntent.metadata
     });
     
@@ -78,26 +74,10 @@ async function init() {
       throw new Error(`Betaling status is ${paymentIntent.status}, verwacht 'succeeded'`);
     }
     
-    // Display payment details
+    // Display all data
     displayPaymentDetails(paymentIntent);
-    
-    // Get abonnement data from metadata (may not be set yet if webhook hasn't processed)
-    const abonnementId = paymentIntent.metadata?.abonnement_id;
-    console.log('[AbonnementSuccess] Abonnement ID from metadata:', abonnementId);
-    
-    if (!abonnementId) {
-      console.warn('[AbonnementSuccess] ⚠️ Geen abonnement_id in metadata - webhook mogelijk nog niet verwerkt');
-      console.log('[AbonnementSuccess] Metadata flow:', paymentIntent.metadata?.flow);
-      console.log('[AbonnementSuccess] Metadata aanvraagId:', paymentIntent.metadata?.aanvraagId);
-    } else {
-      await loadAbonnementData(abonnementId);
-    }
-    
-    // Check if SEPA setup needed
-    await checkSepaSetupNeeded(paymentIntent, abonnementId);
-    
-    // Display schoonmaker info (safe - handles missing metadata)
-    displaySchoonmakerInfo(paymentIntent.metadata || {});
+    displayAbonnementDetails(paymentIntent.metadata || {});
+    checkAndShowMachtiging(paymentIntent);
     
     // Hide loading, show content
     hideLoading();
@@ -112,112 +92,113 @@ async function init() {
  * Display payment details
  */
 function displayPaymentDetails(paymentIntent) {
-  const amountEuros = (paymentIntent.amount / 100).toFixed(2);
+  console.log('[AbonnementSuccess] Displaying payment details');
   
-  const amountEl = document.querySelector('[data-payment-amount]');
-  const idEl = document.querySelector('[data-payment-id]');
-  const methodEl = document.querySelector('[data-payment-method]');
-  const invoiceEl = document.querySelector('[data-invoice-number]');
+  const amountEuros = (paymentIntent.amount / 100).toFixed(2).replace('.', ',');
+  const paymentMethodType = getPaymentMethodType(paymentIntent);
+  const factuurNummer = paymentIntent.metadata?.factuur_nummer || 'Wordt gegenereerd...';
+  
+  // Vul payment details
+  const amountEl = document.querySelector('[data-payment-details="amount"]');
+  const factuurnummerEl = document.querySelector('[data-payment-details="factuurnummer"]');
+  const methodEl = document.querySelector('[data-payment-details="betaalmethode"]');
+  const idEl = document.querySelector('[data-payment-details="betaling_id"]');
   
   if (amountEl) amountEl.textContent = `€${amountEuros}`;
+  if (factuurnummerEl) factuurnummerEl.textContent = factuurNummer;
+  if (methodEl) methodEl.textContent = paymentMethodType;
   if (idEl) idEl.textContent = paymentIntent.id;
   
-  // Payment method
-  const paymentMethodType = getPaymentMethodType(paymentIntent);
-  if (methodEl) methodEl.textContent = paymentMethodType;
-  
-  // Invoice number (if available in metadata)
-  const invoiceNumber = paymentIntent.metadata?.factuur_nummer || 'Wordt gegenereerd...';
-  if (invoiceEl) invoiceEl.textContent = invoiceNumber;
+  console.log('[AbonnementSuccess] Payment details displayed:', {
+    amount: `€${amountEuros}`,
+    method: paymentMethodType,
+    factuur: factuurNummer
+  });
 }
 
 /**
- * Get human-readable payment method type
+ * Display abonnement details
  */
-function getPaymentMethodType(paymentIntent) {
-  const type = paymentIntent.payment_method_types?.[0] || 'unknown';
+function displayAbonnementDetails(metadata) {
+  console.log('[AbonnementSuccess] Displaying abonnement details with metadata:', metadata);
   
-  const typeMap = {
-    'ideal': 'iDEAL',
-    'card': 'Creditcard',
-    'sepa_debit': 'SEPA Incasso',
-    'bancontact': 'Bancontact'
-  };
-  
-  return typeMap[type] || type;
-}
-
-/**
- * Load abonnement data from backend
- */
-async function loadAbonnementData(abonnementId) {
-  try {
-    console.log('[AbonnementSuccess] loadAbonnementData called with ID:', abonnementId);
-    
-    // Fetch abonnement details (zou je via een endpoint moeten doen)
-    // Voor nu gebruiken we metadata van PaymentIntent
-    const metadata = paymentIntentData.metadata;
-    console.log('[AbonnementSuccess] Using metadata for abonnement display:', metadata);
-    
-    const startDateEl = document.querySelector('[data-start-date]');
-    const frequencyEl = document.querySelector('[data-frequency]');
-    const sessionsEl = document.querySelector('[data-sessions-count]');
-    const nextBillingEl = document.querySelector('[data-next-billing]');
-    
-    if (startDateEl && metadata.startdatum) {
-      startDateEl.textContent = formatDate(metadata.startdatum);
-    }
-    if (frequencyEl && metadata.frequentie) {
-      frequencyEl.textContent = getFrequencyLabel(metadata.frequentie);
-    }
-    if (sessionsEl) {
-      sessionsEl.textContent = metadata.sessions_per_4w || '4';
-    }
-    
-    // Next billing (startdatum + 28 dagen)
-    if (nextBillingEl && metadata.startdatum) {
-      const nextBilling = calculateNextBilling(metadata.startdatum);
-      nextBillingEl.textContent = formatDate(nextBilling);
-    }
-    
-    abonnementData = { id: abonnementId, ...metadata };
-    console.log('[AbonnementSuccess] Abonnement data loaded successfully');
-    
-  } catch (error) {
-    console.error('[AbonnementSuccess] Failed to load abonnement data:', error);
-  }
-}
-
-/**
- * Check if SEPA setup is needed
- */
-async function checkSepaSetupNeeded(paymentIntent, abonnementId) {
-  if (!abonnementId) {
-    console.log('[AbonnementSuccess] No abonnement, skip SEPA check');
+  if (!metadata || !metadata.startdatum) {
+    console.warn('[AbonnementSuccess] Geen metadata voor abonnement details');
     return;
   }
+  
+  const startweekEl = document.querySelector('[data-abonnement-details="startweek"]');
+  const frequentieEl = document.querySelector('[data-abonnement-details="frequentie"]');
+  const sessiesEl = document.querySelector('[data-abonnement-details="sessies"]');
+  const volgendeBetEl = document.querySelector('[data-abonnement-details="volgende betaling"]');
+  
+  if (startweekEl && metadata.startdatum) {
+    startweekEl.textContent = formatDate(metadata.startdatum);
+  }
+  if (frequentieEl && metadata.frequentie) {
+    frequentieEl.textContent = getFrequencyLabel(metadata.frequentie);
+  }
+  if (sessiesEl) {
+    sessiesEl.textContent = metadata.sessions_per_4w || '4';
+  }
+  if (volgendeBetEl && metadata.startdatum) {
+    const nextBilling = calculateNextBilling(metadata.startdatum);
+    volgendeBetEl.textContent = formatDate(nextBilling);
+  }
+  
+  console.log('[AbonnementSuccess] Abonnement details displayed');
+}
+
+/**
+ * Check if machtiging row should be shown and handle SEPA setup
+ */
+async function checkAndShowMachtiging(paymentIntent) {
+  console.log('[AbonnementSuccess] Checking machtiging requirement');
   
   const paymentMethodType = paymentIntent.payment_method_types?.[0];
+  const machtigingRow = document.querySelector('[data-abonnement="machtiging-row"]');
   
-  // SEPA setup alleen nodig als NIET betaald met sepa_debit
-  const needsSepaSetup = paymentMethodType !== 'sepa_debit';
-  
-  if (!needsSepaSetup) {
-    console.log('[AbonnementSuccess] Paid with SEPA, no setup needed');
-    document.querySelector('[data-sepa-success]').style.display = 'block';
+  if (!machtigingRow) {
+    console.warn('[AbonnementSuccess] Machtiging row element not found');
     return;
   }
   
-  console.log('[AbonnementSuccess] SEPA setup required (paid with', paymentMethodType, ')');
+  // Toon machtiging row alleen als NIET met sepa_debit betaald
+  if (paymentMethodType === 'sepa_debit') {
+    console.log('[AbonnementSuccess] Paid with SEPA, hide machtiging row');
+    machtigingRow.style.display = 'none';
+    return;
+  }
   
-  // Update current payment method in SEPA intro
-  document.querySelector('[data-current-payment-method]').textContent = getPaymentMethodType(paymentIntent);
+  console.log('[AbonnementSuccess] Paid with', paymentMethodType, ', show machtiging row');
+  machtigingRow.style.display = 'flex'; // Of 'block', afhankelijk van je CSS
   
-  // Show SEPA step in next steps
-  document.querySelector('[data-sepa-step]').style.display = 'list-item';
+  // Setup click handler for machtiging button
+  const machtigingButton = document.querySelector('[data-abonnement="machtiging-open-button"]');
+  if (machtigingButton) {
+    machtigingButton.addEventListener('click', (e) => {
+      e.preventDefault();
+      handleMachtigingClick(paymentIntent);
+    });
+  }
+}
+
+/**
+ * Handle machtiging button click - open SEPA setup modal/flow
+ */
+async function handleMachtigingClick(paymentIntent) {
+  console.log('[AbonnementSuccess] Machtiging button clicked');
   
-  // Request SetupIntent from backend
+  const abonnementId = paymentIntent.metadata?.abonnement_id;
+  
+  if (!abonnementId) {
+    console.error('[AbonnementSuccess] Geen abonnement_id in metadata - kan SEPA niet setup maken');
+    alert('Abonnement is nog niet volledig verwerkt. Probeer het over een paar minuten opnieuw of stel de machtiging later in via je dashboard.');
+    return;
+  }
+  
   try {
+    // Request SetupIntent from backend
     const response = await apiClient('/routes/stripe/setup-sepa-mandate', {
       method: 'POST',
       body: JSON.stringify({
@@ -227,35 +208,58 @@ async function checkSepaSetupNeeded(paymentIntent, abonnementId) {
     
     if (response.already_completed) {
       console.log('[AbonnementSuccess] SEPA already completed');
-      document.querySelector('[data-sepa-success]').style.display = 'block';
+      alert('Je automatische incasso is al ingesteld!');
       return;
     }
     
     if (response.success && response.client_secret) {
       setupIntentClientSecret = response.client_secret;
-      showSepaSetup();
+      showSepaModal(paymentIntent.metadata);
+    } else {
+      throw new Error('Geen client secret ontvangen van backend');
     }
     
   } catch (error) {
-    console.error('[AbonnementSuccess] SEPA setup check failed:', error);
-    // Niet fataal - toon optie om later te doen
-    showSepaSetupLater();
+    console.error('[AbonnementSuccess] SEPA setup request failed:', error);
+    alert(`Kon automatische incasso niet starten: ${error.message}\n\nJe kunt dit later instellen via je dashboard.`);
   }
 }
 
 /**
- * Show SEPA setup section with Stripe IBAN Element
+ * Show SEPA setup modal with Stripe IBAN Element
  */
-function showSepaSetup() {
-  const container = document.querySelector('[data-sepa-setup-container]');
-  container.style.display = 'block';
+function showSepaModal(metadata) {
+  console.log('[AbonnementSuccess] Opening SEPA modal');
   
-  // Pre-fill name if available
-  const metadata = paymentIntentData.metadata;
-  const nameField = document.querySelector('[data-sepa-name]');
-  if (metadata.voornaam && metadata.achternaam) {
-    nameField.value = `${metadata.voornaam} ${metadata.achternaam}`;
-  }
+  // TODO: Implement modal logic
+  // Voor nu: simple implementation - you can extend this with a proper modal
+  const container = document.createElement('div');
+  container.setAttribute('data-sepa-modal', '');
+  container.innerHTML = `
+    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+      <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 500px; width: 90%;">
+        <h3>Automatische Incasso Instellen</h3>
+        <p>Vul je IBAN in om automatische incasso in te stellen voor toekomstige betalingen.</p>
+        <form data-sepa-form>
+          <div style="margin-bottom: 1rem;">
+            <label>Naam rekeninghouder</label>
+            <input type="text" data-sepa-name value="${metadata?.voornaam || ''} ${metadata?.achternaam || ''}" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
+          </div>
+          <div style="margin-bottom: 1rem;">
+            <label>IBAN</label>
+            <div data-iban-element style="padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;"></div>
+            <div data-iban-error style="color: red; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
+          </div>
+          <div style="display: flex; gap: 1rem;">
+            <button type="submit" data-sepa-submit style="flex: 1; padding: 0.75rem; background: #5469d4; color: white; border: none; border-radius: 4px; cursor: pointer;">Bevestigen</button>
+            <button type="button" data-sepa-close style="padding: 0.75rem; background: #ccc; color: black; border: none; border-radius: 4px; cursor: pointer;">Annuleren</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(container);
   
   // Mount Stripe IBAN Element
   const elements = stripe.elements();
@@ -266,23 +270,17 @@ function showSepaSetup() {
       base: {
         fontSize: '16px',
         color: '#32325d',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        '::placeholder': {
-          color: '#aab7c4'
-        }
+        '::placeholder': { color: '#aab7c4' }
       },
-      invalid: {
-        color: '#fa755a',
-        iconColor: '#fa755a'
-      }
+      invalid: { color: '#fa755a' }
     }
   });
   
   ibanElement.mount('[data-iban-element]');
   
-  // Listen for errors
+  // Error handling
   ibanElement.on('change', (event) => {
-    const errorDiv = document.querySelector('[data-iban-error]');
+    const errorDiv = container.querySelector('[data-iban-error]');
     if (event.error) {
       errorDiv.textContent = event.error.message;
       errorDiv.style.display = 'block';
@@ -291,36 +289,32 @@ function showSepaSetup() {
     }
   });
   
-  // Handle form submit
-  const form = document.querySelector('[data-sepa-form]');
-  form.addEventListener('submit', handleSepaSubmit);
+  // Form submit
+  const form = container.querySelector('[data-sepa-form]');
+  form.addEventListener('submit', (e) => handleSepaSubmit(e, container));
   
-  // Handle skip button (optioneel)
-  const skipButton = document.querySelector('[data-sepa-skip-button]');
-  if (skipButton) {
-    skipButton.style.display = 'inline-block';
-    skipButton.addEventListener('click', () => {
-      document.querySelector('[data-sepa-setup-container]').style.display = 'none';
-      showSepaSetupLater();
-    });
-  }
+  // Close button
+  const closeBtn = container.querySelector('[data-sepa-close]');
+  closeBtn.addEventListener('click', () => {
+    if (ibanElement) ibanElement.destroy();
+    container.remove();
+  });
 }
 
 /**
  * Handle SEPA form submit
  */
-async function handleSepaSubmit(event) {
+async function handleSepaSubmit(event, modalContainer) {
   event.preventDefault();
   
-  const submitButton = document.querySelector('[data-sepa-submit-button]');
+  const submitButton = modalContainer.querySelector('[data-sepa-submit]');
   const originalText = submitButton.textContent;
-  const loadingText = submitButton.getAttribute('data-loading-text') || 'Verwerken...';
   
   submitButton.disabled = true;
-  submitButton.textContent = loadingText;
+  submitButton.textContent = 'Verwerken...';
   
   try {
-    const accountHolderName = document.querySelector('[data-sepa-name]').value;
+    const accountHolderName = modalContainer.querySelector('[data-sepa-name]').value;
     const email = paymentIntentData.metadata?.email || '';
     
     // Confirm SEPA setup with Stripe
@@ -350,6 +344,16 @@ async function handleSepaSubmit(event) {
     // Finalize bij backend
     await finalizeSepaSetup(setupIntent.id);
     
+    // Close modal
+    if (ibanElement) ibanElement.destroy();
+    modalContainer.remove();
+    
+    // Hide machtiging row
+    const machtigingRow = document.querySelector('[data-abonnement="machtiging-row"]');
+    if (machtigingRow) machtigingRow.style.display = 'none';
+    
+    alert('✅ Automatische incasso succesvol ingesteld!');
+    
   } catch (error) {
     console.error('[AbonnementSuccess] SEPA setup failed:', error);
     alert(`SEPA setup mislukt: ${error.message}\n\nProbeer het opnieuw of stel later in via je dashboard.`);
@@ -363,29 +367,21 @@ async function handleSepaSubmit(event) {
  */
 async function finalizeSepaSetup(setupIntentId) {
   try {
+    const abonnementId = paymentIntentData.metadata?.abonnement_id;
+    
     const response = await apiClient('/routes/stripe/confirm-sepa-setup', {
       method: 'POST',
       body: JSON.stringify({
         setup_intent_id: setupIntentId,
-        abonnement_id: abonnementData?.id
+        abonnement_id: abonnementId
       })
     });
     
-    if (response.success) {
-      console.log('[AbonnementSuccess] SEPA setup finalized:', response);
-      
-      // Hide setup form, show success
-      document.querySelector('[data-sepa-setup-container]').style.display = 'none';
-      document.querySelector('[data-sepa-success]').style.display = 'block';
-      document.querySelector('[data-sepa-step]').style.display = 'none';
-      
-      // Auto redirect na 5 seconden
-      setTimeout(() => {
-        goToDashboard();
-      }, 5000);
-    } else {
+    if (!response.success) {
       throw new Error(response.error || 'SEPA finalization failed');
     }
+    
+    console.log('[AbonnementSuccess] SEPA setup finalized:', response);
     
   } catch (error) {
     console.error('[AbonnementSuccess] SEPA finalization failed:', error);
@@ -394,90 +390,38 @@ async function finalizeSepaSetup(setupIntentId) {
 }
 
 /**
- * Show "setup later" message
+ * Get human-readable payment method type
  */
-function showSepaSetupLater() {
-  const container = document.querySelector('[data-sepa-setup-container]');
-  container.innerHTML = `
-    <div data-sepa-later-box>
-      <h3>⏱️ Automatische Incasso Later Instellen</h3>
-      <p>
-        Je kunt automatische incasso op elk moment activeren via je dashboard 
-        onder "Abonnement Instellingen".
-      </p>
-      <p>
-        <strong>Let op:</strong> Zonder automatische incasso moet je elke verlenging 
-        handmatig betalen via een link in je email.
-      </p>
-    </div>
-  `;
-  container.style.display = 'block';
+function getPaymentMethodType(paymentIntent) {
+  const type = paymentIntent.payment_method_types?.[0] || 'unknown';
+  
+  const typeMap = {
+    'ideal': 'iDEAL',
+    'card': 'Creditcard',
+    'sepa_debit': 'SEPA Incasso',
+    'bancontact': 'Bancontact'
+  };
+  
+  return typeMap[type] || type;
 }
 
 /**
- * Display schoonmaker info
- */
-function displaySchoonmakerInfo(metadata) {
-  console.log('[AbonnementSuccess] displaySchoonmakerInfo called with:', metadata);
-  
-  if (!metadata) {
-    console.warn('[AbonnementSuccess] No metadata provided to displaySchoonmakerInfo');
-    return;
-  }
-  
-  const schoonmakerNaam = metadata.schoonmaker_naam;
-  console.log('[AbonnementSuccess] Schoonmaker naam from metadata:', schoonmakerNaam);
-  
-  const assignedEl = document.querySelector('[data-schoonmaker-assigned]');
-  const nameEl = document.querySelector('[data-schoonmaker-name]');
-  const pendingEl = document.querySelector('[data-schoonmaker-pending]');
-  
-  if (schoonmakerNaam && schoonmakerNaam !== 'Niet toegewezen') {
-    console.log('[AbonnementSuccess] Showing assigned schoonmaker');
-    if (assignedEl) assignedEl.style.display = 'block';
-    if (nameEl) nameEl.textContent = schoonmakerNaam;
-  } else {
-    console.log('[AbonnementSuccess] Showing pending schoonmaker');
-    if (pendingEl) pendingEl.style.display = 'block';
-  }
-}
-
-/**
- * Navigate to dashboard
- */
-function goToDashboard() {
-  window.location.href = '/dashboard-klant';
-}
-
-/**
- * Download invoice PDF
- */
-async function downloadInvoice() {
-  const invoiceUrl = paymentIntentData.metadata?.invoice_pdf_url;
-  if (invoiceUrl) {
-    window.open(invoiceUrl, '_blank');
-  } else {
-    alert('Factuur wordt nog gegenereerd. Check je email of dashboard.');
-  }
-}
-
-/**
- * Show/hide loading state
+ * Show/hide loading and content states
  */
 function showLoading() {
-  const successContainer = document.querySelector('[data-success-container]');
   const loadingState = document.querySelector('[data-loading-state]');
+  const contentState = document.querySelector('[data-content-state]');
   
-  if (successContainer) successContainer.style.display = 'none';
-  if (loadingState) loadingState.style.display = 'block';
+  if (loadingState) loadingState.style.display = 'flex';
+  if (contentState) contentState.style.display = 'none';
 }
 
 function hideLoading() {
   const loadingState = document.querySelector('[data-loading-state]');
-  const successContainer = document.querySelector('[data-success-container]');
+  const contentState = document.querySelector('[data-content-state]');
   
   if (loadingState) loadingState.style.display = 'none';
-  if (successContainer) successContainer.style.display = 'block';
+  if (contentState) contentState.style.display = 'block';
 }
 
 /**
@@ -485,16 +429,18 @@ function hideLoading() {
  */
 function showError(message) {
   const loadingState = document.querySelector('[data-loading-state]');
-  const successContainer = document.querySelector('[data-success-container]');
-  const errorState = document.querySelector('[data-error-state]');
-  const errorMessage = document.querySelector('[data-error-message]');
+  const contentState = document.querySelector('[data-content-state]');
   
   if (loadingState) loadingState.style.display = 'none';
-  if (successContainer) successContainer.style.display = 'none';
-  if (errorState) errorState.style.display = 'block';
-  if (errorMessage) errorMessage.textContent = message;
+  if (contentState) contentState.style.display = 'none';
   
-  console.error('[AbonnementSuccess] Error shown:', message);
+  console.error('[AbonnementSuccess] Error:', message);
+  alert(`Er is een fout opgetreden: ${message}`);
+  
+  // Optionally redirect to homepage or dashboard
+  setTimeout(() => {
+    window.location.href = '/dashboard-klant';
+  }, 3000);
 }
 
 /**
@@ -516,6 +462,7 @@ function formatDate(dateString) {
 function getFrequencyLabel(freq) {
   const labels = {
     'weekly': 'Wekelijks',
+    'perweek': 'Wekelijks',
     'pertweeweek': 'Om de 2 weken',
     'pervierweken': 'Per 4 weken'
   };
@@ -525,41 +472,19 @@ function getFrequencyLabel(freq) {
 /**
  * Utility: Calculate next billing date
  */
-function calculateNextBilling(startDate) {
-  if (!startDate) return null;
-  const start = new Date(startDate);
+function calculateNextBilling(startdatum) {
+  if (!startdatum) return null;
+  
+  const start = new Date(startdatum);
   const next = new Date(start);
-  next.setDate(next.getDate() + 28); // 4 weken
-  return next.toISOString().split('T')[0];
+  next.setDate(next.getDate() + 28); // 28 dagen = 4 weken
+  
+  return next;
 }
 
-/**
- * Event Listeners
- */
-document.addEventListener('DOMContentLoaded', () => {
-  // Initialize page
+// Initialize on DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
   init();
-  
-  // Dashboard button
-  const dashboardBtn = document.querySelector('[data-goto-dashboard]');
-  if (dashboardBtn) {
-    dashboardBtn.addEventListener('click', goToDashboard);
-  }
-  
-  // Invoice download button
-  const invoiceBtn = document.querySelector('[data-download-invoice]');
-  if (invoiceBtn) {
-    invoiceBtn.addEventListener('click', downloadInvoice);
-  }
-  
-  // Retry button (error state)
-  const retryBtn = document.querySelector('[data-retry-button]');
-  if (retryBtn) {
-    retryBtn.addEventListener('click', () => {
-      window.location.reload();
-    });
-  }
-  
-  // Initialize
-  init();
-});
+}
