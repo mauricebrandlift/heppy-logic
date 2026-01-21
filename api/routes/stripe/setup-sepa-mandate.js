@@ -162,16 +162,7 @@ export default async function handler(req, res) {
     }));
 
     if (!setupIntent.client_secret) {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    });
-
-    const setupIntent = await setupIntentResp.json();
-
-    if (!setupIntentResp.ok) {
-      const errorMessage = setupIntent?.error?.message || 'Unknown Stripe error';
-      throw new Error(`SetupIntent creation failed: ${errorMessage}`);
+      throw new Error('No client_secret in SetupIntent response');
     }
 
     console.log(`[setup-sepa-mandate] SetupIntent created: ${setupIntent.id} [${correlationId}]`);
