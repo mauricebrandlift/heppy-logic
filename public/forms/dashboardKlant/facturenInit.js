@@ -223,9 +223,13 @@ function renderFacturenList(facturen) {
     const buttonEl = clone.querySelector('[data-invoice-button]');
     if (buttonEl && factuur.invoice_url) {
       // Direct link naar Receipt/Invoice PDF
-      buttonEl.href = factuur.invoice_url;
-      buttonEl.target = '_blank';
       buttonEl.style.display = ''; // Maak button zichtbaar
+      
+      // Voeg click handler toe
+      buttonEl.addEventListener('click', (e) => {
+        e.preventDefault();
+        window.open(factuur.invoice_url, '_blank');
+      });
       
       // Maak ook de dropdown wrapper zichtbaar
       const dropdownWrapper = buttonEl.closest('.w-dropdown');
