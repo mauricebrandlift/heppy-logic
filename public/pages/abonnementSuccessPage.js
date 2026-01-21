@@ -57,7 +57,7 @@ async function init() {
       paymentIntent = result.paymentIntent;
     } else {
       // Als we alleen ID hebben, gebruik backend endpoint
-      const response = await apiClient(`/routes/stripe/retrieve-payment-intent?payment_intent_id=${paymentIntentId}`, {
+      const response = await apiClient(`/routes/stripe/retrieve-payment-intent?id=${paymentIntentId}`, {
         method: 'GET'
       });
       paymentIntent = response.paymentIntent;
