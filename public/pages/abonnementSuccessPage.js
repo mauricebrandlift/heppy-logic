@@ -60,7 +60,9 @@ async function init() {
       const response = await apiClient(`/routes/stripe/retrieve-payment-intent?id=${paymentIntentId}`, {
         method: 'GET'
       });
-      paymentIntent = response.paymentIntent;
+      // Response bevat PaymentIntent data direct (niet in .paymentIntent property)
+      const { correlationId, ...paymentIntentData } = response;
+      paymentIntent = paymentIntentData;
     }
     paymentIntentData = paymentIntent;
     
