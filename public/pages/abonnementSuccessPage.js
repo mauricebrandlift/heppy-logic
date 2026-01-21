@@ -37,14 +37,31 @@ async function init() {
     // Get URL params
     const urlParams = new URLSearchParams(window.location.search);
     const paymentIntentClientSecret = urlParams.get('payment_intent_client_secret');
-    const paymentIntentId = urlParams.get('payment_intent');
+    const paymentIntentId = urlParams.get('payment_intent') || urlParams.get('pi'); // Support both
+    
+    console.log('[AbonnementSuccess] URL params:', {
+      payment_intent_client_secret: paymentIntentClientSecret,
+      payment_intent: urlParams.get('payment_intent'),
+      pi: urlParams.get('pi'),
+      freq: urlParams.get('freq')
+    });
     
     if (!paymentIntentClientSecret && !paymentIntentId) {
       throw new Error('Geen betaling informatie gevonden in URL');
     }
     
     // Retrieve PaymentIntent
-    const { paymentIntent } = await stripe.retrievePaymentIntent(paymentIntentClientSecret);
+    let paymentIntent;
+    if (paymentIntentClientSecret) {
+      const result = await stripe.retrievePaymentIntent(paymentIntentClientSecret);
+      paymentIntent = result.paymentIntent;
+    } else {
+      // Als we alleen ID hebben, gebruik backend endpoint
+      const response = await apiClient(`/routes/stripe/retrieve-payment-intent?payment_intent_id=${paymentIntentId}`, {
+        method: 'GET'
+      });
+      paymentIntent = response.paymentIntent;
+    }
     paymentIntentData = paymentIntent;
     
     console.log('[AbonnementSuccess] PaymentIntent:', paymentIntent);
