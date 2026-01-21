@@ -91,60 +91,11 @@ export async function generateFactuurNummer(correlationId) {
 export async function createStripeInvoice({ customerId, omschrijving, regels, totaalCents, paymentIntentId, metadata }, correlationId) {
   console.log(`📄 [FactuurService] Stripe Invoice aanmaken voor customer ${customerId} [${correlationId}]`);
 
-  // Haal payment_method op van PaymentIntent indien aanwezig en attach aan customer
-  let paymentMethodId = null;
-  if (paymentIntentId) {
-    try {
-      const piResponse = await fetch(`https://api.stripe.com/v1/payment_intents/${paymentIntentId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${stripeConfig.secretKey}`,
-        },
-      });
-      const paymentIntent = await piResponse.json();
-      if (piResponse.ok && paymentIntent.payment_method) {
-        paymentMethodId = paymentIntent.payment_method;
-        console.log(`🔗 [FactuurService] Payment method gevonden: ${paymentMethodId} [${correlationId}]`);
-        
-        // Attach payment method aan customer (indien nog niet attached)
-        const attachParams = new URLSearchParams();
-        attachParams.set('customer', customerId);
-        
-        const attachResponse = await fetch(`https://api.stripe.com/v1/payment_methods/${paymentMethodId}/attach`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${stripeConfig.secretKey}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: attachParams.toString(),
-        });
-        
-        if (attachResponse.ok) {
-          console.log(`✅ [FactuurService] Payment method attached aan customer [${correlationId}]`);
-        } else {
-          const attachError = await attachResponse.json();
-          // Als al attached is dat ook OK
-          if (attachError?.error?.code !== 'resource_already_exists') {
-            console.error(`⚠️ [FactuurService] Payment method attachen mislukt: ${attachError?.error?.message} [${correlationId}]`);
-          }
-        }
-      }
-    } catch (err) {
-      console.error(`⚠️ [FactuurService] Payment method ophalen mislukt: ${err.message} [${correlationId}]`);
-    }
-  }
-
   // 1. Maak Invoice aan (draft status)
   const createParams = new URLSearchParams();
   createParams.set('customer', customerId);
   createParams.set('auto_advance', 'false'); // Handmatig finaliseren
   createParams.set('collection_method', 'charge_automatically');
-  
-  // Koppel payment method van bestaande betaling
-  if (paymentMethodId) {
-    createParams.set('default_payment_method', paymentMethodId);
-    console.log(`💳 [FactuurService] Invoice koppelen aan payment method ${paymentMethodId} [${correlationId}]`);
-  }
   
   if (omschrijving) {
     createParams.set('description', omschrijving);
@@ -176,7 +127,35 @@ export async function createStripeInvoice({ customerId, omschrijving, regels, to
 
   console.log(`✅ [FactuurService] Invoice aangemaakt: ${invoice.id} [${correlationId}]`);
 
-  // 2. Voeg invoice items toe (factuurregels)
+  // 2. Link PaymentIntent aan invoice (voorkomt duplicate payments bij finaliseren)
+  if (paymentIntentId) {
+    try {
+      console.log(`🔗 [FactuurService] Linken PaymentIntent ${paymentIntentId} aan invoice ${invoice.id} [${correlationId}]`);
+      
+      const linkParams = new URLSearchParams();
+      linkParams.set('invoice', invoice.id);
+      
+      const linkResponse = await fetch(`https://api.stripe.com/v1/payment_intents/${paymentIntentId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${stripeConfig.secretKey}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: linkParams.toString(),
+      });
+      
+      if (linkResponse.ok) {
+        console.log(`✅ [FactuurService] PaymentIntent gelinkt aan invoice [${correlationId}]`);
+      } else {
+        const linkError = await linkResponse.json();
+        console.error(`⚠️ [FactuurService] PaymentIntent linken mislukt: ${linkError?.error?.message} [${correlationId}]`);
+      }
+    } catch (linkErr) {
+      console.error(`⚠️ [FactuurService] PaymentIntent linken error: ${linkErr.message} [${correlationId}]`);
+    }
+  }
+
+  // 3. Voeg invoice items toe (factuurregels)
   for (const regel of regels) {
     const itemParams = new URLSearchParams();
     itemParams.set('customer', customerId);
@@ -211,21 +190,13 @@ export async function createStripeInvoice({ customerId, omschrijving, regels, to
     }
   }
 
-  // 3. Finaliseer invoice (maakt het immutable en genereert PDF)
-  const finalizeParams = new URLSearchParams();
-  
-  // Als payment method gekoppeld is, betaal direct bij finaliseren
-  if (paymentMethodId) {
-    finalizeParams.set('auto_advance', 'true'); // Automatisch betalen met default payment method
-  }
-  
+  // 4. Finaliseer invoice (maakt het immutable en genereert PDF)
+  // Stripe ziet de PaymentIntent link en creëert GEEN nieuwe payment
   const finalizeResponse = await fetch(`https://api.stripe.com/v1/invoices/${invoice.id}/finalize`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${stripeConfig.secretKey}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: finalizeParams.toString(),
   });
 
   const finalizedInvoice = await finalizeResponse.json();
