@@ -8,6 +8,10 @@
  * - Display abonnement info
  */
 
+// Import formUi helpers for consistent error/loading patterns
+import { showError as showFormError, hideError, showLoader, hideLoader } from '../forms/ui/formUi.js';
+
+// Import API client
 import { apiClient } from '../utils/api/client.js';
 
 // State
@@ -330,16 +334,13 @@ function showSepaModal(metadata) {
 
   ibanElement.mount('[data-stripe-iban-element]');
 
-  // IBAN validation errors
+  // IBAN validation errors - use formUi helpers
   const ibanError = modal.querySelector('[data-modal-error="sepa-iban"]');
   ibanElement.on('change', (event) => {
-    if (ibanError) {
-      if (event.error) {
-        ibanError.textContent = event.error.message;
-        ibanError.classList.remove('hide');
-      } else {
-        ibanError.classList.add('hide');
-      }
+    if (event.error) {
+      showFormError(ibanError, event.error.message);
+    } else {
+      hideError(ibanError);
     }
   });
 
@@ -381,15 +382,11 @@ async function handleSepaSubmit(modal) {
   const errorWrapper = modal.querySelector('[data-modal-error="error"]');
   const generalError = modal.querySelector('[data-modal-error="general"]');
   
-  // Disable submit button, add loading state (project pattern)
-  if (submitButton) {
-    submitButton.classList.add('is-loading');
-    submitButton.classList.add('is-disabled');
-    submitButton.style.pointerEvents = 'none';
-  }
+  // Show loading state - use formUi helper
+  showLoader(submitButton);
 
-  // Hide previous errors
-  if (generalError) generalError.classList.add('hide');
+  // Hide previous errors - use formUi helper
+  hideError(generalError);
   if (errorWrapper) errorWrapper.style.display = 'none';
   
   try {
@@ -457,23 +454,16 @@ async function handleSepaSubmit(modal) {
     const sanitizedError = String(error.message || error).replace(/pk_test_[a-zA-Z0-9]+/g, '[API_KEY]');
     console.error('[AbonnementSuccess] SEPA setup failed:', sanitizedError);
     
-    // Show user-friendly error in modal
-    if (generalError) {
-      generalError.textContent = error.message || 'Er is een fout opgetreden. Probeer het opnieuw.';
-      generalError.classList.remove('hide');
-    }
+    // Show user-friendly error in modal - use formUi helper
+    showFormError(generalError, error.message || 'Er is een fout opgetreden. Probeer het opnieuw.');
     if (errorWrapper) {
       const errorText = errorWrapper.querySelector('.form_field-error-message');
       if (errorText) errorText.textContent = error.message || 'Er is een fout opgetreden';
       errorWrapper.style.display = 'block';
     }
     
-    // Re-enable submit button (project pattern)
-    if (submitButton) {
-      submitButton.classList.remove('is-loading');
-      submitButton.classList.remove('is-disabled');
-      submitButton.style.pointerEvents = '';
-    }
+    // Re-enable submit button - use formUi helper
+    hideLoader(submitButton);
   }
 }
 
