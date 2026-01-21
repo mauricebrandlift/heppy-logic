@@ -240,8 +240,7 @@ async function handleMachtigingClick(paymentIntent) {
     await fetchAbonnementId(paymentIntent.id);
     
     if (!abonnementId) {
-      console.error('[AbonnementSuccess] Abonnement_id nog steeds niet gevonden');
-      alert('Je abonnement wordt nog verwerkt. Probeer het over een minuut opnieuw of stel de machtiging later in via je dashboard onder "Abonnement".');
+      console.error('[AbonnementSuccess] Abonnement_id nog steeds niet gevonden - machtiging kan nog niet worden ingesteld');
       return;
     }
   }
@@ -257,7 +256,6 @@ async function handleMachtigingClick(paymentIntent) {
     
     if (response.already_completed) {
       console.log('[AbonnementSuccess] SEPA already completed');
-      alert('Je automatische incasso is al ingesteld!');
       // Hide machtiging row
       const machtigingRow = document.querySelector('[data-abonnement="machtiging-row"]');
       if (machtigingRow) machtigingRow.style.display = 'none';
@@ -272,48 +270,49 @@ async function handleMachtigingClick(paymentIntent) {
     }
     
   } catch (error) {
-    console.error('[AbonnementSuccess] SEPA setup request failed:', error);
-    alert(`Kon automatische incasso niet starten: ${error.message}\n\nJe kunt dit later instellen via je dashboard.`);
+    console.error('[AbonnementSuccess] SEPA setup request failed:', error.message);
+    // Silently fail - user can set up later via dashboard
   }
 }
 
 /**
  * Show SEPA setup modal with Stripe IBAN Element
+ * Uses existing Webflow modal: [data-modal-wrapper="sepa"]
  */
 function showSepaModal(metadata) {
   console.log('[AbonnementSuccess] Opening SEPA modal');
   
-  // TODO: Implement modal logic
-  // Voor nu: simple implementation - you can extend this with a proper modal
-  const container = document.createElement('div');
-  container.setAttribute('data-sepa-modal', '');
-  container.innerHTML = `
-    <div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-      <div style="background: white; padding: 2rem; border-radius: 8px; max-width: 500px; width: 90%;">
-        <h3>Automatische Incasso Instellen</h3>
-        <p>Vul je IBAN in om automatische incasso in te stellen voor toekomstige betalingen.</p>
-        <form data-sepa-form>
-          <div style="margin-bottom: 1rem;">
-            <label>Naam rekeninghouder</label>
-            <input type="text" data-sepa-name value="${metadata?.voornaam || ''} ${metadata?.achternaam || ''}" required style="width: 100%; padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;">
-          </div>
-          <div style="margin-bottom: 1rem;">
-            <label>IBAN</label>
-            <div data-iban-element style="padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px;"></div>
-            <div data-iban-error style="color: red; font-size: 0.875rem; margin-top: 0.25rem; display: none;"></div>
-          </div>
-          <div style="display: flex; gap: 1rem;">
-            <button type="submit" data-sepa-submit style="flex: 1; padding: 0.75rem; background: #5469d4; color: white; border: none; border-radius: 4px; cursor: pointer;">Bevestigen</button>
-            <button type="button" data-sepa-close style="padding: 0.75rem; background: #ccc; color: black; border: none; border-radius: 4px; cursor: pointer;">Annuleren</button>
-          </div>
-        </form>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(container);
-  
-  // Mount Stripe IBAN Element
+  const modal = document.querySelector('[data-modal-wrapper="sepa"]');
+  if (!modal) {
+    console.error('[AbonnementSuccess] SEPA modal not found in DOM');
+    return;
+  }
+
+  // Pre-fill name field
+  const nameField = modal.querySelector('[data-modal-field="sepa-name"]');
+  if (nameField && metadata) {
+    const fullName = `${metadata.voornaam || ''} ${metadata.achternaam || ''}`.trim();
+    if (fullName) nameField.value = fullName;
+  }
+
+  // Hide IBAN input field (Stripe Element will replace it)
+  const ibanInput = modal.querySelector('[data-modal-field="sepa-iban"]');
+  if (ibanInput) ibanInput.style.display = 'none';
+
+  // Mount Stripe IBAN Element in parent container
+  const ibanContainer = ibanInput?.parentElement;
+  if (!ibanContainer) {
+    console.error('[AbonnementSuccess] IBAN container not found');
+    return;
+  }
+
+  // Create Stripe Element container
+  const stripeElementDiv = document.createElement('div');
+  stripeElementDiv.setAttribute('data-stripe-iban-element', '');
+  stripeElementDiv.className = 'form_input w-input'; // Match Webflow styling
+  ibanInput.insertAdjacentElement('afterend', stripeElementDiv);
+
+  // Create Stripe IBAN Element
   const elements = stripe.elements();
   ibanElement = elements.create('iban', {
     supportedCountries: ['SEPA'],
@@ -322,52 +321,80 @@ function showSepaModal(metadata) {
       base: {
         fontSize: '16px',
         color: '#32325d',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         '::placeholder': { color: '#aab7c4' }
       },
       invalid: { color: '#fa755a' }
     }
   });
-  
-  ibanElement.mount('[data-iban-element]');
-  
-  // Error handling
+
+  ibanElement.mount('[data-stripe-iban-element]');
+
+  // IBAN validation errors
+  const ibanError = modal.querySelector('[data-modal-error="sepa-iban"]');
   ibanElement.on('change', (event) => {
-    const errorDiv = container.querySelector('[data-iban-error]');
-    if (event.error) {
-      errorDiv.textContent = event.error.message;
-      errorDiv.style.display = 'block';
-    } else {
-      errorDiv.style.display = 'none';
+    if (ibanError) {
+      if (event.error) {
+        ibanError.textContent = event.error.message;
+        ibanError.classList.remove('hide');
+      } else {
+        ibanError.classList.add('hide');
+      }
     }
   });
-  
-  // Form submit
-  const form = container.querySelector('[data-sepa-form]');
-  form.addEventListener('submit', (e) => handleSepaSubmit(e, container));
-  
-  // Close button
-  const closeBtn = container.querySelector('[data-sepa-close]');
-  closeBtn.addEventListener('click', () => {
-    if (ibanElement) ibanElement.destroy();
-    container.remove();
-  });
+
+  // Form submit handler
+  const form = modal.querySelector('form');
+  const submitHandler = (e) => handleSepaSubmit(e, modal);
+  form?.removeEventListener('submit', submitHandler); // Prevent duplicates
+  form?.addEventListener('submit', submitHandler);
+
+  // Close button handler
+  const closeBtn = modal.querySelector('[data-modal-close="sepa"]');
+  const closeHandler = () => {
+    if (ibanElement) {
+      ibanElement.destroy();
+      ibanElement = null;
+    }
+    modal.style.display = 'none';
+  };
+  closeBtn?.removeEventListener('click', closeHandler);
+  closeBtn?.addEventListener('click', closeHandler);
+
+  // Show modal
+  modal.style.display = 'flex';
 }
 
 /**
  * Handle SEPA form submit
+ * Uses Webflow modal structure with [data-modal-submit], [data-modal-succes], [data-modal-error]
  */
-async function handleSepaSubmit(event, modalContainer) {
+async function handleSepaSubmit(event, modal) {
   event.preventDefault();
   
-  const submitButton = modalContainer.querySelector('[data-sepa-submit]');
-  const originalText = submitButton.textContent;
+  const submitButton = modal.querySelector('[data-modal-submit="sepa"]');
+  const form = modal.querySelector('form');
+  const successWrapper = modal.querySelector('[data-modal-succes="sepa"]');
+  const errorWrapper = modal.querySelector('[data-modal-error="error"]');
+  const generalError = modal.querySelector('[data-modal-error="general"]');
   
-  submitButton.disabled = true;
-  submitButton.textContent = 'Verwerken...';
+  // Disable submit button, add loading state
+  if (submitButton) {
+    submitButton.classList.add('is-loading');
+    submitButton.classList.add('is-disabled');
+  }
+
+  // Hide previous errors
+  if (generalError) generalError.classList.add('hide');
+  if (errorWrapper) errorWrapper.style.display = 'none';
   
   try {
-    const accountHolderName = modalContainer.querySelector('[data-sepa-name]').value;
+    const accountHolderName = modal.querySelector('[data-modal-field="sepa-name"]')?.value;
     const email = paymentIntentData.metadata?.email || '';
+    
+    if (!accountHolderName) {
+      throw new Error('Vul de naam van de rekeninghouder in');
+    }
     
     // Confirm SEPA setup with Stripe
     const { setupIntent, error } = await stripe.confirmSepaDebitSetup(
@@ -384,11 +411,15 @@ async function handleSepaSubmit(event, modalContainer) {
     );
     
     if (error) {
-      throw new Error(error.message);
+      // Sanitize Stripe error (remove API keys)
+      const sanitizedMessage = error.message?.replace(/pk_test_[a-zA-Z0-9]+/g, '[API_KEY]') || 'Er is een fout opgetreden';
+      console.error('[AbonnementSuccess] Stripe SEPA error:', sanitizedMessage);
+      throw new Error('Kon IBAN niet valideren. Controleer je IBAN en probeer opnieuw.');
     }
     
     if (setupIntent.status !== 'succeeded') {
-      throw new Error(`Setup status: ${setupIntent.status}`);
+      console.warn('[AbonnementSuccess] SetupIntent status:', setupIntent.status);
+      throw new Error('Automatische incasso kon niet worden voltooid');
     }
     
     console.log('[AbonnementSuccess] SEPA SetupIntent succeeded:', setupIntent.id);
@@ -396,21 +427,48 @@ async function handleSepaSubmit(event, modalContainer) {
     // Finalize bij backend
     await finalizeSepaSetup(setupIntent.id);
     
-    // Close modal
-    if (ibanElement) ibanElement.destroy();
-    modalContainer.remove();
+    // Show success, hide form
+    if (form) form.style.display = 'none';
+    if (successWrapper) successWrapper.style.display = 'block';
     
-    // Hide machtiging row
-    const machtigingRow = document.querySelector('[data-abonnement="machtiging-row"]');
-    if (machtigingRow) machtigingRow.style.display = 'none';
-    
-    alert('✅ Automatische incasso succesvol ingesteld!');
+    // Hide machtiging row on success page after 2 seconds
+    setTimeout(() => {
+      const machtigingRow = document.querySelector('[data-abonnement="machtiging-row"]');
+      if (machtigingRow) machtigingRow.style.display = 'none';
+      
+      // Close modal
+      if (ibanElement) {
+        ibanElement.destroy();
+        ibanElement = null;
+      }
+      modal.style.display = 'none';
+      
+      // Reset form for next time
+      if (form) form.style.display = 'block';
+      if (successWrapper) successWrapper.style.display = 'none';
+    }, 2000);
     
   } catch (error) {
-    console.error('[AbonnementSuccess] SEPA setup failed:', error);
-    alert(`SEPA setup mislukt: ${error.message}\n\nProbeer het opnieuw of stel later in via je dashboard.`);
-    submitButton.disabled = false;
-    submitButton.textContent = originalText;
+    // Log sanitized error (never log API keys)
+    const sanitizedError = String(error.message || error).replace(/pk_test_[a-zA-Z0-9]+/g, '[API_KEY]');
+    console.error('[AbonnementSuccess] SEPA setup failed:', sanitizedError);
+    
+    // Show user-friendly error in modal
+    if (generalError) {
+      generalError.textContent = error.message || 'Er is een fout opgetreden. Probeer het opnieuw.';
+      generalError.classList.remove('hide');
+    }
+    if (errorWrapper) {
+      const errorText = errorWrapper.querySelector('.form_field-error-message');
+      if (errorText) errorText.textContent = error.message || 'Er is een fout opgetreden';
+      errorWrapper.style.display = 'block';
+    }
+    
+    // Re-enable submit button
+    if (submitButton) {
+      submitButton.classList.remove('is-loading');
+      submitButton.classList.remove('is-disabled');
+    }
   }
 }
 
@@ -485,12 +543,15 @@ function showError(message) {
   if (contentState) contentState.style.display = 'none';
   
   console.error('[AbonnementSuccess] Error:', message);
-  alert(`Er is een fout opgetreden: ${message}`);
+  hideLoading();
   
-  // Optionally redirect to homepage or dashboard
-  setTimeout(() => {
-    window.location.href = '/dashboard-klant';
-  }, 3000);
+  // Show error in content state (if error wrapper exists)
+  const errorWrapper = document.querySelector('[data-error-wrapper]');
+  if (errorWrapper) {
+    errorWrapper.style.display = 'block';
+    const errorText = errorWrapper.querySelector('[data-error-message]');
+    if (errorText) errorText.textContent = message;
+  }
 }
 
 /**
