@@ -33,23 +33,23 @@ import { httpClient } from '../../utils/apiClient.js';
 import { handleErrorResponse } from '../../utils/errorHandler.js';
 
 export default async function handler(req, res) {
-  // CORS headers
+  // CORS headers - ALTIJD zetten, ook bij errors
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Correlation-ID, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Correlation-ID, Authorization, X-Idempotency-Key');
+
+  // OPTIONS preflight - EERSTE check, voor correlationId
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
 
   const correlationId = req.headers['x-correlation-id'] || `sepa-confirm_${Date.now()}`;
   res.setHeader('X-Correlation-ID', correlationId);
 
-  // OPTIONS preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
   // Alleen POST
   if (req.method !== 'POST') {
-    res.setHeader('Allow', ['POST']);
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    res.setHeader('Allow', 'POST, OPTIONS');
+    return res.status(405).json({ error: 'Method Not Allowed', correlationId });
   }
 
   try {
