@@ -13,6 +13,7 @@ import { apiClient } from '../utils/api/client.js';
 // State
 let stripe = null;
 let paymentIntentData = null;
+let abonnementId = null; // Opgehaald uit betalingen tabel
 let setupIntentClientSecret = null;
 let ibanElement = null;
 
@@ -77,6 +78,11 @@ async function init() {
     // Display all data
     displayPaymentDetails(paymentIntent);
     displayAbonnementDetails(paymentIntent.metadata || {});
+    
+    // Haal abonnement_id op uit betalingen tabel (webhook heeft deze toegevoegd)
+    await fetchAbonnementId(paymentIntent.id);
+    
+    // Check en toon machtiging
     checkAndShowMachtiging(paymentIntent);
     
     // Hide loading, show content
@@ -85,6 +91,29 @@ async function init() {
   } catch (error) {
     console.error('[AbonnementSuccess] Initialization failed:', error);
     showError(error.message);
+  }
+}
+
+/**
+ * Fetch abonnement_id from betalingen table
+ */
+async function fetchAbonnementId(paymentIntentId) {
+  console.log('[AbonnementSuccess] Fetching abonnement_id for PaymentIntent:', paymentIntentId);
+  
+  try {
+    const response = await apiClient(`/routes/stripe/get-payment-abonnement?payment_intent_id=${paymentIntentId}`, {
+      method: 'GET'
+    });
+    
+    if (response.found && response.abonnement_id) {
+      abonnementId = response.abonnement_id;
+      console.log('[AbonnementSuccess] ✅ Abonnement ID found:', abonnementId);
+    } else {
+      console.warn('[AbonnementSuccess] ⚠️ Abonnement nog niet aangemaakt - webhook mogelijk nog bezig');
+    }
+  } catch (error) {
+    console.error('[AbonnementSuccess] Fout bij ophalen abonnement_id:', error);
+    // Niet fataal - gebruiker kan later machtiging instellen via dashboard
   }
 }
 
@@ -188,13 +217,19 @@ async function checkAndShowMachtiging(paymentIntent) {
  */
 async function handleMachtigingClick(paymentIntent) {
   console.log('[AbonnementSuccess] Machtiging button clicked');
-  
-  const abonnementId = paymentIntent.metadata?.abonnement_id;
+  console.log('[AbonnementSuccess] Current abonnementId:', abonnementId);
   
   if (!abonnementId) {
-    console.error('[AbonnementSuccess] Geen abonnement_id in metadata - kan SEPA niet setup maken');
-    alert('Abonnement is nog niet volledig verwerkt. Probeer het over een paar minuten opnieuw of stel de machtiging later in via je dashboard.');
-    return;
+    console.warn('[AbonnementSuccess] Geen abonnement_id - probeer opnieuw op te halen');
+    
+    // Probeer nogmaals op te halen
+    await fetchAbonnementId(paymentIntent.id);
+    
+    if (!abonnementId) {
+      console.error('[AbonnementSuccess] Abonnement_id nog steeds niet gevonden');
+      alert('Je abonnement wordt nog verwerkt. Probeer het over een minuut opnieuw of stel de machtiging later in via je dashboard onder "Abonnement".');
+      return;
+    }
   }
   
   try {
@@ -209,6 +244,9 @@ async function handleMachtigingClick(paymentIntent) {
     if (response.already_completed) {
       console.log('[AbonnementSuccess] SEPA already completed');
       alert('Je automatische incasso is al ingesteld!');
+      // Hide machtiging row
+      const machtigingRow = document.querySelector('[data-abonnement="machtiging-row"]');
+      if (machtigingRow) machtigingRow.style.display = 'none';
       return;
     }
     
@@ -367,8 +405,6 @@ async function handleSepaSubmit(event, modalContainer) {
  */
 async function finalizeSepaSetup(setupIntentId) {
   try {
-    const abonnementId = paymentIntentData.metadata?.abonnement_id;
-    
     const response = await apiClient('/routes/stripe/confirm-sepa-setup', {
       method: 'POST',
       body: JSON.stringify({
