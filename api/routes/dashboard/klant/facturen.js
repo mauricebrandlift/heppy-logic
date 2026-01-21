@@ -1,12 +1,12 @@
 // api/routes/dashboard/klant/facturen.js
 /**
  * Haal alle facturen op voor ingelogde klant
- * Combineert bestellingen en betalingen met stripe_invoice_id
+ * Leest direct uit facturen tabel (bevat Invoices én Receipts)
  * 
  * GET /api/routes/dashboard/klant/facturen
  * 
  * Returns:
- * - facturen: Array van facturen (bestellingen + betalingen)
+ * - facturen: Array van facturen met pdf_url (Receipt of Invoice link)
  */
 
 import { supabaseConfig } from '../../../config/index.js';
@@ -29,61 +29,24 @@ async function facturenHandler(req, res) {
       userId: user.id
     }));
 
-    // Haal bestellingen op met invoice_id
-    const bestellingenResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/bestellingen?klant_id=eq.${user.id}&stripe_invoice_id=not.is.null&select=id,bestel_nummer,aangemaakt_op,totaal_cents,stripe_invoice_id,status&order=aangemaakt_op.desc`,
+    // Haal alle facturen op uit facturen tabel
+    const facturenResponse = await httpClient(
+      `${supabaseConfig.url}/rest/v1/facturen?gebruiker_id=eq.${user.id}&select=id,factuur_nummer,factuurdatum,totaal_cents,status,pdf_url,omschrijving,abonnement_id,opdracht_id,aangemaakt_op&order=aangemaakt_op.desc`,
       {
         method: 'GET',
         headers: {
           'apikey': supabaseConfig.anonKey,
           'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
         }
-      }
+      },
+      correlationId
     );
 
-    const bestellingen = bestellingenResponse.ok ? await bestellingenResponse.json() : [];
+    if (!facturenResponse.ok) {
+      throw new Error(`Failed to fetch facturen: ${facturenResponse.status}`);
+    }
 
-    // Haal betalingen op met invoice_id (abonnementen + opdrachten)
-    const betalingenResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/betalingen?gebruiker_id=eq.${user.id}&stripe_invoice_id=not.is.null&select=id,aangemaakt_op,amount_cents,stripe_invoice_id,abonnement_id,opdracht_id,status&order=aangemaakt_op.desc`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': supabaseConfig.anonKey,
-          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
-        }
-      }
-    );
-
-    const betalingen = betalingenResponse.ok ? await betalingenResponse.json() : [];
-
-    // Combineer en normaliseer facturen
-    const facturen = [
-      // Bestellingen (webshop)
-      ...bestellingen.map(b => ({
-        id: b.id,
-        type: 'bestelling',
-        bestel_nummer: b.bestel_nummer,
-        aangemaakt_op: b.aangemaakt_op,
-        amount_cents: b.totaal_cents,
-        stripe_invoice_id: b.stripe_invoice_id,
-        status: b.status
-      })),
-      // Betalingen (abonnementen + opdrachten)
-      ...betalingen.map(b => ({
-        id: b.id,
-        type: 'betaling',
-        aangemaakt_op: b.aangemaakt_op,
-        amount_cents: b.amount_cents,
-        stripe_invoice_id: b.stripe_invoice_id,
-        abonnement_id: b.abonnement_id,
-        opdracht_id: b.opdracht_id,
-        status: b.status
-      }))
-    ];
-
-    // Sorteer op datum (nieuwste eerst)
-    facturen.sort((a, b) => new Date(b.aangemaakt_op) - new Date(a.aangemaakt_op));
+    const facturen = await facturenResponse.json();
 
     console.log(JSON.stringify({
       level: 'INFO',
@@ -91,8 +54,6 @@ async function facturenHandler(req, res) {
       route: 'dashboard/klant/facturen',
       action: 'fetch_complete',
       userId: user.id,
-      bestellingenCount: bestellingen.length,
-      betalingenCount: betalingen.length,
       totalFacturen: facturen.length
     }));
 
