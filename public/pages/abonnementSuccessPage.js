@@ -27,13 +27,26 @@ let ibanElement = null;
 async function init() {
   console.log('[AbonnementSuccess] Initializing...');
   
-  // Initialize Stripe
+  // Initialize Stripe with public key from backend
   if (!window.Stripe) {
     console.error('[AbonnementSuccess] Stripe library niet geladen');
-    showError('Betaalprovider kan niet geladen worden. Herlaad de pagina.');
+    showErrorState('Betaalprovider kan niet geladen worden. Herlaad de pagina.');
     return;
   }
-  stripe = window.Stripe(window.STRIPE_PUBLISHABLE_KEY || 'pk_test_51QqKNJQ0RBkv5CKzAT1RCHUrdWQ5bPVFoKpqhGLOWePjm1o6J7bYXr5IyLtdZtCLGGrm7C8IUc1NjkWa0S4zC3jU00gVL2koW5');
+  
+  try {
+    // Fetch Stripe public key from backend
+    const stripeConfig = await apiClient('/routes/stripe/public-config', { method: 'GET' });
+    if (!stripeConfig || !stripeConfig.publishableKey) {
+      throw new Error('Stripe configuratie niet gevonden');
+    }
+    stripe = window.Stripe(stripeConfig.publishableKey);
+    console.log('[AbonnementSuccess] ✅ Stripe initialized');
+  } catch (error) {
+    console.error('[AbonnementSuccess] Stripe initialization failed:', error);
+    showErrorState('Betaalprovider configuratie kon niet geladen worden.');
+    return;
+  }
   
   try {
     // Get URL params
@@ -334,13 +347,36 @@ function showSepaModal(metadata) {
 
   ibanElement.mount('[data-stripe-iban-element]');
 
-  // IBAN validation errors - use formUi helpers
+  // IBAN validation errors + button state - use formUi helper
   const ibanError = modal.querySelector('[data-modal-error="sepa-iban"]');
+  const submitButton = modal.querySelector('[data-modal-submit="sepa"]');
+  
   ibanElement.on('change', (event) => {
     if (event.error) {
       showFormError(ibanError, event.error.message);
+      // Disable button on error
+      if (submitButton) {
+        submitButton.classList.add('is-disabled');
+        submitButton.style.pointerEvents = 'none';
+      }
     } else {
       hideError(ibanError);
+      // Enable button when IBAN is valid and complete
+      if (event.complete && submitButton) {
+        submitButton.classList.remove('is-disabled');
+        submitButton.style.pointerEvents = '';
+        console.log('[AbonnementSuccess] ✅ Submit button enabled (IBAN valid)');
+      }
+    }
+  });
+    } else {
+      hideError(ibanError);
+      // Enable button when IBAN is valid and complete
+      if (event.complete && submitButton) {
+        submitButton.classList.remove('is-disabled');
+        submitButton.style.pointerEvents = '';
+        console.log('[AbonnementSuccess] ✅ Submit button enabled (IBAN valid)');
+      }
     }
   });
 

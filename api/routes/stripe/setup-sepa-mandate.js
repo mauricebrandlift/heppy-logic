@@ -55,6 +55,15 @@ export default async function handler(req, res) {
     console.log(`[setup-sepa-mandate] START [${correlationId}]`);
 
     const { abonnement_id, user_id } = req.body;
+    
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'stripe/setup-sepa-mandate',
+      action: 'request_received',
+      abonnement_id,
+      user_id: user_id || 'not_provided'
+    }));
 
     // Validatie
     if (!abonnement_id) {
@@ -129,6 +138,30 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${stripeConfig.secretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: params.toString()
+    });
+
+    if (!setupIntentResp.ok) {
+      const errorText = await setupIntentResp.text();
+      console.error(`[setup-sepa-mandate] Stripe SetupIntent creation failed: ${errorText} [${correlationId}]`);
+      throw new Error(`Stripe SetupIntent creation failed: ${setupIntentResp.status}`);
+    }
+
+    const setupIntent = await setupIntentResp.json();
+    
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'stripe/setup-sepa-mandate',
+      action: 'setup_intent_created',
+      setupIntentId: setupIntent.id,
+      status: setupIntent.status,
+      customer: user.stripe_customer_id
+    }));
+
+    if (!setupIntent.client_secret) {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: params.toString(),
