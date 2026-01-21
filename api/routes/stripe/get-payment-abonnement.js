@@ -48,6 +48,15 @@ export default async function handler(req, res) {
 
     // Zoek betaling in database
     const url = `${supabaseConfig.url}/rest/v1/betalingen?stripe_payment_id=eq.${paymentIntentId}&select=abonnement_id,opdracht_id`;
+    
+    console.log(JSON.stringify({
+      level: 'DEBUG',
+      correlationId,
+      route: 'stripe/get-payment-abonnement',
+      action: 'database_query',
+      url
+    }));
+    
     const response = await httpClient(url, {
       method: 'GET',
       headers: {
@@ -56,13 +65,26 @@ export default async function handler(req, res) {
       }
     });
 
-    if (!response || response.length === 0) {
+    console.log(JSON.stringify({
+      level: 'DEBUG',
+      correlationId,
+      route: 'stripe/get-payment-abonnement',
+      action: 'database_response',
+      responseType: typeof response,
+      isArray: Array.isArray(response),
+      length: response?.length,
+      response: response
+    }));
+
+    if (!response || !Array.isArray(response) || response.length === 0) {
       console.log(JSON.stringify({
         level: 'WARN',
         correlationId,
         route: 'stripe/get-payment-abonnement',
         action: 'not_found',
-        paymentIntentId
+        paymentIntentId,
+        responseReceived: !!response,
+        responseLength: response?.length || 0
       }));
       
       return res.status(404).json({ 
@@ -73,6 +95,22 @@ export default async function handler(req, res) {
     }
 
     const betaling = response[0];
+    
+    if (!betaling) {
+      console.log(JSON.stringify({
+        level: 'ERROR',
+        correlationId,
+        route: 'stripe/get-payment-abonnement',
+        action: 'betaling_undefined',
+        response
+      }));
+      
+      return res.status(404).json({ 
+        correlationId, 
+        message: 'Betaling data ongeldig',
+        found: false
+      });
+    }
     
     console.log(JSON.stringify({
       level: 'INFO',
@@ -92,6 +130,16 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    return handleErrorResponse(res, error, correlationId);
+    console.error(JSON.stringify({
+      level: 'ERROR',
+      correlationId,
+      route: 'stripe/get-payment-abonnement',
+      action: 'exception',
+      errorMessage: error.message,
+      errorStack: error.stack
+    }));
+    
+    return handleErrorResponse(res, error, 500, correlationId);
+  }
   }
 }
