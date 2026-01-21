@@ -183,6 +183,42 @@ export async function createStripeInvoice({ customerId, omschrijving, regels, to
 }
 
 /**
+ * Markeer Stripe Invoice als betaald met bestaande PaymentIntent
+ * Voorkomt dat Stripe een nieuwe PaymentIntent aanmaakt voor een al betaalde invoice
+ * 
+ * @param {string} invoiceId - Stripe Invoice ID
+ * @param {string} paymentIntentId - Stripe PaymentIntent ID van de originele betaling
+ * @param {string} correlationId
+ * @returns {Promise<Object>} Updated invoice
+ */
+async function markInvoiceAsPaid(invoiceId, paymentIntentId, correlationId) {
+  console.log(`💳 [FactuurService] Markeer invoice ${invoiceId} als betaald met PaymentIntent ${paymentIntentId} [${correlationId}]`);
+
+  const params = new URLSearchParams();
+  params.set('paid_out_of_band', 'true');
+
+  const response = await fetch(`https://api.stripe.com/v1/invoices/${invoiceId}/pay`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${stripeConfig.secretKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: params.toString(),
+  });
+
+  const paidInvoice = await response.json();
+
+  if (!response.ok) {
+    console.error(`❌ [FactuurService] Invoice markeren als betaald mislukt [${correlationId}]:`, paidInvoice?.error?.message);
+    throw new Error(`Failed to mark invoice as paid: ${paidInvoice?.error?.message || 'Unknown error'}`);
+  }
+
+  console.log(`✅ [FactuurService] Invoice gemarkeerd als betaald, status: ${paidInvoice.status} [${correlationId}]`);
+
+  return paidInvoice;
+}
+
+/**
  * Maak factuur aan na succesvolle betaling
  * 
  * @param {Object} params
@@ -244,6 +280,21 @@ export async function createFactuurForBetaling({
 
       pdfUrl = stripeInvoice.invoice_pdf || stripeInvoice.hosted_invoice_url;
       console.log(`✅ [FactuurService] Stripe Invoice PDF: ${pdfUrl} [${correlationId}]`);
+
+      // Markeer invoice als betaald met de originele PaymentIntent
+      // Dit voorkomt dat Stripe een nieuwe PaymentIntent aanmaakt
+      if (stripePaymentIntentId && stripeInvoice.id) {
+        try {
+          const paidInvoice = await markInvoiceAsPaid(stripeInvoice.id, stripePaymentIntentId, correlationId);
+          stripeInvoice = paidInvoice; // Update met paid status
+          console.log(`✅ [FactuurService] Invoice status na betaling: ${paidInvoice.status} [${correlationId}]`);
+        } catch (payError) {
+          console.error(`⚠️ [FactuurService] Invoice markeren als betaald mislukt (niet fataal): ${payError.message} [${correlationId}]`);
+          // Continue - invoice bestaat wel, alleen status is nog "open"
+        }
+      } else {
+        console.log(`ℹ️ [FactuurService] Geen PaymentIntent ID - invoice blijft open voor latere betaling [${correlationId}]`);
+      }
     } catch (error) {
       console.error(`❌ [FactuurService] Stripe Invoice aanmaken mislukt (niet fataal): ${error.message} [${correlationId}]`);
       // Continue - we slaan factuur alsnog op in database
