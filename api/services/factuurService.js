@@ -127,35 +127,7 @@ export async function createStripeInvoice({ customerId, omschrijving, regels, to
 
   console.log(`✅ [FactuurService] Invoice aangemaakt: ${invoice.id} [${correlationId}]`);
 
-  // 2. Link PaymentIntent aan invoice (voorkomt duplicate payments bij finaliseren)
-  if (paymentIntentId) {
-    try {
-      console.log(`🔗 [FactuurService] Linken PaymentIntent ${paymentIntentId} aan invoice ${invoice.id} [${correlationId}]`);
-      
-      const linkParams = new URLSearchParams();
-      linkParams.set('invoice', invoice.id);
-      
-      const linkResponse = await fetch(`https://api.stripe.com/v1/payment_intents/${paymentIntentId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${stripeConfig.secretKey}`,
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: linkParams.toString(),
-      });
-      
-      if (linkResponse.ok) {
-        console.log(`✅ [FactuurService] PaymentIntent gelinkt aan invoice [${correlationId}]`);
-      } else {
-        const linkError = await linkResponse.json();
-        console.error(`⚠️ [FactuurService] PaymentIntent linken mislukt: ${linkError?.error?.message} [${correlationId}]`);
-      }
-    } catch (linkErr) {
-      console.error(`⚠️ [FactuurService] PaymentIntent linken error: ${linkErr.message} [${correlationId}]`);
-    }
-  }
-
-  // 3. Voeg invoice items toe (factuurregels)
+  // 2. Voeg invoice items toe (factuurregels)
   for (const regel of regels) {
     const itemParams = new URLSearchParams();
     itemParams.set('customer', customerId);
@@ -190,8 +162,7 @@ export async function createStripeInvoice({ customerId, omschrijving, regels, to
     }
   }
 
-  // 4. Finaliseer invoice (maakt het immutable en genereert PDF)
-  // Stripe ziet de PaymentIntent link en creëert GEEN nieuwe payment
+  // 3. Finaliseer invoice (maakt het immutable en genereert PDF)
   const finalizeResponse = await fetch(`https://api.stripe.com/v1/invoices/${invoice.id}/finalize`, {
     method: 'POST',
     headers: {
@@ -209,7 +180,37 @@ export async function createStripeInvoice({ customerId, omschrijving, regels, to
 
   console.log(`✅ [FactuurService] Invoice gefinaliseerd: ${finalizedInvoice.invoice_pdf} [${correlationId}]`);
 
-  return finalizedInvoice;
+  // 4. Markeer invoice als betaald met bestaande PaymentIntent (voorkomt duplicate payments)
+  let paidInvoice = finalizedInvoice;
+  if (paymentIntentId) {
+    try {
+      console.log(`💳 [FactuurService] Markeren invoice als betaald met PaymentIntent ${paymentIntentId} [${correlationId}]`);
+      
+      const payParams = new URLSearchParams();
+      payParams.set('paid_out_of_band', 'true');
+      
+      const payResponse = await fetch(`https://api.stripe.com/v1/invoices/${finalizedInvoice.id}/pay`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${stripeConfig.secretKey}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: payParams.toString(),
+      });
+      
+      if (payResponse.ok) {
+        paidInvoice = await payResponse.json();
+        console.log(`✅ [FactuurService] Invoice gemarkeerd als betaald, status: ${paidInvoice.status} [${correlationId}]`);
+      } else {
+        const payError = await payResponse.json();
+        console.error(`⚠️ [FactuurService] Invoice pay mislukt: ${payError?.error?.message} [${correlationId}]`);
+      }
+    } catch (payErr) {
+      console.error(`⚠️ [FactuurService] Invoice pay error: ${payErr.message} [${correlationId}]`);
+    }
+  }
+
+  return paidInvoice;
 }
 
 /**
