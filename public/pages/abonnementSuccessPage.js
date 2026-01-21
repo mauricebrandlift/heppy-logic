@@ -343,11 +343,15 @@ function showSepaModal(metadata) {
     }
   });
 
-  // Form submit handler
-  const form = modal.querySelector('form');
-  const submitHandler = (e) => handleSepaSubmit(e, modal);
-  form?.removeEventListener('submit', submitHandler); // Prevent duplicates
-  form?.addEventListener('submit', submitHandler);
+  // Submit button click handler (DIV button pattern)
+  const submitButton = modal.querySelector('[data-modal-submit="sepa"]');
+  const submitHandler = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    handleSepaSubmit(modal);
+  };
+  submitButton?.removeEventListener('click', submitHandler); // Prevent duplicates
+  submitButton?.addEventListener('click', submitHandler);
 
   // Close button handler
   const closeBtn = modal.querySelector('[data-modal-close="sepa"]');
@@ -368,20 +372,20 @@ function showSepaModal(metadata) {
 /**
  * Handle SEPA form submit
  * Uses Webflow modal structure with [data-modal-submit], [data-modal-succes], [data-modal-error]
+ * Follows project pattern: DIV button with click handler (not form submit event)
  */
-async function handleSepaSubmit(event, modal) {
-  event.preventDefault();
-  
+async function handleSepaSubmit(modal) {
   const submitButton = modal.querySelector('[data-modal-submit="sepa"]');
   const form = modal.querySelector('form');
   const successWrapper = modal.querySelector('[data-modal-succes="sepa"]');
   const errorWrapper = modal.querySelector('[data-modal-error="error"]');
   const generalError = modal.querySelector('[data-modal-error="general"]');
   
-  // Disable submit button, add loading state
+  // Disable submit button, add loading state (project pattern)
   if (submitButton) {
     submitButton.classList.add('is-loading');
     submitButton.classList.add('is-disabled');
+    submitButton.style.pointerEvents = 'none';
   }
 
   // Hide previous errors
@@ -464,10 +468,11 @@ async function handleSepaSubmit(event, modal) {
       errorWrapper.style.display = 'block';
     }
     
-    // Re-enable submit button
+    // Re-enable submit button (project pattern)
     if (submitButton) {
       submitButton.classList.remove('is-loading');
       submitButton.classList.remove('is-disabled');
+      submitButton.style.pointerEvents = '';
     }
   }
 }
