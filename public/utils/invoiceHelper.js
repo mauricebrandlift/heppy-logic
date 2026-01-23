@@ -59,10 +59,12 @@ export function initInvoiceButton(options = {}) {
     onSuccess = defaultSuccessHandler
   } = options;
 
-  const buttons = document.querySelectorAll(buttonSelector);
+  // Selecteer alleen buttons binnen gerenderde items (niet in template)
+  const parent = document.querySelector('[data-facturen-list]') || document.body;
+  const buttons = parent.querySelectorAll(`${buttonSelector}[data-invoice-id]`);
 
   if (buttons.length === 0) {
-    console.warn(`[InvoiceHelper] No buttons found with selector: ${buttonSelector}`);
+    console.warn(`[InvoiceHelper] No buttons found with selector: ${buttonSelector}[data-invoice-id]`);
     return;
   }
 
