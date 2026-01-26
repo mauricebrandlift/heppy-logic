@@ -94,6 +94,30 @@ async function abonnementDetailHandler(req, res) {
 
     console.log(`✅ [Abonnement Detail] Abonnement opgehaald - Status: ${abonnement.status}, Heeft schoonmaker: ${!!abonnement.schoonmaker_id}`);
 
+    // === FETCH FACTUREN (voor dit abonnement) ===
+    const facturenUrl = `${supabaseConfig.url}/rest/v1/facturen?abonnement_id=eq.${id}&select=id,factuur_nummer,factuurdatum,totaal_cents,status,stripe_invoice_id,omschrijving,regels,aangemaakt_op&order=aangemaakt_op.desc`;
+    
+    const facturenResponse = await httpClient(facturenUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`,
+      }
+    });
+
+    let facturen = [];
+    if (facturenResponse.ok) {
+      facturen = await facturenResponse.json();
+      // Transform voor frontend compatibiliteit
+      facturen = facturen.map(f => ({
+        ...f,
+        amount_cents: f.totaal_cents,
+        periode_display: null // Wordt in frontend berekend uit regels
+      }));
+      console.log(`🧾 [Abonnement Detail] ${facturen.length} facturen gevonden`);
+    } else {
+      console.warn('⚠️ [Abonnement Detail] Kon facturen niet ophalen (non-fatal)');
+    }
+
     // === RESPONSE SAMENSTELLEN ===
     // Flatten nested data voor frontend gemak
     const adres = abonnement.user_profile?.adressen || null;
@@ -138,7 +162,10 @@ async function abonnementDetailHandler(req, res) {
       klant: {
         voornaam: abonnement.user_profile?.voornaam || '',
         achternaam: abonnement.user_profile?.achternaam || ''
-      }
+      },
+      
+      // Facturen voor dit abonnement
+      facturen: facturen
     };
 
     return res.status(200).json(responseData);

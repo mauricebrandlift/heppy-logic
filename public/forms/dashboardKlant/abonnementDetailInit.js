@@ -6,6 +6,7 @@
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
 import { hideAllSuccessMessages } from '../ui/formUi.js';
+import { initInvoiceButton } from '../../utils/invoiceHelper.js';
 
 /**
  * Formatteer datum naar NL formaat
@@ -100,6 +101,125 @@ function addStatusClass(element, status) {
 function formatBedrag(cents) {
   if (!cents && cents !== 0) return '-';
   return `€${(cents / 100).toFixed(2).replace('.', ',')}`;
+}
+
+/**
+ * Render facturen lijst voor dit abonnement
+ */
+function populateFacturen(facturen) {
+  const template = document.querySelector('[data-factuur-item-template]');
+  const parent = document.querySelector('[data-factuur-list]');
+  
+  if (!template || !parent) {
+    console.warn('[Abonnement Detail] Facturen template of list container niet gevonden');
+    return;
+  }
+  
+  // Clear existing items (except template)
+  parent.querySelectorAll('[data-factuur-item]:not([data-factuur-item-template])').forEach(el => el.remove());
+  
+  if (!facturen || facturen.length === 0) {
+    console.log('[Abonnement Detail] Geen facturen om weer te geven');
+    return;
+  }
+  
+  facturen.forEach(factuur => {
+    const clone = template.content.cloneNode(true);
+    
+    // Factuurnummer
+    const nummerEl = clone.querySelector('[data-factuur-nummer]');
+    if (nummerEl) nummerEl.textContent = factuur.factuur_nummer || '-';
+    
+    // Type (altijd "Abonnement" voor deze pagina)
+    const typeEl = clone.querySelector('[data-factuur-type]');
+    if (typeEl) typeEl.textContent = 'Abonnement';
+    
+    // Periode - bereken uit regels
+    const periodeTitle = clone.querySelector('[data-factuur-periode-title]');
+    const periodeDatum = clone.querySelector('[data-factuur-periode-datum]');
+    
+    try {
+      const regels = typeof factuur.regels === 'string' ? JSON.parse(factuur.regels) : factuur.regels;
+      if (regels && regels.length > 0 && regels[0].periode) {
+        const startDate = new Date(regels[0].periode.start);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 27); // 4 weken = 28 dagen
+        
+        if (periodeTitle) periodeTitle.textContent = 'Periode';
+        if (periodeDatum) {
+          periodeDatum.textContent = `${startDate.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} - ${endDate.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+        }
+      } else {
+        // Fallback naar factuurdatum
+        if (periodeTitle) periodeTitle.textContent = 'Datum';
+        if (periodeDatum) {
+          const date = new Date(factuur.factuurdatum);
+          periodeDatum.textContent = date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+        }
+      }
+    } catch (e) {
+      // Fallback naar factuurdatum
+      if (periodeTitle) periodeTitle.textContent = 'Datum';
+      if (periodeDatum) {
+        const date = new Date(factuur.factuurdatum);
+        periodeDatum.textContent = date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+      }
+    }
+    
+    // Details (omschrijving)
+    const detailsEl = clone.querySelector('[data-factuur-details]');
+    if (detailsEl) {
+      detailsEl.textContent = factuur.omschrijving || 'Schoonmaakabonnement';
+    }
+    
+    // Bedrag (zonder € want die staat al in HTML)
+    const bedragEl = clone.querySelector('[data-factuur-bedrag]');
+    if (bedragEl) bedragEl.textContent = (factuur.amount_cents / 100).toFixed(2).replace('.', ',');
+    
+    // Status
+    const statusEl = clone.querySelector('[data-factuur-status]');
+    if (statusEl) {
+      const statusText = statusEl.querySelector('.text-size-small');
+      if (statusText) {
+        const statusMapping = {
+          'concept': 'Concept',
+          'verzonden': 'Verzonden',
+          'betaald': 'Betaald',
+          'mislukt': 'Mislukt',
+          'verlopen': 'Verlopen'
+        };
+        statusText.textContent = statusMapping[factuur.status] || factuur.status;
+      }
+      
+      // Status classes
+      statusEl.classList.remove('is-paid', 'is-pending', 'is-failed');
+      if (factuur.status === 'betaald') {
+        statusEl.classList.add('is-paid');
+      } else if (factuur.status === 'concept' || factuur.status === 'verzonden') {
+        statusEl.classList.add('is-pending');
+      } else if (factuur.status === 'mislukt' || factuur.status === 'verlopen') {
+        statusEl.classList.add('is-failed');
+      }
+    }
+    
+    // Invoice download button
+    const buttonEl = clone.querySelector('[data-invoice-button]');
+    if (buttonEl && factuur.stripe_invoice_id) {
+      buttonEl.setAttribute('data-invoice-id', factuur.stripe_invoice_id);
+    } else if (buttonEl) {
+      buttonEl.style.display = 'none';
+    }
+    
+    parent.appendChild(clone);
+  });
+  
+  // Hide template
+  template.style.display = 'none';
+  
+  // Initialize invoice buttons
+  initInvoiceButton();
+  
+  console.log(`✅ [Abonnement Detail] ${facturen.length} facturen gerenderd`);
 }
 
 /**
@@ -690,6 +810,7 @@ export async function initAbonnementDetail() {
     // Vul pagina in
     populateAbonnementHeader(data);
     populateSchoonmakerSection(data);
+    populateFacturen(data.facturen || []);
     
     // Initialize placeholder sections (later implementeren)
     initializeWijzigingenSection(data);
