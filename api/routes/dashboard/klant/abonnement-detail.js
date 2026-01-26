@@ -37,7 +37,7 @@ async function abonnementDetailHandler(req, res) {
     // === FETCH ABONNEMENT MET SCHOONMAKER EN USER PROFIEL (voor adres) ===
     // Join met schoonmakers tabel voor schoonmaker gegevens
     // Join met user_profiles voor klant adres via gebruiker_id
-    const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}&gebruiker_id=eq.${userId}&select=*,schoonmaker:schoonmakers(id,bio),user_profile:user_profiles!abonnementen_gebruiker_id_fkey(voornaam,achternaam,adres_id,adressen:adres_id(straat,huisnummer,toevoeging,postcode,plaats))`;
+    const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}&gebruiker_id=eq.${userId}&select=*,schoonmaker:schoonmakers(id,bio),user_profile:user_profiles!abonnementen_gebruiker_id_fkey(voornaam,achternaam,email,adres_id,adressen:adres_id(straat,huisnummer,toevoeging,postcode,plaats))`;
     
     const abonnementResponse = await httpClient(abonnementUrl, {
       headers: {
@@ -185,7 +185,8 @@ async function abonnementDetailHandler(req, res) {
       // Klant naam (voor header)
       klant: {
         voornaam: abonnement.user_profile?.voornaam || '',
-        achternaam: abonnement.user_profile?.achternaam || ''
+        achternaam: abonnement.user_profile?.achternaam || '',
+        email: abonnement.user_profile?.email || ''
       },
       
       // SEPA incasso status

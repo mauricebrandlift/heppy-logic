@@ -10,6 +10,7 @@ import { initInvoiceButton } from '../../utils/invoiceHelper.js';
 
 // State voor SEPA modal
 let currentAbonnementId = null;
+let currentUserEmail = null; // Voor SEPA setup
 let stripe = null;
 let setupIntentClientSecret = null;
 let ibanElement = null;
@@ -493,9 +494,12 @@ async function handleSepaModalSubmit(modal) {
       throw new Error('Vul de naam van de rekeninghouder in');
     }
     
-    // Get user email from auth state
-    const authState = authClient.getAuthState();
-    const email = authState?.email || '';
+    // Use email from page data (stored on init)
+    const email = currentUserEmail || '';
+    
+    if (!email) {
+      throw new Error('Email adres niet gevonden. Herlaad de pagina.');
+    }
     
     // Confirm SEPA setup with Stripe
     const { setupIntent, error } = await stripe.confirmSepaDebitSetup(
@@ -1190,6 +1194,9 @@ export async function initAbonnementDetail() {
     });
 
     console.log('✅ [Abonnement Detail] Data opgehaald:', data);
+
+    // Store email for SEPA setup
+    currentUserEmail = data.klant?.email || '';
 
     // Vul pagina in
     populateAbonnementHeader(data);
