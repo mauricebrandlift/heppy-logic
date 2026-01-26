@@ -51,6 +51,8 @@ export default async function handler(req, res) {
       paymentIntentId: result.id,
       status: result.status,
       amount: result.amount,
+      payment_method: result.payment_method,
+      payment_method_types: result.payment_method_types,
       metadata: result.metadata || 'none'
     }));
     
