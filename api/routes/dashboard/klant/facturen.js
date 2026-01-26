@@ -31,7 +31,7 @@ async function facturenHandler(req, res) {
 
     // Haal alle facturen op uit facturen tabel
     const facturenResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/facturen?gebruiker_id=eq.${user.id}&select=id,factuur_nummer,factuurdatum,totaal_cents,status,pdf_url,omschrijving,abonnement_id,opdracht_id,regels,aangemaakt_op&order=aangemaakt_op.desc`,
+      `${supabaseConfig.url}/rest/v1/facturen?gebruiker_id=eq.${user.id}&select=id,factuur_nummer,factuurdatum,totaal_cents,status,pdf_url,stripe_invoice_id,omschrijving,abonnement_id,opdracht_id,regels,aangemaakt_op&order=aangemaakt_op.desc`,
       {
         method: 'GET',
         headers: {
