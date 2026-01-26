@@ -510,10 +510,17 @@ function handleConditionalWrappers(data) {
  */
 function populateFactuurSection(data) {
   const factuurWrapper = document.querySelector('[data-factuur-wrapper]');
-  const invoiceButton = document.querySelector('[data-invoice-button]');
   
-  if (!factuurWrapper || !invoiceButton) {
-    console.warn('[Opdracht Detail] Factuur wrapper of button niet gevonden in DOM');
+  if (!factuurWrapper) {
+    console.warn('[Opdracht Detail] Factuur wrapper niet gevonden in DOM');
+    return;
+  }
+  
+  // Scope invoice button selector naar binnen de factuur wrapper
+  const invoiceButton = factuurWrapper.querySelector('[data-invoice-button]');
+  
+  if (!invoiceButton) {
+    console.warn('[Opdracht Detail] Invoice button niet gevonden binnen factuur wrapper');
     return;
   }
   
