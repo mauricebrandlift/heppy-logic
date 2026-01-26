@@ -33,6 +33,18 @@ export default async function handler(req, res) {
       message: 'Recurring billing test endpoint is disabled in production for security',
     });
   }
+  
+  // SECURITY: Require secret token for additional protection
+  const testSecret = process.env.TEST_SECRET || 'test-secret-change-me';
+  const authHeader = req.headers.authorization;
+  
+  if (authHeader !== `Bearer ${testSecret}`) {
+    console.warn('⚠️ [Test] Unauthorized request to recurring billing test endpoint');
+    return res.status(401).json({ 
+      error: 'Unauthorized',
+      message: 'Valid authorization token required. Set TEST_SECRET environment variable.',
+    });
+  }
 
   const correlationId = req.headers['x-correlation-id'] || `test_${Date.now()}`;
   const { abonnement_id } = req.query;

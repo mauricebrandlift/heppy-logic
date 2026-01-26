@@ -273,19 +273,26 @@ export async function processAbonnementRecurringBilling(abonnement, correlationI
     }, correlationId);
 
     // 5. Check payment status
-    if (paymentIntent.status !== 'succeeded') {
-      throw new Error(`PaymentIntent status is ${paymentIntent.status}, expected 'succeeded'`);
+    // SEPA betalingen zijn NIET instant - status kan 'processing' zijn
+    // Cards: instant succeeded
+    // SEPA: processing → succeeded (1-3 dagen)
+    const validStatuses = ['succeeded', 'processing'];
+    
+    if (!validStatuses.includes(paymentIntent.status)) {
+      throw new Error(`PaymentIntent status is ${paymentIntent.status}, expected 'succeeded' or 'processing'`);
     }
 
-    console.log(`✅ [RecurringBilling] Payment succeeded: ${paymentIntent.id} [${correlationId}]`);
+    const isProcessing = paymentIntent.status === 'processing';
+    console.log(`✅ [RecurringBilling] Payment ${isProcessing ? 'processing (SEPA)' : 'succeeded'}: ${paymentIntent.id} [${correlationId}]`);
 
     // 6. Sla betaling op
+    // Status: 'betaald' als succeeded, 'processing' als SEPA processing
     const betaling = await createBetalingRecord({
       stripePaymentIntentId: paymentIntent.id,
       gebruikerId: user.id,
       abonnementId: abonnement.id,
       amount: totalAmount,
-      status: 'betaald',
+      status: isProcessing ? 'processing' : 'betaald',
     }, correlationId);
 
     // 7. Genereer factuur
