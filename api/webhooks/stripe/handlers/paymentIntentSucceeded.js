@@ -15,6 +15,12 @@ export async function handlePaymentIntentSucceeded(event, correlationId){
   
   console.log(`📦 [PaymentIntentSucceeded] Detected flow: ${flow} [${correlationId}]`);
   
+  // Skip recurring_billing - already processed by recurringBillingService
+  if (flow === 'recurring_billing' || metadata.type === 'abonnement_renewal') {
+    console.log(`🔄 [PaymentIntentSucceeded] Skipping recurring_billing - already processed [${correlationId}]`);
+    return { handled: true, skipped: true, reason: 'recurring_billing_already_processed' };
+  }
+  
   // Webshop orders - handle via dedicated processor
   if (flow === 'webshop') {
     console.log(`🛒 [PaymentIntentSucceeded] Routing to webshop flow [${correlationId}]`);
