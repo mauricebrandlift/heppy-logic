@@ -156,23 +156,19 @@ function displayPaymentDetails(paymentIntent) {
   
   const amountEuros = (paymentIntent.amount / 100).toFixed(2).replace('.', ',');
   const paymentMethodType = getPaymentMethodType(paymentIntent);
-  const factuurNummer = paymentIntent.metadata?.factuur_nummer || 'Wordt gegenereerd...';
   
   // Vul payment details
   const amountEl = document.querySelector('[data-payment-details="amount"]');
-  const factuurnummerEl = document.querySelector('[data-payment-details="factuurnummer"]');
   const methodEl = document.querySelector('[data-payment-details="betaalmethode"]');
   const idEl = document.querySelector('[data-payment-details="betaling_id"]');
   
   if (amountEl) amountEl.textContent = `€${amountEuros}`;
-  if (factuurnummerEl) factuurnummerEl.textContent = factuurNummer;
   if (methodEl) methodEl.textContent = paymentMethodType;
   if (idEl) idEl.textContent = paymentIntent.id;
   
   console.log('[AbonnementSuccess] Payment details displayed:', {
     amount: `€${amountEuros}`,
-    method: paymentMethodType,
-    factuur: factuurNummer
+    method: paymentMethodType
   });
 }
 
@@ -535,7 +531,15 @@ async function finalizeSepaSetup(setupIntentId) {
  * Get human-readable payment method type
  */
 function getPaymentMethodType(paymentIntent) {
-  const type = paymentIntent.payment_method_types?.[0] || 'unknown';
+  // Probeer eerst payment_method_types array, anders fallback naar payment_method object type
+  let type = paymentIntent.payment_method_types?.[0];
+  
+  // Als payment_method een object is met type property, gebruik die
+  if (!type && paymentIntent.payment_method?.type) {
+    type = paymentIntent.payment_method.type;
+  }
+  
+  type = type || 'unknown';
   
   const typeMap = {
     'ideal': 'iDEAL',
