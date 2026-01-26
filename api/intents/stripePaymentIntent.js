@@ -132,7 +132,8 @@ export async function retrievePaymentIntent({ secretKey, id, correlationId }) {
     'Authorization': `Bearer ${secretKey}`,
   };
 
-  const response = await fetch(`https://api.stripe.com/v1/payment_intents/${encodeURIComponent(id)}`, {
+  // Expand payment_method om het type te krijgen
+  const response = await fetch(`https://api.stripe.com/v1/payment_intents/${encodeURIComponent(id)}?expand[]=payment_method`, {
     method: 'GET',
     headers,
   });
@@ -153,6 +154,7 @@ export async function retrievePaymentIntent({ secretKey, id, correlationId }) {
     livemode: data.livemode,
     capture_method: data.capture_method,
     payment_method_types: data.payment_method_types,
+    payment_method: data.payment_method || null,
     customer: data.customer,
     last_payment_error: data.last_payment_error || null,
     created: data.created,
