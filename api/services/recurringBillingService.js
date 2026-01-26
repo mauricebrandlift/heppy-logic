@@ -134,7 +134,7 @@ async function createBetalingRecord({
   const url = `${supabaseConfig.url}/rest/v1/betalingen`;
   
   const data = {
-    stripe_betaling_id: stripePaymentIntentId,
+    stripe_payment_id: stripePaymentIntentId,
     gebruiker_id: gebruikerId,
     abonnement_id: abonnementId,
     amount_cents: amount,
