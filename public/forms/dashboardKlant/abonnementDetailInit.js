@@ -185,24 +185,29 @@ function populateFacturen(facturen) {
       const statusText = statusEl.querySelector('.text-size-small');
       if (statusText) {
         const statusMapping = {
-          'concept': 'Concept',
-          'verzonden': 'Verzonden',
+          'paid': 'Betaald',
+          'open': 'Open',
+          'draft': 'Concept',
+          'void': 'Geannuleerd',
+          'uncollectible': 'Oninbaar',
           'betaald': 'Betaald',
-          'mislukt': 'Mislukt',
-          'verlopen': 'Verlopen'
+          'openstaand': 'Open'
         };
         statusText.textContent = statusMapping[factuur.status] || factuur.status;
       }
       
-      // Status classes
-      statusEl.classList.remove('is-paid', 'is-pending', 'is-failed');
-      if (factuur.status === 'betaald') {
-        statusEl.classList.add('is-paid');
-      } else if (factuur.status === 'concept' || factuur.status === 'verzonden') {
-        statusEl.classList.add('is-pending');
-      } else if (factuur.status === 'mislukt' || factuur.status === 'verlopen') {
-        statusEl.classList.add('is-failed');
-      }
+      // Status classes (zelfde als facturenInit.js)
+      const statusClassMap = {
+        'paid': 'is-active',
+        'betaald': 'is-active',
+        'open': 'is-pending',
+        'openstaand': 'is-pending',
+        'draft': 'is-pending',
+        'void': 'is-unactive',
+        'uncollectible': 'is-unactive'
+      };
+      const statusClass = statusClassMap[factuur.status] || 'is-pending';
+      statusEl.classList.add(statusClass);
     }
     
     // Invoice download button
