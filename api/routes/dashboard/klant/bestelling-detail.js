@@ -91,11 +91,32 @@ async function bestellingDetailHandler(req, res) {
 
     console.log(`✅ [Bestelling Detail] Bestelling opgehaald - ${items.length} items`);
 
+    // === FETCH FACTUUR (voor invoice download button) ===
+    let stripeInvoiceId = null;
+    
+    const factuurUrl = `${supabaseConfig.url}/rest/v1/facturen?bestelling_id=eq.${bestelling.id}&select=stripe_invoice_id&limit=1`;
+    
+    const factuurResponse = await httpClient(factuurUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`,
+      }
+    });
+
+    if (factuurResponse.ok) {
+      const facturen = await factuurResponse.json();
+      stripeInvoiceId = facturen[0]?.stripe_invoice_id || null;
+      console.log(`🧾 [Bestelling Detail] Factuur gevonden: ${stripeInvoiceId ? 'Ja' : 'Nee'}`);
+    } else {
+      console.warn('⚠️ [Bestelling Detail] Kon factuur niet ophalen (non-fatal)');
+    }
+
     // === RESPONSE ===
     return res.status(200).json({
       correlationId,
       ...bestelling,
-      items
+      items,
+      stripe_invoice_id: stripeInvoiceId
     });
 
   } catch (error) {

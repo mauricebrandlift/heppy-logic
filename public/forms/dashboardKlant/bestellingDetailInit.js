@@ -193,25 +193,33 @@ function populateProductItems(items) {
  * Initialiseer factuur button (indien beschikbaar)
  */
 function initializeInvoiceButton(bestellingData) {
-  const invoiceButton = document.querySelector('[data-invoice-button]');
+  const factuurWrapper = document.querySelector('[data-factuur-wrapper]');
+  
+  if (!factuurWrapper) {
+    console.log('[Bestelling Detail] Geen factuur wrapper gevonden op pagina');
+    return;
+  }
+  
+  // Scope invoice button selector naar binnen de factuur wrapper
+  const invoiceButton = factuurWrapper.querySelector('[data-invoice-button]');
   
   if (!invoiceButton) {
-    console.log('[Bestelling Detail] Geen factuur button gevonden op pagina');
+    console.log('[Bestelling Detail] Geen factuur button gevonden binnen wrapper');
     return;
   }
 
   const invoiceId = bestellingData.stripe_invoice_id;
 
   if (!invoiceId) {
-    // Geen factuur beschikbaar - verberg button
+    // Geen factuur beschikbaar - verberg wrapper
     console.log('[Bestelling Detail] Geen factuur beschikbaar voor deze bestelling');
-    invoiceButton.style.display = 'none';
+    factuurWrapper.classList.add('hide');
     return;
   }
 
   // Vul invoice ID in als data attribuut
-  invoiceButton.dataset.invoiceId = invoiceId;
-  invoiceButton.style.display = ''; // Zorg dat button zichtbaar is
+  invoiceButton.setAttribute('data-invoice-id', invoiceId);
+  factuurWrapper.classList.remove('hide');
 
   // Initialiseer button functionaliteit
   initInvoiceButton();
