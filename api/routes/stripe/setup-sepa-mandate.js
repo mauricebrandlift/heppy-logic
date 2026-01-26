@@ -78,8 +78,8 @@ export default async function handler(req, res) {
 
     console.log(`[setup-sepa-mandate] Fetching abonnement [${correlationId}]`, { abonnement_id });
 
-    // Haal abonnement + user op
-    const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${abonnement_id}&select=*,users:gebruiker_id(id,email,stripe_customer_id)`;
+    // Haal abonnement + user + adres op
+    const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${abonnement_id}&select=*,users:gebruiker_id(id,email,stripe_customer_id,adres_id,adressen:adres_id(straat,huisnummer,toevoeging,postcode,plaats))`;
     const abonnementResp = await httpClient(abonnementUrl, {
       method: 'GET',
       headers: {
@@ -194,10 +194,19 @@ export default async function handler(req, res) {
 
     console.log(`[setup-sepa-mandate] SUCCESS [${correlationId}]`);
 
+    // Adres data voor frontend
+    const adres = user.adressen || null;
+
     return res.status(200).json({
       success: true,
       client_secret: setupIntent.client_secret,
-      abonnement_id: abonnement.id
+      abonnement_id: abonnement.id,
+      address: adres ? {
+        line1: `${adres.straat} ${adres.huisnummer}${adres.toevoeging || ''}`,
+        postal_code: adres.postcode,
+        city: adres.plaats,
+        country: 'NL'
+      } : null
     });
 
   } catch (error) {

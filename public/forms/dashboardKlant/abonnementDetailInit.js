@@ -11,6 +11,7 @@ import { initInvoiceButton } from '../../utils/invoiceHelper.js';
 // State voor SEPA modal
 let currentAbonnementId = null;
 let currentUserEmail = null; // Voor SEPA setup
+let currentUserAddress = null; // Voor SEPA billing_details
 let stripe = null;
 let setupIntentClientSecret = null;
 let ibanElement = null;
@@ -341,6 +342,7 @@ async function handleSepaSetup() {
     
     if (response.success && response.client_secret) {
       setupIntentClientSecret = response.client_secret;
+      currentUserAddress = response.address || null; // Store voor SEPA confirm
       showSepaModal();
     } else {
       throw new Error('Geen client secret ontvangen van backend');
@@ -509,7 +511,8 @@ async function handleSepaModalSubmit(modal) {
           sepa_debit: ibanElement,
           billing_details: {
             name: accountHolderName,
-            email: email
+            email: email,
+            address: currentUserAddress || undefined
           }
         }
       }
@@ -638,6 +641,7 @@ async function handleSepaWijzigen() {
     
     if (response.success && response.client_secret) {
       setupIntentClientSecret = response.client_secret;
+      currentUserAddress = response.address || null; // Store voor SEPA confirm
       showSepaModal();
     } else {
       throw new Error('Geen client secret ontvangen van backend');
