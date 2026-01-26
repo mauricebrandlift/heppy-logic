@@ -531,21 +531,9 @@ async function finalizeSepaSetup(setupIntentId) {
  * Get human-readable payment method type
  */
 function getPaymentMethodType(paymentIntent) {
-  // Probeer eerst payment_method_types array, anders fallback naar payment_method object type
-  let type = paymentIntent.payment_method_types?.[0];
-  
-  console.log('[AbonnementSuccess] getPaymentMethodType debug:', {
-    payment_method_types: paymentIntent.payment_method_types,
-    payment_method: paymentIntent.payment_method,
-    detected_type: type
-  });
-  
-  // Als payment_method een object is met type property, gebruik die
-  if (!type && paymentIntent.payment_method?.type) {
-    type = paymentIntent.payment_method.type;
-  }
-  
-  type = type || 'unknown';
+  // EERST: payment_method.type (daadwerkelijk gebruikte methode)
+  // DAARNA: payment_method_types[0] (beschikbare opties - fallback)
+  let type = paymentIntent.payment_method?.type || paymentIntent.payment_method_types?.[0] || 'unknown';
   
   const typeMap = {
     'ideal': 'iDEAL',
