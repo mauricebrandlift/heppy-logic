@@ -137,7 +137,7 @@ async function createBetalingRecord({
     stripe_betaling_id: stripePaymentIntentId,
     gebruiker_id: gebruikerId,
     abonnement_id: abonnementId,
-    bedrag_cents: amount,
+    amount_cents: amount,
     status: status,
     betaalmethode: 'recurring_card',
   };
