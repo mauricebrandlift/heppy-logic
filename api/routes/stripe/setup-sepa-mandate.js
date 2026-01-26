@@ -54,7 +54,7 @@ export default async function handler(req, res) {
   try {
     console.log(`[setup-sepa-mandate] START [${correlationId}]`);
 
-    const { abonnement_id, user_id } = req.body;
+    const { abonnement_id, user_id, force_update } = req.body;
     
     console.log(JSON.stringify({
       level: 'INFO',
@@ -62,7 +62,8 @@ export default async function handler(req, res) {
       route: 'stripe/setup-sepa-mandate',
       action: 'request_received',
       abonnement_id,
-      user_id: user_id || 'not_provided'
+      user_id: user_id || 'not_provided',
+      force_update: force_update || false
     }));
 
     // Validatie
@@ -109,13 +110,18 @@ export default async function handler(req, res) {
     }
 
     // Check: is SEPA setup al voltooid?
-    if (abonnement.sepa_setup_completed) {
+    // Skip deze check als force_update=true (voor wijzigen rekeningnummer)
+    if (abonnement.sepa_setup_completed && !force_update) {
       console.log(`[setup-sepa-mandate] SEPA already completed [${correlationId}]`);
       return res.status(200).json({
         success: true,
         already_completed: true,
         abonnement_id: abonnement.id
       });
+    }
+    
+    if (force_update && abonnement.sepa_setup_completed) {
+      console.log(`[setup-sepa-mandate] Force update - creating new SetupIntent for SEPA change [${correlationId}]`);
     }
 
     // Check: heeft user een Stripe Customer ID?

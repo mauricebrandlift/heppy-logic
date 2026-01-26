@@ -601,10 +601,52 @@ async function finalizeSepaSetup(setupIntentId) {
 async function handleSepaWijzigen() {
   console.log('[Abonnement Detail] SEPA wijzig button clicked');
   
-  // TODO: Implementeer Stripe Customer Portal redirect
-  // of open modal voor nieuwe IBAN invoer
-  // Voor nu: placeholder alert
-  alert('Rekeningnummer wijzigen - Deze functionaliteit wordt binnenkort toegevoegd.');
+  if (!currentAbonnementId) {
+    console.error('[Abonnement Detail] Geen abonnement ID beschikbaar');
+    alert('Fout: geen abonnement ID. Herlaad de pagina.');
+    return;
+  }
+  
+  // Initialize Stripe if not done yet
+  if (!stripe) {
+    try {
+      if (!window.Stripe) {
+        throw new Error('Stripe library niet geladen');
+      }
+      const stripeConfig = await apiClient('/routes/stripe/public-config', { method: 'GET' });
+      if (!stripeConfig || !stripeConfig.publishableKey) {
+        throw new Error('Stripe configuratie niet gevonden');
+      }
+      stripe = window.Stripe(stripeConfig.publishableKey);
+      console.log('[Abonnement Detail] ✅ Stripe initialized');
+    } catch (error) {
+      console.error('[Abonnement Detail] Stripe initialization failed:', error);
+      alert('Betaalprovider kon niet geladen worden. Herlaad de pagina.');
+      return;
+    }
+  }
+  
+  try {
+    // Request SetupIntent from backend (force_update=true voor wijzigen)
+    const response = await apiClient('/routes/stripe/setup-sepa-mandate', {
+      method: 'POST',
+      body: JSON.stringify({
+        abonnement_id: currentAbonnementId,
+        force_update: true
+      })
+    });
+    
+    if (response.success && response.client_secret) {
+      setupIntentClientSecret = response.client_secret;
+      showSepaModal();
+    } else {
+      throw new Error('Geen client secret ontvangen van backend');
+    }
+    
+  } catch (error) {
+    console.error('[Abonnement Detail] SEPA wijzig request failed:', error.message);
+    alert('Fout bij het starten van rekeningnummer wijziging. Probeer het opnieuw.');
+  }
 }
 
 /**
