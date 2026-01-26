@@ -107,16 +107,18 @@ function formatBedrag(cents) {
  * Render facturen lijst voor dit abonnement
  */
 function populateFacturen(facturen) {
-  const template = document.querySelector('[data-factuur-item-template]');
-  const parent = document.querySelector('[data-factuur-list]');
+  const template = document.querySelector('[data-factuur-item]');
   
-  if (!template || !parent) {
-    console.warn('[Abonnement Detail] Facturen template of list container niet gevonden');
+  if (!template) {
+    console.warn('[Abonnement Detail] Factuur item template niet gevonden');
     return;
   }
   
-  // Clear existing items (except template)
-  parent.querySelectorAll('[data-factuur-item]:not([data-factuur-item-template])').forEach(el => el.remove());
+  const parent = template.parentElement;
+  
+  // Clear bestaande items (behalve template met lege ID)
+  const existingItems = parent.querySelectorAll('[data-factuur-item]:not([data-factuur-item=""])');
+  existingItems.forEach(item => item.remove());
   
   if (!facturen || facturen.length === 0) {
     console.log('[Abonnement Detail] Geen facturen om weer te geven');
@@ -124,7 +126,9 @@ function populateFacturen(facturen) {
   }
   
   facturen.forEach(factuur => {
-    const clone = template.content.cloneNode(true);
+    const clone = template.cloneNode(true);
+    clone.setAttribute('data-factuur-item-id', factuur.id);
+    clone.style.display = '';
     
     // Factuurnummer
     const nummerEl = clone.querySelector('[data-factuur-nummer]');
@@ -138,6 +142,8 @@ function populateFacturen(facturen) {
     const periodeTitle = clone.querySelector('[data-factuur-periode-title]');
     const periodeDatum = clone.querySelector('[data-factuur-periode-datum]');
     
+    if (periodeTitle) periodeTitle.textContent = 'Periode';
+    
     try {
       const regels = typeof factuur.regels === 'string' ? JSON.parse(factuur.regels) : factuur.regels;
       if (regels && regels.length > 0 && regels[0].periode) {
@@ -145,24 +151,21 @@ function populateFacturen(facturen) {
         const endDate = new Date(startDate);
         endDate.setDate(endDate.getDate() + 27); // 4 weken = 28 dagen
         
-        if (periodeTitle) periodeTitle.textContent = 'Periode';
         if (periodeDatum) {
           periodeDatum.textContent = `${startDate.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} - ${endDate.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}`;
         }
       } else {
-        // Fallback naar factuurdatum
-        if (periodeTitle) periodeTitle.textContent = 'Datum';
+        // Fallback naar factuurdatum maand/jaar
         if (periodeDatum) {
           const date = new Date(factuur.factuurdatum);
-          periodeDatum.textContent = date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+          periodeDatum.textContent = date.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
         }
       }
     } catch (e) {
-      // Fallback naar factuurdatum
-      if (periodeTitle) periodeTitle.textContent = 'Datum';
+      // Fallback naar factuurdatum maand/jaar
       if (periodeDatum) {
         const date = new Date(factuur.factuurdatum);
-        periodeDatum.textContent = date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+        periodeDatum.textContent = date.toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' });
       }
     }
     
@@ -172,7 +175,7 @@ function populateFacturen(facturen) {
       detailsEl.textContent = factuur.omschrijving || 'Schoonmaakabonnement';
     }
     
-    // Bedrag (zonder € want die staat al in HTML)
+    // Bedrag (alleen getal, € staat al in HTML)
     const bedragEl = clone.querySelector('[data-factuur-bedrag]');
     if (bedragEl) bedragEl.textContent = (factuur.amount_cents / 100).toFixed(2).replace('.', ',');
     
@@ -206,6 +209,7 @@ function populateFacturen(facturen) {
     const buttonEl = clone.querySelector('[data-invoice-button]');
     if (buttonEl && factuur.stripe_invoice_id) {
       buttonEl.setAttribute('data-invoice-id', factuur.stripe_invoice_id);
+      buttonEl.style.display = '';
     } else if (buttonEl) {
       buttonEl.style.display = 'none';
     }
