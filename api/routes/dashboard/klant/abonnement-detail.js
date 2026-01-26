@@ -118,6 +118,30 @@ async function abonnementDetailHandler(req, res) {
       console.warn('⚠️ [Abonnement Detail] Kon facturen niet ophalen (non-fatal)');
     }
 
+    // === FETCH SEPA PAYMENT METHOD DETAILS (laatste 4 cijfers IBAN) ===
+    let sepaIbanLast4 = null;
+    
+    if (abonnement.stripe_payment_method_id && abonnement.sepa_setup_completed) {
+      try {
+        // Haal PaymentMethod op bij Stripe voor IBAN details
+        const { stripeConfig } = await import('../../../config/index.js');
+        const pmResponse = await fetch(`https://api.stripe.com/v1/payment_methods/${abonnement.stripe_payment_method_id}`, {
+          headers: {
+            'Authorization': `Bearer ${stripeConfig.secretKey}`,
+          }
+        });
+        
+        if (pmResponse.ok) {
+          const pm = await pmResponse.json();
+          if (pm.sepa_debit?.last4) {
+            sepaIbanLast4 = pm.sepa_debit.last4;
+          }
+        }
+      } catch (e) {
+        console.warn('⚠️ [Abonnement Detail] Kon SEPA details niet ophalen (non-fatal)', e.message);
+      }
+    }
+
     // === RESPONSE SAMENSTELLEN ===
     // Flatten nested data voor frontend gemak
     const adres = abonnement.user_profile?.adressen || null;
@@ -162,6 +186,15 @@ async function abonnementDetailHandler(req, res) {
       klant: {
         voornaam: abonnement.user_profile?.voornaam || '',
         achternaam: abonnement.user_profile?.achternaam || ''
+      },
+      
+      // SEPA incasso status
+      sepa: {
+        setup_completed: abonnement.sepa_setup_completed || false,
+        iban_last4: sepaIbanLast4,
+        mandate_id: abonnement.sepa_mandate_id || null,
+        payment_method_id: abonnement.stripe_payment_method_id || null,
+        actief_sinds: abonnement.sepa_setup_completed ? abonnement.aangemaakt_op : null
       },
       
       // Facturen voor dit abonnement

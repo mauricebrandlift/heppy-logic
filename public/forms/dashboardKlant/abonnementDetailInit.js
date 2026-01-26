@@ -232,6 +232,84 @@ function populateFacturen(facturen) {
 }
 
 /**
+ * Render SEPA incasso sectie
+ */
+function populateSepaSection(sepa) {
+  const heeftMandaat = document.querySelector('[data-sepa-state="heeft-mandaat"]');
+  const geenMandaat = document.querySelector('[data-sepa-state="geen-mandaat"]');
+  
+  if (!heeftMandaat || !geenMandaat) {
+    console.warn('[Abonnement Detail] SEPA state containers niet gevonden');
+    return;
+  }
+  
+  // Toon/verberg states op basis van setup_completed
+  if (sepa.setup_completed) {
+    heeftMandaat.style.display = 'block';
+    geenMandaat.style.display = 'none';
+    
+    // Populate IBAN laatste 4 cijfers
+    const ibanEl = heeftMandaat.querySelector('[data-sepa-iban-laatste4]');
+    if (ibanEl && sepa.iban_last4) {
+      ibanEl.textContent = `NL••••${sepa.iban_last4}`;
+    } else if (ibanEl) {
+      ibanEl.textContent = 'NL••••••••';
+    }
+    
+    // Populate actief sinds datum
+    const actiefSindsEl = heeftMandaat.querySelector('[data-sepa-actief-sinds]');
+    if (actiefSindsEl && sepa.actief_sinds) {
+      const date = new Date(sepa.actief_sinds);
+      actiefSindsEl.textContent = date.toLocaleDateString('nl-NL', { day: '2-digit', month: 'short', year: 'numeric' });
+    }
+    
+    // Attach click handler voor wijzig button
+    const wijzigBtn = heeftMandaat.querySelector('[data-sepa-wijzig-button]');
+    if (wijzigBtn) {
+      wijzigBtn.addEventListener('click', handleSepaWijzigen);
+    }
+    
+    console.log('✅ [Abonnement Detail] SEPA status: Actief');
+  } else {
+    heeftMandaat.style.display = 'none';
+    geenMandaat.style.display = 'block';
+    
+    // Attach click handler voor setup button
+    const setupBtn = geenMandaat.querySelector('[data-sepa-setup-button]');
+    if (setupBtn) {
+      setupBtn.addEventListener('click', handleSepaSetup);
+    }
+    
+    console.log('⚠️ [Abonnement Detail] SEPA status: Niet actief');
+  }
+}
+
+/**
+ * Handle SEPA setup button click
+ */
+async function handleSepaSetup() {
+  console.log('[Abonnement Detail] SEPA setup button clicked');
+  
+  // TODO: Implementeer SEPA setup flow
+  // Optie 1: Open modal met SEPA IBAN form
+  // Optie 2: Redirect naar dedicated SEPA setup pagina
+  // Voor nu: placeholder alert
+  alert('SEPA incasso instellen - Deze functionaliteit wordt binnenkort toegevoegd.');
+}
+
+/**
+ * Handle SEPA wijzigen button click
+ */
+async function handleSepaWijzigen() {
+  console.log('[Abonnement Detail] SEPA wijzig button clicked');
+  
+  // TODO: Implementeer Stripe Customer Portal redirect
+  // of open modal voor nieuwe IBAN invoer
+  // Voor nu: placeholder alert
+  alert('Rekeningnummer wijzigen - Deze functionaliteit wordt binnenkort toegevoegd.');
+}
+
+/**
  * Bereken volgende factuur datum op basis van startdatum en frequentie
  */
 function berekenVolgendeFactuur(startdatum, frequentie, sessionsPerCycle) {
@@ -820,6 +898,7 @@ export async function initAbonnementDetail() {
     populateAbonnementHeader(data);
     populateSchoonmakerSection(data);
     populateFacturen(data.facturen || []);
+    populateSepaSection(data.sepa || {});
     
     // Initialize placeholder sections (later implementeren)
     initializeWijzigingenSection(data);
