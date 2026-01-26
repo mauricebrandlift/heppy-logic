@@ -116,6 +116,26 @@ async function opdrachtDetailHandler(req, res) {
 
     console.log(`✅ [Opdracht Detail] Opdracht opgehaald - Type: ${opdracht.type}, Status: ${opdracht.status}, Heeft schoonmaker: ${!!opdracht.schoonmaker_id}`);
 
+    // === FETCH FACTUUR (voor invoice download button) ===
+    let stripeInvoiceId = null;
+    
+    const factuurUrl = `${supabaseConfig.url}/rest/v1/facturen?opdracht_id=eq.${id}&select=stripe_invoice_id&limit=1`;
+    
+    const factuurResponse = await httpClient(factuurUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`,
+      }
+    });
+
+    if (factuurResponse.ok) {
+      const facturen = await factuurResponse.json();
+      stripeInvoiceId = facturen[0]?.stripe_invoice_id || null;
+      console.log(`🧾 [Opdracht Detail] Factuur gevonden: ${stripeInvoiceId ? 'Ja' : 'Nee'}`);
+    } else {
+      console.warn('⚠️ [Opdracht Detail] Kon factuur niet ophalen (non-fatal)');
+    }
+
     // === RESPONSE SAMENSTELLEN ===
     // Flatten nested data voor frontend gemak
     const adres = userProfile?.adressen || null;
@@ -144,6 +164,9 @@ async function opdrachtDetailHandler(req, res) {
       
       // Type-specifieke gegevens uit JSONB veld
       gegevens: opdracht.gegevens || {},
+      
+      // Factuur gegevens (voor invoice download)
+      stripe_invoice_id: stripeInvoiceId,
       
       // Schoonmaker gegevens (combinatie van user_profiles)
       schoonmaker: schoonmakerProfile ? {

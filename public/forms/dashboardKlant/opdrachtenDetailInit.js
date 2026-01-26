@@ -5,6 +5,7 @@
  */
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
+import { initInvoiceButton } from '../../utils/invoiceHelper.js';
 
 /**
  * Formatteer datum naar NL formaat
@@ -505,6 +506,34 @@ function handleConditionalWrappers(data) {
 }
 
 /**
+ * Vul factuur sectie met invoice download button
+ */
+function populateFactuurSection(data) {
+  const factuurWrapper = document.querySelector('[data-factuur-wrapper]');
+  const invoiceButton = document.querySelector('[data-invoice-button]');
+  
+  if (!factuurWrapper || !invoiceButton) {
+    console.warn('[Opdracht Detail] Factuur wrapper of button niet gevonden in DOM');
+    return;
+  }
+  
+  // Als er een stripe_invoice_id is, toon de factuur sectie
+  if (data.stripe_invoice_id) {
+    invoiceButton.setAttribute('data-invoice-id', data.stripe_invoice_id);
+    factuurWrapper.classList.remove('hide');
+    
+    // Initialize invoice button (haalt PDF URL op bij klik)
+    initInvoiceButton();
+    
+    console.log('✅ [Opdracht Detail] Factuur button geïnitialiseerd');
+  } else {
+    // Geen factuur beschikbaar, verberg sectie
+    factuurWrapper.classList.add('hide');
+    console.log('ℹ️ [Opdracht Detail] Geen factuur beschikbaar voor deze opdracht');
+  }
+}
+
+/**
  * Haal opdracht details op van backend
  */
 async function fetchOpdrachtDetails() {
@@ -538,6 +567,7 @@ async function fetchOpdrachtDetails() {
     populateOpdrachtHeader(response);
     populateSchoonmakerSection(response);
     handleConditionalWrappers(response);
+    populateFactuurSection(response);
 
     hideLoading();
 
