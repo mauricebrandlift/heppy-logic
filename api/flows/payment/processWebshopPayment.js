@@ -15,6 +15,7 @@ import { httpClient } from '../../utils/apiClient.js';
 import { sendEmail } from '../../services/emailService.js';
 import { webshopBestellingKlant, nieuweWebshopBestellingAdmin } from '../../templates/emails/index.js';
 import { createPaidInvoice } from '../../services/invoiceService.js';
+import { createFactuurForBetaling } from '../../services/factuurService.js';
 
 export async function processWebshopPayment({ paymentIntent, metadata, correlationId, event }) {
   const logMeta = {
@@ -453,6 +454,61 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
           invoiceId: stripeInvoiceId,
           invoiceUrl: invoice.invoice_pdf
         }));
+
+        // Create factuur record for unified invoice list in dashboard
+        try {
+          const factuurRegels = createdItems.map(item => ({
+            omschrijving: item.product_naam,
+            aantal: item.aantal,
+            prijs_per_stuk_cents: item.prijs_per_stuk_cents,
+            subtotaal_cents: item.totaal_cents
+          }));
+
+          // Add verzendkosten as separate line item
+          if (bestelling.verzendkosten_cents > 0) {
+            factuurRegels.push({
+              omschrijving: 'Verzendkosten',
+              aantal: 1,
+              prijs_per_stuk_cents: bestelling.verzendkosten_cents,
+              subtotaal_cents: bestelling.verzendkosten_cents
+            });
+          }
+
+          const factuur = await createFactuurForBetaling({
+            gebruikerId: user.id,
+            bestellingId: bestelling.id,
+            abonnementId: null,
+            opdrachtId: null,
+            betalingId: null,
+            totaalCents: bestelling.totaal_cents,
+            omschrijving: `Webshop bestelling ${bestelling.bestel_nummer}`,
+            regels: factuurRegels,
+            stripeCustomerId: customerId,
+            stripePaymentIntentId: paymentIntent.id,
+            metadata: {
+              flow: 'webshop',
+              bestelling_id: bestelling.id,
+              bestel_nummer: bestelling.bestel_nummer
+            }
+          }, correlationId);
+
+          console.info(JSON.stringify({
+            ...logMeta,
+            level: 'INFO',
+            message: '✅ Factuur record created for webshop order',
+            factuurId: factuur.id,
+            factuurNummer: factuur.factuur_nummer
+          }));
+
+        } catch (factuurError) {
+          console.error(JSON.stringify({
+            ...logMeta,
+            level: 'ERROR',
+            message: 'Failed to create factuur record (non-fatal)',
+            error: factuurError.message,
+            stack: factuurError.stack
+          }));
+        }
       }
 
     } catch (invoiceError) {

@@ -241,7 +241,7 @@ export async function processVerhuisPayment({ paymentIntent, metadata, correlati
       };
       const prijsPerUurCents = calculatePrijsPerUur(totaalCents, vhUren);
       
-      // Build omschrijving with details
+      // Build omschrijving with details (exact hours preserved)
       let omschrijving = `Verhuis/opleverschoonmaak`;
       if (vhUren > 0) omschrijving += ` - ${vhUren} ${vhUren === 1 ? 'uur' : 'uren'}`;
       if (vhM2 > 0) omschrijving += ` - ${vhM2}m²`;
@@ -249,26 +249,19 @@ export async function processVerhuisPayment({ paymentIntent, metadata, correlati
       
       const factuur = await createFactuurForBetaling({
         betalingId: betaling.id,
-        userId: user.id,
+        gebruikerId: user.id,
         opdrachtId: opdracht.id,
         abonnementId: null,
         stripeCustomerId: stripeCustomer?.id || null,
         omschrijving,
-        regels: vhUren > 0 ? [
+        regels: [
           {
-            omschrijving: `Verhuis/opleverschoonmaak${vhM2 > 0 ? ` (${vhM2}m²)` : ''}`,
-            aantal: vhUren,
-            eenheid: vhUren === 1 ? 'uur' : 'uren',
-            prijsPerEenheidCents: prijsPerUurCents,
-            totaalCents: totaalCents
-          }
-        ] : [
-          {
-            omschrijving: 'Verhuis/opleverschoonmaak',
+            omschrijving: vhUren > 0 
+              ? `Verhuis/opleverschoonmaak - ${vhUren} ${vhUren === 1 ? 'uur' : 'uren'}${vhM2 > 0 ? ` - ${vhM2}m²` : ''}${vhDatum ? ` - ${vhDatum}` : ''}`
+              : `Verhuis/opleverschoonmaak${vhM2 > 0 ? ` - ${vhM2}m²` : ''}${vhDatum ? ` - ${vhDatum}` : ''}`,
             aantal: 1,
-            eenheid: 'opdracht',
-            prijsPerEenheidCents: totaalCents,
-            totaalCents: totaalCents
+            prijs_per_stuk_cents: totaalCents,
+            subtotaal_cents: totaalCents
           }
         ],
         metadata: {

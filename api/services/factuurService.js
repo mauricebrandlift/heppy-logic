@@ -220,7 +220,8 @@ export async function createStripeInvoice({ customerId, omschrijving, regels, to
  * @param {string} params.gebruikerId - user_profiles.id
  * @param {string} [params.abonnementId] - abonnementen.id (optioneel)
  * @param {string} [params.opdrachtId] - opdrachten.id (optioneel)
- * @param {string} params.betalingId - betalingen.id
+ * @param {string} [params.bestellingId] - bestellingen.id (optioneel, voor webshop)
+ * @param {string} [params.betalingId] - betalingen.id (optioneel)
  * @param {number} params.totaalCents - Totaal bedrag incl. BTW
  * @param {string} params.omschrijving - Factuur omschrijving
  * @param {Array} params.regels - Factuurregels
@@ -234,6 +235,7 @@ export async function createFactuurForBetaling({
   gebruikerId,
   abonnementId,
   opdrachtId,
+  bestellingId,
   betalingId,
   totaalCents,
   omschrijving,
@@ -242,7 +244,9 @@ export async function createFactuurForBetaling({
   stripePaymentIntentId,
   metadata
 }, correlationId) {
-  console.log(`💳 [FactuurService] Factuur aanmaken voor betaling ${betalingId} [${correlationId}]`);
+  const entityType = bestellingId ? 'bestelling' : (opdrachtId ? 'opdracht' : (abonnementId ? 'abonnement' : 'betaling'));
+  const entityId = bestellingId || opdrachtId || abonnementId || betalingId;
+  console.log(`💳 [FactuurService] Factuur aanmaken voor ${entityType} ${entityId} [${correlationId}]`);
 
   // 1. Check of factuur al bestaat voor deze PaymentIntent
   if (stripePaymentIntentId) {
@@ -318,7 +322,8 @@ export async function createFactuurForBetaling({
     gebruiker_id: gebruikerId,
     abonnement_id: abonnementId || null,
     opdracht_id: opdrachtId || null,
-    betaling_id: betalingId,
+    bestelling_id: bestellingId || null,
+    betaling_id: betalingId || null,
     subtotaal_cents: subtotaalCents,
     btw_percentage: btwPercentage,
     btw_cents: btwCents,
@@ -328,7 +333,6 @@ export async function createFactuurForBetaling({
     betaald_op: new Date().toISOString(),
     stripe_invoice_id: stripeInvoice?.id || null,
     stripe_payment_intent_id: stripePaymentIntentId || null,
-    stripe_invoice_id: stripeInvoice?.id || null,
     omschrijving,
     regels: JSON.stringify(regels),
     pdf_url: pdfUrl,

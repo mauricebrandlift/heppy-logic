@@ -261,16 +261,17 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
       try {
         const sessionsPerCycle = metadata.sessions_per_4w || (metadata.frequentie === 'pertweeweek' ? 2 : 4);
         const prijsPerSessie = paymentIntent.amount / sessionsPerCycle;
+        const urenPerSessie = parseFloat(metadata.uren) || 0;
         
         const factuur = await createFactuurForBetaling({
           gebruikerId: user.id,
           abonnementId: abonnement.id,
           betalingId: betaling.id,
           totaalCents: paymentIntent.amount,
-          omschrijving: `Heppy schoonmaak abonnement - ${sessionsPerCycle}x per 4 weken`,
+          omschrijving: `Heppy schoonmaak abonnement - ${sessionsPerCycle}x per 4 weken${urenPerSessie > 0 ? ` (${urenPerSessie} uur per sessie)` : ''}`,
           regels: [
             {
-              omschrijving: `Schoonmaakdiensten abonnement (${sessionsPerCycle} sessies)`,
+              omschrijving: `Schoonmaakdiensten abonnement (${sessionsPerCycle} sessies${urenPerSessie > 0 ? `, ${urenPerSessie} uur per sessie` : ''})`,
               aantal: sessionsPerCycle,
               prijs_per_stuk_cents: Math.round(prijsPerSessie),
               subtotaal_cents: paymentIntent.amount,

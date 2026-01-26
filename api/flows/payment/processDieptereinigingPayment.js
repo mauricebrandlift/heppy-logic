@@ -219,9 +219,9 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       try {
         const uren = parseFloat(metadata.dr_uren) || 0;
         const m2 = parseInt(metadata.dr_m2) || null;
-        const prijsPerUur = uren > 0 ? (paymentIntent.amount / 100) / uren : 0;
+        const datum = metadata.dr_datum || null;
         
-        const omschrijving = `Heppy dieptereiniging - ${uren} uur${m2 ? ` (${m2}m²)` : ''}`;
+        const omschrijving = `Heppy dieptereiniging - ${uren} uur${m2 ? ` - ${m2}m²` : ''}${datum ? ` - ${datum}` : ''}`;
         
         const factuur = await createFactuurForBetaling({
           gebruikerId: user.id,
@@ -231,16 +231,10 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
           omschrijving,
           regels: [
             {
-              omschrijving: `Dieptereiniging service${m2 ? ` - ${m2}m²` : ''}`,
+              omschrijving: `Dieptereiniging service - ${uren} uur${m2 ? ` - ${m2}m²` : ''}${datum ? ` - ${datum}` : ''}`,
               aantal: 1,
               prijs_per_stuk_cents: paymentIntent.amount,
-              subtotaal_cents: paymentIntent.amount,
-              details: {
-                uren: uren,
-                prijs_per_uur: prijsPerUur.toFixed(2),
-                m2: m2,
-                gewenste_datum: metadata.dr_datum
-              }
+              subtotaal_cents: paymentIntent.amount
             }
           ],
           stripeCustomerId: stripeCustomer?.id || null,
