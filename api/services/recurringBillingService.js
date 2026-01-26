@@ -286,13 +286,13 @@ export async function processAbonnementRecurringBilling(abonnement, correlationI
     console.log(`✅ [RecurringBilling] Payment ${isProcessing ? 'processing (SEPA)' : 'succeeded'}: ${paymentIntent.id} [${correlationId}]`);
 
     // 6. Sla betaling op
-    // Status: 'betaald' als succeeded, 'processing' als SEPA processing
+    // Status: 'betaald' als succeeded, 'openstaand' als SEPA processing (wordt later via webhook naar 'betaald')
     const betaling = await createBetalingRecord({
       stripePaymentIntentId: paymentIntent.id,
       gebruikerId: user.id,
       abonnementId: abonnement.id,
       amount: totalAmount,
-      status: isProcessing ? 'processing' : 'betaald',
+      status: isProcessing ? 'openstaand' : 'betaald',
     }, correlationId);
 
     // 7. Genereer factuur
