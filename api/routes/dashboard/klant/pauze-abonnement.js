@@ -75,12 +75,10 @@ async function pauzeAbonnementHandler(req, res) {
   try {
     const { 
       id, 
-      pauze_start_weeknr, 
-      pauze_start_jaar,
-      pauze_eind_weeknr,
-      pauze_eind_jaar,
-      pauze_reden 
-    } = req.body;
+      laatste_schoonmaak_week,
+      laatste_schoonmaak_jaar,
+      eerste_schoonmaak_week,
+      eerste_schoonmaak_jaar,
 
     // Validatie: verplichte velden
     if (!id) {
@@ -97,66 +95,62 @@ async function pauzeAbonnementHandler(req, res) {
       });
     }
 
-    if (!pauze_start_weeknr || !pauze_start_jaar) {
+    if (!laatste_schoonmaak_week || !laatste_schoonmaak_jaar) {
       return res.status(400).json({
         correlationId,
-        error: 'Startweek is verplicht'
+        error: 'Laatste schoonmaak week is verplicht'
       });
     }
 
-    if (!pauze_eind_weeknr || !pauze_eind_jaar) {
+    if (!eerste_schoonmaak_week || !eerste_schoonmaak_jaar) {
       return res.status(400).json({
         correlationId,
-        error: 'Eindweek is verplicht'
+        error: 'Eerste schoonmaak week is verplicht'
       });
     }
 
     // Parse weeknummers
-    const parsedStartWeek = parseInt(pauze_start_weeknr, 10);
-    const parsedStartYear = parseInt(pauze_start_jaar, 10);
-    const parsedEindWeek = parseInt(pauze_eind_weeknr, 10);
-    const parsedEindYear = parseInt(pauze_eind_jaar, 10);
+    const laatsteWeek = parseInt(laatste_schoonmaak_week, 10);
+    const laatsteJaar = parseInt(laatste_schoonmaak_jaar, 10);
+    const eersteWeek = parseInt(eerste_schoonmaak_week, 10);
+    const eersteJaar = parseInt(eerste_schoonmaak_jaar, 10);
 
-    if (isNaN(parsedStartWeek) || parsedStartWeek < 1 || parsedStartWeek > 53) {
+    if (isNaN(laatsteWeek) || laatsteWeek < 1 || laatsteWeek > 53) {
       return res.status(400).json({
         correlationId,
-        error: 'Ongeldig startweek nummer'
+        error: 'Ongeldig weeknummer voor laatste schoonmaak'
       });
     }
 
-    if (isNaN(parsedEindWeek) || parsedEindWeek < 1 || parsedEindWeek > 53) {
+    if (isNaN(eersteWeek) || eersteWeek < 1 || eersteWeek > 53) {
       return res.status(400).json({
         correlationId,
-        error: 'Ongeldig eindweek nummer'
+        error: 'Ongeldig weeknummer voor eerste schoonmaak'
       });
     }
 
-    // Validatie: eindweek moet na startweek zijn
-    const startDate = getStartDateOfISOWeek(parsedStartWeek, parsedStartYear);
-    const endDate = getStartDateOfISOWeek(parsedEindWeek, parsedEindYear);
+    // Validatie: eerste week moet na laatste week zijn
+    const laatsteDate = getStartDateOfISOWeek(laatsteWeek, laatsteJaar);
+    const eersteDate = getStartDateOfISOWeek(eersteWeek, eersteJaar);
     
-    if (endDate <= startDate) {
+    if (eersteDate <= laatsteDate) {
       return res.status(400).json({
         correlationId,
-        error: 'Eindweek moet na startweek zijn'
+        error: 'Eerste schoonmaak week moet na laatste schoonmaak week zijn'
       });
     }
 
-    // Validatie: minimum 1 week vooraf
-    const now = new Date();
-    const currentWeek = getISOWeek(now);
-    const currentYear = now.getFullYear();
-    const weeksUntilStart = weeksBetween(currentWeek, currentYear, parsedStartWeek, parsedStartYear);
+    // Bereken pauze periode: vanaf maandag na laatste schoonmaak tot zondag voor eerste schoonmaak
+    // startdatum = maandag van week NA laatste schoonmaak
+    const pauzeStart = new Date(laatsteDate);
+    pauzeStart.setDate(pauzeStart.getDate() + 7); // Volgende week maandag
+    
+    // einddatum = zondag voor eerste schoonmaak week
+    const pauzeEind = new Date(eersteDate);
+    pauzeEind.setDate(pauzeEind.getDate() - 1); // Zondag ervoor
 
-    if (weeksUntilStart < 1) {
-      return res.status(400).json({
-        correlationId,
-        error: 'Je kunt pas pauzeren vanaf 1 week in de toekomst'
-      });
-    }
-
-    // Validatie: maximum 8 weken pauze
-    const pauseDuration = weeksBetween(parsedStartWeek, parsedStartYear, parsedEindWeek, parsedEindYear);
+    // Bereken pauze duur in weken
+    const pauseDuration = weeksBetween(laatsteWeek, laatsteJaar, eersteWeek, eersteJaar) - 1; // -1 want tussen laatste en eerste
     
     if (pauseDuration > 8) {
       return res.status(400).json({
@@ -272,17 +266,13 @@ async function pauzeAbonnementHandler(req, res) {
       });
     }
 
-    // Bereken exacte datums voor database (maandag van startweek, zondag van eindweek)
-    const startdatum = startDate.toISOString().split('T')[0]; // YYYY-MM-DD
-    const eindDate = new Date(endDate);
-    eindDate.setUTCDate(eindDate.getUTCDate() + 6); // Zondag van eindweek
-    const einddatum = eindDate.toISOString().split('T')[0];
-
-    // Insert naar abonnement_pauzes
+    // Insert naar abonnement_pauzes met weeknummers
     const pauzeData = {
       abonnement_id: id,
-      startdatum,
-      einddatum,
+      laatste_schoonmaak_week: laatsteWeek,
+      laatste_schoonmaak_jaar: laatsteJaar,
+      eerste_schoonmaak_week: eersteWeek,
+      eerste_schoonmaak_jaar: eersteJaar,
       reden: pauze_reden || null
     };
 
@@ -354,12 +344,10 @@ async function pauzeAbonnementHandler(req, res) {
       action: 'abonnement_gepauzeerd',
       abonnementId: id,
       userId,
-      startWeek: parsedStartWeek,
-      startYear: parsedStartYear,
-      eindWeek: parsedEindWeek,
-      eindYear: parsedEindYear,
-      startdatum,
-      einddatum,
+      laatsteSchoonmaakWeek: laatsteWeek,
+      laatsteSchoonmaakJaar: laatsteJaar,
+      eersteSchoonmaakWeek: eersteWeek,
+      eersteSchoonmaakJaar: eersteJaar,
       pauseDuration: `${pauseDuration} weken`
     }));
 
@@ -423,10 +411,10 @@ async function pauzeAbonnementHandler(req, res) {
       achternaam: klant?.achternaam || '',
       frequentie: abonnement.frequentie,
       uren: abonnement.uren,
-      startweek: parsedStartWeek,
-      startyear: parsedStartYear,
-      eindweek: parsedEindWeek,
-      eindjaar: parsedEindYear,
+      laatsteSchoonmaakWeek: laatsteWeek,
+      laatsteSchoonmaakJaar: laatsteJaar,
+      eersteSchoonmaakWeek: eersteWeek,
+      eersteSchoonmaakJaar: eersteJaar,
       reden: pauze_reden || 'Niet opgegeven'
     };
 

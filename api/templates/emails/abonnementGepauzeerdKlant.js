@@ -11,10 +11,10 @@ import { baseLayout } from './baseLayout.js';
  * @param {string} data.achternaam
  * @param {string} data.frequentie
  * @param {number} data.uren
- * @param {number} data.startweek
- * @param {number} data.startyear
- * @param {number} data.eindweek
- * @param {number} data.eindjaar
+ * @param {number} data.laatsteSchoonmaakWeek
+ * @param {number} data.laatsteSchoonmaakJaar
+ * @param {number} data.eersteSchoonmaakWeek
+ * @param {number} data.eersteSchoonmaakJaar
  * @param {string} data.reden
  */
 export function abonnementGepauzeerdKlant(data) {
@@ -23,31 +23,32 @@ export function abonnementGepauzeerdKlant(data) {
     achternaam,
     frequentie,
     uren,
-    startweek,
-    startyear,
-    eindweek,
-    eindjaar,
+    laatsteSchoonmaakWeek,
+    laatsteSchoonmaakJaar,
+    eersteSchoonmaakWeek,
+    eersteSchoonmaakJaar,
     reden
   } = data;
 
   const content = `
           <p>Beste ${voornaam} ${achternaam},</p>
           
-          <p>Je abonnement is succesvol gepauzeerd.</p>
+          <p>Je schoonmaakpauze is succesvol ingepland.</p>
           
           <div class="info-box">
             <h3>Pauze details</h3>
             <p><strong>Abonnement:</strong> ${frequentie}, ${uren} uur</p>
-            <p><strong>Pauze periode:</strong> Week ${startweek} (${startyear}) t/m Week ${eindweek} (${eindjaar})</p>
+            <p><strong>Laatste schoonmaak:</strong> Week ${laatsteSchoonmaakWeek} (${laatsteSchoonmaakJaar})</p>
+            <p><strong>Eerste schoonmaak na pauze:</strong> Week ${eersteSchoonmaakWeek} (${eersteSchoonmaakJaar})</p>
             <p><strong>Reden:</strong> ${reden}</p>
           </div>
 
           <p><strong>Wat betekent dit?</strong></p>
           <ul>
-            <li>Er wordt <strong>geen schoonmaak</strong> uitgevoerd tijdens de pauze periode</li>
-            <li>Je ontvangt <strong>geen facturen</strong> voor de gepauzeerde weken</li>
+            <li>Er wordt <strong>geen schoonmaak</strong> uitgevoerd tussen week ${laatsteSchoonmaakWeek} en ${eersteSchoonmaakWeek}</li>
+            <li>Je ontvangt <strong>geen facturen</strong> voor de gemiste schoonmaakbeurten</li>
             <li>Als je al vooruitbetaald hebt, wordt dit in mindering gebracht op je volgende factuur</li>
-            <li>Je abonnement wordt <strong>automatisch hervat</strong> na week ${eindweek} (${eindjaar})</li>
+            <li>De schoonmaak wordt <strong>automatisch hervat</strong> in week ${eersteSchoonmaakWeek} (${eersteSchoonmaakJaar})</li>
           </ul>
 
           <p>Heb je vragen? Neem gerust contact met ons op via <a href="mailto:info@heppy.nl">info@heppy.nl</a>.</p>

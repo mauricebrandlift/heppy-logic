@@ -1885,30 +1885,30 @@ export function getFormSchema(name) {
       name: 'abb_pauze-form',
       selector: '[data-form-name="abb_pauze-form"]',
       fields: {
-        pauze_start_weeknr: {
-          label: 'Startweek pauze',
+        pauze_laatste_schoonmaak_week: {
+          label: 'Laatste schoonmaak week',
           inputType: 'number',
           sanitizers: ['trim'],
           validators: ['required', 'integer', 'weeknrAllowed'],
           persist: 'none',
           allowedWeeks: [], // Wordt dynamisch gevuld door initWeekSelectTrigger
           messages: {
-            required: 'Startweek is verplicht',
+            required: 'Laatste schoonmaak week is verplicht',
             integer: 'Voer een geldig weeknummer in',
-            weeknrAllowed: 'Je kunt pas pauzeren vanaf 1 week in de toekomst'
+            weeknrAllowed: 'Kies een geldige week'
           }
         },
-        pauze_eind_weeknr: {
-          label: 'Eindweek pauze',
+        pauze_eerste_schoonmaak_terug: {
+          label: 'Eerste schoonmaak week na pauze',
           inputType: 'number',
           sanitizers: ['trim'],
           validators: ['required', 'integer', 'weeknrAllowed'],
           persist: 'none',
           allowedWeeks: [], // Wordt dynamisch gevuld door initWeekSelectTrigger
           messages: {
-            required: 'Eindweek is verplicht',
+            required: 'Eerste schoonmaak week is verplicht',
             integer: 'Voer een geldig weeknummer in',
-            weeknrAllowed: 'Eindweek moet na startweek zijn'
+            weeknrAllowed: 'Eerste schoonmaak week moet na laatste week zijn'
           }
         },
         pauze_reden: {
