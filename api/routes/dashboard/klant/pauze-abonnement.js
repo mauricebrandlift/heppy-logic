@@ -326,30 +326,14 @@ async function pauzeAbonnementHandler(req, res) {
       throw new Error('Kan pauze niet toevoegen');
     }
 
-    // Update abonnement status naar 'gepauzeerd' (alleen als nog niet gepauzeerd)
-    if (abonnement.status !== 'gepauzeerd') {
-      const updateAbonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}`;
-      const updateAbonnementResponse = await httpClient(updateAbonnementUrl, {
-        method: 'PATCH',
-        headers: {
-          'apikey': supabaseConfig.anonKey,
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: JSON.stringify({ status: 'gepauzeerd' })
-      });
-
-      if (!updateAbonnementResponse.ok) {
-        throw new Error('Kan abonnement status niet updaten');
-      }
-    }
+    // Note: Status wordt NIET direct geüpdatet naar 'gepauzeerd'
+    // Cron job zal status updaten wanneer pauze_start_weeknr bereikt wordt
 
     console.log(JSON.stringify({
       level: 'INFO',
       correlationId,
       route: 'dashboard/klant/pauze-abonnement',
-      action: 'abonnement_gepauzeerd',
+      action: 'pauze_aangemaakt',
       abonnementId: id,
       userId,
       pauzeStartWeek: startWeek,
@@ -475,10 +459,10 @@ async function pauzeAbonnementHandler(req, res) {
       abonnement_id: id,
       frequentie: abonnement.frequentie,
       uren: abonnement.uren,
-      startweek: parsedStartWeek,
-      startyear: parsedStartYear,
-      eindweek: parsedEindWeek,
-      eindjaar: parsedEindYear,
+      startweek: startWeek,
+      startyear: startJaar,
+      eindweek: eersteWeek,
+      eindjaar: eersteJaar,
       reden: pauze_reden || 'Niet opgegeven'
     };
 
