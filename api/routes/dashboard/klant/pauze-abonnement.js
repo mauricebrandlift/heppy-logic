@@ -75,10 +75,12 @@ async function pauzeAbonnementHandler(req, res) {
   try {
     const { 
       id, 
-      laatste_schoonmaak_week,
-      laatste_schoonmaak_jaar,
+      pauze_start_weeknr,
+      pauze_start_jaar,
       eerste_schoonmaak_week,
       eerste_schoonmaak_jaar,
+      pauze_reden 
+    } = req.body;
 
     // Validatie: verplichte velden
     if (!id) {
