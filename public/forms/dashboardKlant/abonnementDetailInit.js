@@ -1194,6 +1194,21 @@ async function initializeOpzeggenSection(data) {
 }
 
 /**
+ * Initialiseer pauze sectie
+ */
+async function initializePauzeSection(data) {
+  console.log('⏸️ [Abonnement Detail] Initialiseren pauze sectie...');
+
+  // Lazy load de pauze form module
+  try {
+    const { initAbonnementPauzeForm } = await import('./abonnementPauzeForm.js');
+    await initAbonnementPauzeForm(data);
+  } catch (error) {
+    console.error('❌ [Abonnement Detail] Fout bij initialiseren pauze formulier:', error);
+  }
+}
+
+/**
  * Initialiseer abonnement detail pagina
  */
 export async function initAbonnementDetail() {
@@ -1252,6 +1267,7 @@ export async function initAbonnementDetail() {
     
     // Initialize placeholder sections (later implementeren)
     initializeWijzigingenSection(data);
+    initializePauzeSection(data);
     initializeOpzeggenSection(data);
 
     console.log('✅ [Abonnement Detail] Initialisatie voltooid');
