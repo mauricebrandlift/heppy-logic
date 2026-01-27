@@ -225,7 +225,12 @@ async function pauzeAbonnementHandler(req, res) {
 
     // Extra pauzes toevoegen is toegestaan (max 8 weken totaal)
     // Check bestaande pauzes + totale pauze duur validatie (max 8 weken inclusief nieuwe)
-    const existingPausesUrl = `${supabaseConfig.url}/rest/v1/abonnement_pauzes?abonnement_id=eq.${id}&einddatum=gte.${new Date().toISOString()}&select=*`;
+    // Haal alle pauzes op waar eerste_schoonmaak_week in de toekomst ligt
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentWeek = getISOWeek(now);
+    
+    const existingPausesUrl = `${supabaseConfig.url}/rest/v1/abonnement_pauzes?abonnement_id=eq.${id}&select=*`;
     const existingPausesResponse = await httpClient(existingPausesUrl, {
       method: 'GET',
       headers: {
@@ -238,16 +243,26 @@ async function pauzeAbonnementHandler(req, res) {
       throw new Error('Kan bestaande pauzes niet ophalen');
     }
 
-    const existingPauzes = await existingPausesResponse.json();
+    const allPauzes = await existingPausesResponse.json();
+    
+    // Filter toekomstige pauzes (eerste_schoonmaak_week >= huidige week)
+    const existingPauzes = allPauzes.filter(p => {
+      if (p.eerste_schoonmaak_jaar > currentYear) return true;
+      if (p.eerste_schoonmaak_jaar === currentYear && p.eerste_schoonmaak_week >= currentWeek) return true;
+      return false;
+    });
 
     // Bereken totale pauze duur (bestaande + nieuwe)
     let totalPauzeWeken = pauseDuration;
     
     if (existingPauzes && existingPauzes.length > 0) {
       for (const existingPauze of existingPauzes) {
-        const existingStart = new Date(existingPauze.startdatum);
-        const existingEnd = new Date(existingPauze.einddatum);
-        const existingWeeks = Math.ceil((existingEnd - existingStart) / (7 * 24 * 60 * 60 * 1000));
+        const existingWeeks = weeksBetween(
+          existingPauze.pauze_start_weeknr,
+          existingPauze.pauze_start_jaar,
+          existingPauze.eerste_schoonmaak_week,
+          existingPauze.eerste_schoonmaak_jaar
+        );
         totalPauzeWeken += existingWeeks;
       }
     }
