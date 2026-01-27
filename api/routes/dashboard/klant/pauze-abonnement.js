@@ -167,6 +167,16 @@ async function pauzeAbonnementHandler(req, res) {
 
     // Haal abonnement op + check ownership (gebruik gebruiker_id zoals opzeg-abonnement)
     const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}&gebruiker_id=eq.${userId}&select=*`;
+    
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'dashboard/klant/pauze-abonnement',
+      action: 'fetching_abonnement',
+      url: abonnementUrl,
+      userId
+    }));
+
     const abonnementResponse = await httpClient(abonnementUrl, {
       method: 'GET',
       headers: {
@@ -175,7 +185,25 @@ async function pauzeAbonnementHandler(req, res) {
       }
     });
 
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'dashboard/klant/pauze-abonnement',
+      action: 'abonnement_fetch_response',
+      status: abonnementResponse.status,
+      ok: abonnementResponse.ok
+    }));
+
     if (!abonnementResponse.ok) {
+      const errorText = await abonnementResponse.text();
+      console.error(JSON.stringify({
+        level: 'ERROR',
+        correlationId,
+        route: 'dashboard/klant/pauze-abonnement',
+        action: 'abonnement_fetch_failed',
+        status: abonnementResponse.status,
+        error: errorText
+      }));
       throw new Error('Kan abonnement niet ophalen');
     }
 
@@ -265,6 +293,14 @@ async function pauzeAbonnementHandler(req, res) {
       reden: pauze_reden || null
     };
 
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'dashboard/klant/pauze-abonnement',
+      action: 'inserting_pauze',
+      pauzeData
+    }));
+
     const insertPauzeUrl = `${supabaseConfig.url}/rest/v1/abonnement_pauzes`;
     const insertPauzeResponse = await httpClient(insertPauzeUrl, {
       method: 'POST',
@@ -277,7 +313,25 @@ async function pauzeAbonnementHandler(req, res) {
       body: JSON.stringify(pauzeData)
     });
 
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'dashboard/klant/pauze-abonnement',
+      action: 'insert_pauze_response',
+      status: insertPauzeResponse.status,
+      ok: insertPauzeResponse.ok
+    }));
+
     if (!insertPauzeResponse.ok) {
+      const errorText = await insertPauzeResponse.text();
+      console.error(JSON.stringify({
+        level: 'ERROR',
+        correlationId,
+        route: 'dashboard/klant/pauze-abonnement',
+        action: 'insert_pauze_failed',
+        status: insertPauzeResponse.status,
+        error: errorText
+      }));
       throw new Error('Kan pauze niet toevoegen');
     }
 
@@ -316,6 +370,16 @@ async function pauzeAbonnementHandler(req, res) {
 
     // Haal klant gegevens op voor email
     const klantUrl = `${supabaseConfig.url}/rest/v1/users?id=eq.${userId}&select=email,voornaam,achternaam`;
+    
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'dashboard/klant/pauze-abonnement',
+      action: 'fetching_klant',
+      url: klantUrl,
+      userId
+    }));
+
     const klantResponse = await httpClient(klantUrl, {
       method: 'GET',
       headers: {
@@ -324,12 +388,39 @@ async function pauzeAbonnementHandler(req, res) {
       }
     });
 
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'dashboard/klant/pauze-abonnement',
+      action: 'klant_fetch_response',
+      status: klantResponse.status,
+      ok: klantResponse.ok
+    }));
+
     if (!klantResponse.ok) {
+      const errorText = await klantResponse.text();
+      console.error(JSON.stringify({
+        level: 'ERROR',
+        correlationId,
+        route: 'dashboard/klant/pauze-abonnement',
+        action: 'klant_fetch_failed',
+        status: klantResponse.status,
+        error: errorText
+      }));
       throw new Error('Kan klant gegevens niet ophalen');
     }
 
     const klanten = await klantResponse.json();
     const klant = klanten?.[0];
+
+    console.log(JSON.stringify({
+      level: 'INFO',
+      correlationId,
+      route: 'dashboard/klant/pauze-abonnement',
+      action: 'klant_data_parsed',
+      hasKlant: !!klant,
+      klantEmail: klant?.email
+    }));
 
     // Email data voor klant
     const klantEmailData = {
