@@ -25,16 +25,16 @@ function renderPauzeGeschiedenis(pauzes) {
     return;
   }
 
-  // Sorteer pauzes op laatste schoonmaak week (nieuwste eerst)
+  // Sorteer pauzes op start week (nieuwste eerst)
   const gesorteerd = [...pauzes].sort((a, b) => {
-    if (b.laatste_schoonmaak_jaar !== a.laatste_schoonmaak_jaar) {
-      return b.laatste_schoonmaak_jaar - a.laatste_schoonmaak_jaar;
+    if (b.pauze_start_jaar !== a.pauze_start_jaar) {
+      return b.pauze_start_jaar - a.pauze_start_jaar;
     }
-    return b.laatste_schoonmaak_week - a.laatste_schoonmaak_week;
+    return b.pauze_start_weeknr - a.pauze_start_weeknr;
   });
 
   const html = gesorteerd.map(pauze => {
-    return `Laatste schoonmaak: Week ${pauze.laatste_schoonmaak_week} (${pauze.laatste_schoonmaak_jaar}), Hervat: Week ${pauze.eerste_schoonmaak_week} (${pauze.eerste_schoonmaak_jaar})`;
+    return `Pauze van week ${pauze.pauze_start_weeknr} (${pauze.pauze_start_jaar}) tot week ${pauze.eerste_schoonmaak_week} (${pauze.eerste_schoonmaak_jaar})`;
   }).join('<br>');
 
   geschiedenisEl.innerHTML = html;
@@ -53,28 +53,28 @@ function getISOWeek(date) {
 }
 
 /**
- * Custom validator: eerste schoonmaak week moet na laatste schoonmaak week zijn
+ * Custom validator: eerste schoonmaak week moet na start week zijn
  */
-function validateEersteAfterLaatste(formElement) {
-  const laatsteInput = formElement.querySelector('[data-field-name="pauze_laatste_schoonmaak_week"]');
+function validateEersteAfterStart(formElement) {
+  const startInput = formElement.querySelector('[data-field-name="pauze_start_weeknr"]');
   const eersteInput = formElement.querySelector('[data-field-name="pauze_eerste_schoonmaak_terug"]');
   
-  if (!laatsteInput || !eersteInput) return true;
+  if (!startInput || !eersteInput) return true;
 
-  const laatsteWeek = parseInt(laatsteInput.value, 10);
+  const startWeek = parseInt(startInput.value, 10);
   const eersteWeek = parseInt(eersteInput.value, 10);
-  const laatsteYear = parseInt(laatsteInput.dataset.weekYear || new Date().getFullYear(), 10);
+  const startYear = parseInt(startInput.dataset.weekYear || new Date().getFullYear(), 10);
   const eersteYear = parseInt(eersteInput.dataset.weekYear || new Date().getFullYear(), 10);
 
-  if (isNaN(laatsteWeek) || isNaN(eersteWeek)) return true;
+  if (isNaN(startWeek) || isNaN(eersteWeek)) return true;
 
   // Simpele check: zelfde jaar -> week nummer vergelijken
   // Anders jaar -> jaar vergelijken
-  if (laatsteYear === eersteYear) {
-    return eersteWeek > laatsteWeek;
+  if (startYear === eersteYear) {
+    return eersteWeek > startWeek;
   }
   
-  return eersteYear > laatsteYear;
+  return eersteYear > startYear;
 }
 
 /**
@@ -121,13 +121,13 @@ export async function initAbonnementPauzeForm(data) {
       console.log('📤 [Abonnement Pauze] Submitting pauze...', formData);
 
       // Haal jaren op uit hidden dataset attributen (gezet door initWeekSelectTrigger)
-      const laatsteInput = formElement.querySelector('[data-field-name="pauze_laatste_schoonmaak_week"]');
+      const startInput = formElement.querySelector('[data-field-name="pauze_start_weeknr"]');
       const eersteInput = formElement.querySelector('[data-field-name="pauze_eerste_schoonmaak_terug"]');
-      const laatste_jaar = laatsteInput?.dataset.weekYear || new Date().getFullYear();
+      const start_jaar = startInput?.dataset.weekYear || new Date().getFullYear();
       const eerste_jaar = eersteInput?.dataset.weekYear || new Date().getFullYear();
 
-      // Extra validatie: eerste week moet na laatste week zijn
-      if (!validateEersteAfterLaatste(formElement)) {
+      // Extra validatie: eerste week moet na start week zijn
+      if (!validateEersteAfterStart(formElement)) {
         throw new Error('INVALID_WEEK_RANGE');
       }
 
@@ -137,8 +137,8 @@ export async function initAbonnementPauzeForm(data) {
         headers: { 'Authorization': `Bearer ${authState.access_token}` },
         body: {
           id: data.id,
-          laatste_schoonmaak_week: formData.pauze_laatste_schoonmaak_week,
-          laatste_schoonmaak_jaar: laatste_jaar,
+          pauze_start_weeknr: formData.pauze_start_weeknr,
+          pauze_start_jaar: start_jaar,
           eerste_schoonmaak_week: formData.pauze_eerste_schoonmaak_terug,
           eerste_schoonmaak_jaar: eerste_jaar,
           pauze_reden: formData.pauze_reden || ''
@@ -195,10 +195,10 @@ export async function initAbonnementPauzeForm(data) {
   }
 
   // Initialiseer week selectors
-  // Laatste schoonmaak week: vanaf huidige week tot 52 weken vooruit
-  const laatsteSchoonmaakTrigger = initWeekSelectTrigger(formHandler, {
-    weekField: 'pauze_laatste_schoonmaak_week',
-    infoField: 'pauze_laatste_schoonmaak_week',
+  // Startweek pauze: vanaf huidige week tot 52 weken vooruit
+  const startWeekTrigger = initWeekSelectTrigger(formHandler, {
+    weekField: 'pauze_start_weeknr',
+    infoField: 'pauze_start_weeknr',
     minWeeksAhead: 0, // Kan huidige week zijn
     maxWeeks: 52 // Flexibiliteit voor plannen ver vooruit
   });
@@ -212,17 +212,17 @@ export async function initAbonnementPauzeForm(data) {
   });
 
   // Haal input elementen op
-  const laatsteInput = formElement.querySelector('[data-field-name="pauze_laatste_schoonmaak_week"]');
+  const startInput = formElement.querySelector('[data-field-name="pauze_start_weeknr"]');
   const eersteInput = formElement.querySelector('[data-field-name="pauze_eerste_schoonmaak_terug"]');
   const eersteInfoElement = formElement.querySelector('[data-field-info="pauze_eerste_schoonmaak_terug"]');
 
-  // Prefill: Zet eerste schoonmaak terug automatisch op laatste + 2 weken
-  if (laatsteInput && eersteInput) {
-    const laatsteWeek = parseInt(laatsteInput.value, 10);
-    const laatsteYear = parseInt(laatsteInput.dataset.weekYear, 10);
+  // Prefill: Zet eerste schoonmaak terug automatisch op start + 2 weken
+  if (startInput && eersteInput) {
+    const startWeek = parseInt(startInput.value, 10);
+    const startYear = parseInt(startInput.dataset.weekYear, 10);
     
-    if (!isNaN(laatsteWeek) && !isNaN(laatsteYear)) {
-      const eenWeek = getNextWeek(laatsteWeek, laatsteYear);
+    if (!isNaN(startWeek) && !isNaN(startYear)) {
+      const eenWeek = getNextWeek(startWeek, startYear);
       const tweeWeken = getNextWeek(eenWeek.week, eenWeek.year);
       eersteInput.value = String(tweeWeken.week);
       eersteInput.dataset.weekYear = String(tweeWeken.year);
@@ -246,14 +246,14 @@ export async function initAbonnementPauzeForm(data) {
     }
   }
 
-  // Auto-update eerste schoonmaak terug bij laatste schoonmaak wijziging
-  if (laatsteInput && eersteInput) {
-    laatsteInput.addEventListener('input', () => {
-      const laatsteWeek = parseInt(laatsteInput.value, 10);
-      const laatsteYear = parseInt(laatsteInput.dataset.weekYear, 10);
+  // Auto-update eerste schoonmaak terug bij start week wijziging
+  if (startInput && eersteInput) {
+    startInput.addEventListener('input', () => {
+      const startWeek = parseInt(startInput.value, 10);
+      const startYear = parseInt(startInput.dataset.weekYear, 10);
       
-      if (!isNaN(laatsteWeek) && !isNaN(laatsteYear)) {
-        const eenWeek = getNextWeek(laatsteWeek, laatsteYear);
+      if (!isNaN(startWeek) && !isNaN(startYear)) {
+        const eenWeek = getNextWeek(startWeek, startYear);
         const tweeWeken = getNextWeek(eenWeek.week, eenWeek.year);
         eersteInput.value = String(tweeWeken.week);
         eersteInput.dataset.weekYear = String(tweeWeken.year);
@@ -272,7 +272,7 @@ export async function initAbonnementPauzeForm(data) {
     });
 
     // Validatie trigger
-    laatsteInput.addEventListener('change', () => {
+    startInput.addEventListener('change', () => {
       if (eersteInput.value) {
         eersteInput.dispatchEvent(new Event('change', { bubbles: true }));
       }

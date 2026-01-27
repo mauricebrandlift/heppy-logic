@@ -90,8 +90,8 @@ async function pauzeGeschiedenisHandler(req, res) {
 
 
     // Haal pauze geschiedenis op (alle pauzes, ook afgelopen)
-    // Sorteer op laatste_schoonmaak_jaar DESC, laatste_schoonmaak_week DESC
-    const pauzesUrl = `${supabaseConfig.url}/rest/v1/abonnement_pauzes?abonnement_id=eq.${abonnement_id}&select=*&order=laatste_schoonmaak_jaar.desc,laatste_schoonmaak_week.desc`;
+    // Sorteer op pauze_start_jaar DESC, pauze_start_weeknr DESC
+    const pauzesUrl = `${supabaseConfig.url}/rest/v1/abonnement_pauzes?abonnement_id=eq.${abonnement_id}&select=*&order=pauze_start_jaar.desc,pauze_start_weeknr.desc`;
     const pauzesResponse = await httpClient(pauzesUrl, {
       method: 'GET',
       headers: {
