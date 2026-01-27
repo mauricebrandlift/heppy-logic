@@ -252,6 +252,41 @@ async function pauzeAbonnementHandler(req, res) {
       return false;
     });
 
+    // Check overlap met bestaande pauzes
+    for (const existingPauze of existingPauzes) {
+      // Check if nieuwe pauze overlapt met bestaande pauze
+      // Nieuwe pauze: startWeek/startJaar tot eersteWeek/eersteJaar
+      // Bestaande pauze: pauze_start_weeknr/pauze_start_jaar tot eerste_schoonmaak_week/eerste_schoonmaak_jaar
+      
+      // Convert to comparable format (year * 100 + week)
+      const newStart = startJaar * 100 + startWeek;
+      const newEnd = eersteJaar * 100 + eersteWeek;
+      const existingStart = existingPauze.pauze_start_jaar * 100 + existingPauze.pauze_start_weeknr;
+      const existingEnd = existingPauze.eerste_schoonmaak_jaar * 100 + existingPauze.eerste_schoonmaak_week;
+      
+      // Check overlap: nieuwe start < bestaande eind EN nieuwe eind > bestaande start
+      if (newStart < existingEnd && newEnd > existingStart) {
+        console.log(JSON.stringify({
+          level: 'INFO',
+          correlationId,
+          route: 'dashboard/klant/pauze-abonnement',
+          action: 'overlap_detected',
+          newPauze: { startWeek, startJaar, eersteWeek, eersteJaar },
+          existingPauze: {
+            pauze_start_weeknr: existingPauze.pauze_start_weeknr,
+            pauze_start_jaar: existingPauze.pauze_start_jaar,
+            eerste_schoonmaak_week: existingPauze.eerste_schoonmaak_week,
+            eerste_schoonmaak_jaar: existingPauze.eerste_schoonmaak_jaar
+          }
+        }));
+        
+        return res.status(400).json({
+          correlationId,
+          error: `Je kan geen pauze aanvragen voor week ${startWeek}-${eersteWeek} (${startJaar}). Deze periode overlapt met een bestaande pauze van week ${existingPauze.pauze_start_weeknr} t/m week ${existingPauze.eerste_schoonmaak_week} (${existingPauze.pauze_start_jaar}). Kies een andere periode.`
+        });
+      }
+    }
+
     // Bereken totale pauze duur (bestaande + nieuwe)
     let totalPauzeWeken = pauseDuration;
     
@@ -268,9 +303,10 @@ async function pauzeAbonnementHandler(req, res) {
     }
 
     if (totalPauzeWeken > 8) {
+      const beschikbaar = 8 - (totalPauzeWeken - pauseDuration);
       return res.status(400).json({
         correlationId,
-        error: `Totale pauze duur (inclusief bestaande pauzes) mag niet meer dan 8 weken zijn. Je hebt nog ${8 - (totalPauzeWeken - pauseDuration)} weken beschikbaar.`
+        error: `Je vraagt ${pauseDuration} weken pauze aan, maar je mag maximaal 8 weken per jaar pauzeren. Je hebt al ${totalPauzeWeken - pauseDuration} weken gepland staan. Je kan nog maximaal ${beschikbaar} ${beschikbaar === 1 ? 'week' : 'weken'} pauzeren.`
       });
     }
 
@@ -437,10 +473,10 @@ async function pauzeAbonnementHandler(req, res) {
           klant_naam: `${klant?.voornaam || ''} ${klant?.achternaam || ''}`.trim(),
           frequentie: abonnement.frequentie,
           uren: abonnement.uren,
-          startweek: parsedStartWeek,
-          startyear: parsedStartYear,
-          eindweek: parsedEindWeek,
-          eindjaar: parsedEindYear,
+          startweek: startWeek,
+          startyear: startJaar,
+          eindweek: eersteWeek,
+          eindjaar: eersteJaar,
           reden: pauze_reden || 'Niet opgegeven'
         };
 
@@ -477,10 +513,10 @@ async function pauzeAbonnementHandler(req, res) {
       message: 'Abonnement succesvol gepauzeerd',
       data: {
         abonnement_id: id,
-        pauze_start_weeknr: parsedStartWeek,
-        pauze_start_jaar: parsedStartYear,
-        eerste_schoonmaak_week: parsedEindWeek,
-        eerste_schoonmaak_jaar: parsedEindYear
+        pauze_start_weeknr: startWeek,
+        pauze_start_jaar: startJaar,
+        eerste_schoonmaak_week: eersteWeek,
+        eerste_schoonmaak_jaar: eersteJaar
       }
     });
 
