@@ -217,11 +217,26 @@ async function updateAbonnementHandler(req, res) {
 
     // Log naar abonnement_wijzigingen (specifieke abonnement history)
     try {
+      // Bepaal wijziging type op basis van wat er gewijzigd is
+      let wijzigingType;
+      const urenGewijzigd = parseFloat(abonnement.uren) !== parsedUren;
+      const frequentieGewijzigd = abonnement.frequentie !== frequentie;
+      
+      if (urenGewijzigd && frequentieGewijzigd) {
+        wijzigingType = 'uren_en_frequentie';
+      } else if (urenGewijzigd) {
+        wijzigingType = 'extra_uren';
+      } else if (frequentieGewijzigd) {
+        wijzigingType = 'frequentie';
+      } else {
+        wijzigingType = 'extra_uren'; // Fallback (should not happen due to hasChanges check)
+      }
+
       const wijzigingUrl = `${supabaseConfig.url}/rest/v1/abonnement_wijzigingen`;
       const wijzigingBody = {
         id: uuid(),
         abonnement_id: id,
-        wijziging_type: 'extra_uren', // Type voor uren/frequentie wijziging
+        wijziging_type: wijzigingType,
         oude_waarde: JSON.stringify({
           uren: abonnement.uren,
           frequentie: abonnement.frequentie,
