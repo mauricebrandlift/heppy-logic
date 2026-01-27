@@ -19,20 +19,22 @@ function calculateNextBillingDate(startdatum, frequentie) {
     const start = new Date(startdatum);
     
     // Bereken aantal dagen om toe te voegen
+    // BELANGRIJK: Voor de EERSTE billing incasseren we 7 dagen VOOR de volgende periode
+    // Dit geeft tijd voor retry (dag +1, +2, +4) als betaling mislukt
     let daysToAdd;
     switch(frequentie) {
       case 'weekly':
-        daysToAdd = 7;
+        daysToAdd = 7 - 7; // 0 dagen (weekly is te kort voor vooraf incasseren)
         break;
       case 'pertweeweek':
-        daysToAdd = 14;
+        daysToAdd = 14 - 7; // 7 dagen (1 week voor volgende periode)
         break;
       case 'pervierweken':
-        daysToAdd = 28;
+        daysToAdd = 28 - 7; // 21 dagen (1 week voor volgende periode)
         break;
       default:
-        console.warn(`Unknown frequentie: ${frequentie}, defaulting to 28 days`);
-        daysToAdd = 28;
+        console.warn(`Unknown frequentie: ${frequentie}, defaulting to 21 days`);
+        daysToAdd = 21;
     }
     
     const nextBilling = new Date(start);

@@ -19,32 +19,58 @@ import { sendEmail } from './emailService.js';
 
 /**
  * Haal abonnementen op die vandaag gefactureerd moeten worden
- * Requirements: status = 'actief', next_billing_date <= today, SEPA setup completed
+ * Requirements: 
+ * - status = 'actief' 
+ * - (next_billing_date <= today OR next_retry_date <= today)
+ * - sepa_setup_completed = true
  */
 async function getAbonnementenDueForBilling(correlationId) {
-  console.log(`📅 [RecurringBilling] Ophalen abonnementen met next_billing_date <= today EN sepa_setup_completed = true [${correlationId}]`);
+  console.log(`📅 [RecurringBilling] Ophalen abonnementen met (next_billing_date OR next_retry_date) <= today EN sepa_setup_completed = true [${correlationId}]`);
   
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
   
-  const url = `${supabaseConfig.url}/rest/v1/abonnementen?next_billing_date=lte.${today}&status=eq.actief&sepa_setup_completed=eq.true&select=*`;
+  // Query voor normale billing dates
+  const billingUrl = `${supabaseConfig.url}/rest/v1/abonnementen?next_billing_date=lte.${today}&status=eq.actief&sepa_setup_completed=eq.true&select=*`;
   
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'apikey': supabaseConfig.anonKey,
-      'Authorization': `Bearer ${supabaseConfig.anonKey}`,
-      'Content-Type': 'application/json',
-    },
-  });
+  // Query voor retry dates
+  const retryUrl = `${supabaseConfig.url}/rest/v1/abonnementen?next_retry_date=lte.${today}&status=eq.actief&sepa_setup_completed=eq.true&select=*`;
+  
+  // Fetch beide queries parallel
+  const [billingResp, retryResp] = await Promise.all([
+    fetch(billingUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+        'Content-Type': 'application/json',
+      },
+    }),
+    fetch(retryUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+        'Content-Type': 'application/json',
+      },
+    })
+  ]);
 
-  if (!response.ok) {
-    throw new Error(`Abonnementen ophalen mislukt: ${response.status}`);
+  if (!billingResp.ok || !retryResp.ok) {
+    throw new Error(`Abonnementen ophalen mislukt: billing=${billingResp.status}, retry=${retryResp.status}`);
   }
 
-  const abonnementen = await response.json();
-  console.log(`✅ [RecurringBilling] ${abonnementen.length} abonnement(en) gevonden voor billing (met SEPA setup) [${correlationId}]`);
+  const billingAbonnementen = await billingResp.json();
+  const retryAbonnementen = await retryResp.json();
   
-  return abonnementen;
+  // Merge en deduplicate (zelfde abonnement kan in beide lijsten staan)
+  const allAbonnementen = [...billingAbonnementen, ...retryAbonnementen];
+  const uniqueAbonnementen = Array.from(
+    new Map(allAbonnementen.map(a => [a.id, a])).values()
+  );
+  
+  console.log(`✅ [RecurringBilling] ${uniqueAbonnementen.length} abonnement(en) gevonden (${billingAbonnementen.length} billing + ${retryAbonnementen.length} retry) [${correlationId}]`);
+  
+  return uniqueAbonnementen;
 }
 
 /**
@@ -197,6 +223,36 @@ async function updateNextBillingDate(abonnementId, correlationId) {
 }
 
 /**
+ * Clear retry tracking fields na succesvolle betaling
+ */
+async function clearRetryTracking(abonnementId, correlationId) {
+  console.log(`🔄 [RecurringBilling] Clearing retry tracking [${correlationId}]`);
+  
+  const url = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${abonnementId}`;
+  
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'apikey': supabaseConfig.anonKey,
+      'Authorization': `Bearer ${supabaseConfig.anonKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ 
+      payment_retry_count: 0,
+      last_payment_failure_date: null,
+      next_retry_date: null,
+      payment_failure_reason: null
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Clear retry tracking failed: ${response.status}`);
+  }
+
+  console.log(`✅ [RecurringBilling] Retry tracking cleared [${correlationId}]`);
+}
+
+/**
  * Markeer abonnement als failed (na payment failure)
  */
 async function markAbonnementAsFailed(abonnementId, errorMessage, correlationId) {
@@ -322,8 +378,11 @@ export async function processAbonnementRecurringBilling(abonnement, correlationI
 
     console.log(`✅ [RecurringBilling] Invoice generated: ${factuur.factuur_nummer} [${correlationId}]`);
 
-    // 8. Update next_billing_date
+    // 8. Update next_billing_date EN clear retry fields (na success)
     const nextBillingDate = await updateNextBillingDate(abonnement.id, correlationId);
+    
+    // Clear retry tracking na succesvolle betaling
+    await clearRetryTracking(abonnement.id, correlationId);
 
     // 9. Verstuur bevestiging email naar klant
     try {

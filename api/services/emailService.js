@@ -322,3 +322,101 @@ export function getRateLimitInfo() {
     message: 'Rate limit tracking nog te implementeren',
   };
 }
+
+/**
+ * Verzend email voor eerste mislukte betaling (retry 1)
+ */
+export async function sendPaymentFailedRetry1(to, data, correlationId) {
+  return sendEmail({
+    to,
+    subject: '⚠️ Betaling mislukt - Heppy Schoonmaak',
+    html: `
+      <h2>Beste ${data.voornaam},</h2>
+      <p>Helaas is de automatische incasso voor je schoonmaak abonnement mislukt.</p>
+      <p><strong>Wat nu?</strong></p>
+      <ul>
+        <li>Controleer of er voldoende saldo op je rekening staat</li>
+        <li>We proberen het opnieuw op <strong>${data.nextRetryDate}</strong></li>
+      </ul>
+      <p>Heb je vragen? Neem gerust contact met ons op.</p>
+      <p>Met vriendelijke groet,<br>Team Heppy</p>
+    `,
+  }, correlationId);
+}
+
+/**
+ * Verzend email voor tweede mislukte betaling (retry 2)
+ */
+export async function sendPaymentFailedRetry2(to, data, correlationId) {
+  return sendEmail({
+    to,
+    subject: '⚠️ Nogmaals: Betaling mislukt - Heppy Schoonmaak',
+    html: `
+      <h2>Beste ${data.voornaam},</h2>
+      <p>We hebben opnieuw geprobeerd het abonnementsbedrag af te schrijven, maar dit is helaas weer mislukt.</p>
+      <p><strong>Actie vereist:</strong></p>
+      <ul>
+        <li>Controleer of je IBAN nog klopt</li>
+        <li>Zorg voor voldoende saldo op je rekening</li>
+        <li>We proberen het nog één keer op <strong>${data.nextRetryDate}</strong></li>
+      </ul>
+      <p><strong>Let op:</strong> Als de volgende poging ook mislukt, wordt je abonnement tijdelijk gepauzeerd.</p>
+      <p>Log in op je account om je rekeningnummer te wijzigen indien nodig.</p>
+      <p>Met vriendelijke groet,<br>Team Heppy</p>
+    `,
+  }, correlationId);
+}
+
+/**
+ * Verzend email wanneer abonnement gepauzeerd is na 3 failures
+ */
+export async function sendAbonnementPaused(to, data, correlationId) {
+  return sendEmail({
+    to,
+    subject: '🛑 Abonnement gepauzeerd - Heppy Schoonmaak',
+    html: `
+      <h2>Beste ${data.voornaam},</h2>
+      <p>Helaas is de betaling voor je schoonmaak abonnement na 3 pogingen niet gelukt.</p>
+      <p><strong>Je abonnement is tijdelijk gepauzeerd.</strong></p>
+      <p>Om je abonnement te hervatten:</p>
+      <ol>
+        <li>Log in op je account</li>
+        <li>Controleer of wijzig je rekeningnummer</li>
+        <li>Neem contact met ons op om je abonnement te hervatten</li>
+      </ol>
+      <p>We begrijpen dat dit vervelend is. Neem zo spoedig mogelijk contact met ons op via:</p>
+      <ul>
+        <li>Email: info@heppy-schoonmaak.nl</li>
+        <li>Telefoon: [telefoonnummer]</li>
+      </ul>
+      <p>Met vriendelijke groet,<br>Team Heppy</p>
+    `,
+  }, correlationId);
+}
+
+/**
+ * Verzend admin notification voor failed payment
+ */
+export async function sendPaymentFailedAdmin(data, correlationId) {
+  return sendEmail({
+    to: 'notifications@heppy-schoonmaak.nl',
+    subject: `⚠️ Payment Failure (Retry ${data.retryCount}/3) - ${data.abonnementId}`,
+    html: `
+      <h2>Payment Failure Notification</h2>
+      <p><strong>Abonnement ID:</strong> ${data.abonnementId}</p>
+      <p><strong>Gebruiker ID:</strong> ${data.gebruikerId}</p>
+      <p><strong>Retry Count:</strong> ${data.retryCount}/3</p>
+      <p><strong>Next Retry Date:</strong> ${data.nextRetryDate || 'N/A (max retries reached)'}</p>
+      <p><strong>Failure Reason:</strong> ${data.failureReason}</p>
+      ${data.retryCount >= 3 ? '<p><strong style="color: red;">⚠️ ABONNEMENT GEPAUZEERD</strong></p>' : ''}
+      <p>Check Supabase dashboard voor meer details.</p>
+    `,
+  }, correlationId);
+}
+
+export const emailService = {
+  sendPaymentFailedRetry1,
+  sendPaymentFailedRetry2,
+  sendAbonnementPaused,
+  sendPaymentFailedAdmin,
+};

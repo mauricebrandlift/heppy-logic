@@ -13,7 +13,7 @@
 "crons": [
     {
     "path": "/api/cron/recurring-billing",
-    "schedule": "20 15 * * *"
+    "schedule": "0 2 * * *"
     }
 ]
 }
