@@ -1015,6 +1015,14 @@ export const formHandler = {
       }
     } catch (err) {
       console.error(`❌ [FormHandler] Submit error:`, err);
+      console.log(`🔍 [FormHandler] Error details:`, {
+        name: err.name,
+        message: err.message,
+        code: err.code,
+        status: err.status,
+        data: err.data,
+        hasResponseError: err.data?.error
+      });
       
       // Gebruik dezelfde button voor het verbergen van de loader bij errors
       if (submitButton) {
@@ -1025,8 +1033,20 @@ export const formHandler = {
       
       toggleFields(this.formElement, true);
       const gm = this.schema.globalMessages || {};
-      const code = err.code || (err.name === 'TypeError' ? 'NETWORK_ERROR' : 'DEFAULT');
-      const message = gm[code] || gm.DEFAULT || err.message || 'Er is iets misgegaan.';
+      
+      // Probeer specifieke error message uit API response
+      let message;
+      if (err.data && err.data.error) {
+        // Backend stuurt specifieke error in error field
+        message = err.data.error;
+        console.log(`✅ [FormHandler] Using API error message:`, message);
+      } else {
+        // Fallback naar error code of generieke message
+        const code = err.code || (err.name === 'TypeError' ? 'NETWORK_ERROR' : 'DEFAULT');
+        message = gm[code] || gm.DEFAULT || err.message || 'Er is iets misgegaan.';
+        console.log(`⚠️ [FormHandler] Using fallback message for code '${code}':`, message);
+      }
+      
       showGlobalError(this.formElement, message);
     }
   },
