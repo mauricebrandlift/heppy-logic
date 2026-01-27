@@ -493,12 +493,10 @@ async function pauzeAbonnementHandler(req, res) {
       message: 'Abonnement succesvol gepauzeerd',
       data: {
         abonnement_id: id,
-        startweek: parsedStartWeek,
-        startyear: parsedStartYear,
-        eindweek: parsedEindWeek,
-        eindjaar: parsedEindYear,
-        startdatum,
-        einddatum
+        pauze_start_weeknr: parsedStartWeek,
+        pauze_start_jaar: parsedStartYear,
+        eerste_schoonmaak_week: parsedEindWeek,
+        eerste_schoonmaak_jaar: parsedEindYear
       }
     });
 
