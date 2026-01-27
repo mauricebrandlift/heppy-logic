@@ -236,14 +236,7 @@ async function pauzeAbonnementHandler(req, res) {
       });
     }
 
-    // Check of abonnement al gepauzeerd is
-    if (abonnement.status === 'gepauzeerd') {
-      return res.status(400).json({
-        correlationId,
-        error: 'Dit abonnement is al gepauzeerd'
-      });
-    }
-
+    // Extra pauzes toevoegen is toegestaan (max 8 weken totaal)
     // Check bestaande pauzes + totale pauze duur validatie (max 8 weken inclusief nieuwe)
     const existingPausesUrl = `${supabaseConfig.url}/rest/v1/abonnement_pauzes?abonnement_id=eq.${id}&einddatum=gte.${new Date().toISOString()}&select=*`;
     const existingPausesResponse = await httpClient(existingPausesUrl, {
@@ -335,21 +328,23 @@ async function pauzeAbonnementHandler(req, res) {
       throw new Error('Kan pauze niet toevoegen');
     }
 
-    // Update abonnement status naar 'gepauzeerd'
-    const updateAbonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}`;
-    const updateAbonnementResponse = await httpClient(updateAbonnementUrl, {
-      method: 'PATCH',
-      headers: {
-        'apikey': supabaseConfig.anonKey,
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ status: 'gepauzeerd' })
-    });
+    // Update abonnement status naar 'gepauzeerd' (alleen als nog niet gepauzeerd)
+    if (abonnement.status !== 'gepauzeerd') {
+      const updateAbonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}`;
+      const updateAbonnementResponse = await httpClient(updateAbonnementUrl, {
+        method: 'PATCH',
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify({ status: 'gepauzeerd' })
+      });
 
-    if (!updateAbonnementResponse.ok) {
-      throw new Error('Kan abonnement status niet updaten');
+      if (!updateAbonnementResponse.ok) {
+        throw new Error('Kan abonnement status niet updaten');
+      }
     }
 
     console.log(JSON.stringify({
@@ -369,7 +364,7 @@ async function pauzeAbonnementHandler(req, res) {
     }));
 
     // Haal klant gegevens op voor email
-    const klantUrl = `${supabaseConfig.url}/rest/v1/users?id=eq.${userId}&select=email,voornaam,achternaam`;
+    const klantUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${userId}&select=email,voornaam,achternaam`;
     
     console.log(JSON.stringify({
       level: 'INFO',
@@ -444,7 +439,7 @@ async function pauzeAbonnementHandler(req, res) {
 
     // Als schoonmaker toegewezen, stuur ook email
     if (abonnement.schoonmaker_id) {
-      const schoonmakerUrl = `${supabaseConfig.url}/rest/v1/users?id=eq.${abonnement.schoonmaker_id}&select=email,voornaam,achternaam`;
+      const schoonmakerUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${abonnement.schoonmaker_id}&select=email,voornaam,achternaam`;
       const schoonmakerResponse = await httpClient(schoonmakerUrl, {
         method: 'GET',
         headers: {

@@ -99,9 +99,9 @@ export async function initAbonnementPauzeForm(data) {
     renderPauzeGeschiedenis([]);
   }
 
-  // Check of abonnement al gepauzeerd of opgezegd is
-  if (data.status === 'gepauzeerd' || data.canceled_at) {
-    console.warn('⚠️ [Abonnement Pauze] Abonnement is al gepauzeerd of opgezegd');
+  // Check of abonnement is opgezegd (pauze is wel toegestaan, maar opzeggen niet)
+  if (data.canceled_at) {
+    console.warn('⚠️ [Abonnement Pauze] Abonnement is opgezegd, pauze niet mogelijk');
     return;
   }
 
