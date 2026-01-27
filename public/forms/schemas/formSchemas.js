@@ -1929,7 +1929,9 @@ export function getFormSchema(name) {
           PAUZE_SUCCESS: 'Je pauze is verwerkt. Het abonnement wordt automatisch hervat na de eindweek.',
           ALREADY_PAUSED: 'Dit abonnement is al gepauzeerd',
           MAX_PAUSE_EXCEEDED: 'Je kunt maximaal 8 weken pauzeren (inclusief bestaande pauzes)',
-          INVALID_WEEK_RANGE: 'Eindweek moet na startweek zijn'
+          INVALID_WEEK_RANGE: 'Eindweek moet na startweek zijn',
+          // API stuurt error.message direct terug, geen code - gebruik fallback
+          FALLBACK_MESSAGE: (error) => error?.message || 'Er is een fout opgetreden bij het pauzeren'
         }
       )
     },
