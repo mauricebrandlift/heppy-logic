@@ -3,7 +3,7 @@
  * Email template voor schoonmaker: abonnement van klant gepauzeerd
  */
 
-import { emailStyles } from './emailStyles.js';
+import { baseLayout } from './baseLayout.js';
 
 /**
  * @param {Object} data
@@ -32,22 +32,7 @@ export function abonnementGepauzeerdSchoonmaker(data) {
     reden
   } = data;
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Abonnement van klant gepauzeerd</title>
-      ${emailStyles}
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>Abonnement gepauzeerd</h1>
-        </div>
-        
-        <div class="content">
+  const content = `
           <p>Beste ${voornaam} ${achternaam},</p>
           
           <p>Een abonnement van één van je klanten is gepauzeerd.</p>
@@ -73,14 +58,7 @@ export function abonnementGepauzeerdSchoonmaker(data) {
           
           <p>Met vriendelijke groet,<br>
           Team Heppy</p>
-        </div>
-        
-        <div class="footer">
-          <p>Heppy Schoonmaakdiensten<br>
-          Email: <a href="mailto:info@heppy.nl">info@heppy.nl</a></p>
-        </div>
-      </div>
-    </body>
-    </html>
   `;
+
+  return baseLayout(content, 'Abonnement gepauzeerd');
 }

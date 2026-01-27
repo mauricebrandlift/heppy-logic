@@ -3,7 +3,7 @@
  * Email template voor admin: abonnement gepauzeerd
  */
 
-import { emailStyles } from './emailStyles.js';
+import { baseLayout } from './baseLayout.js';
 
 /**
  * @param {Object} data
@@ -32,22 +32,8 @@ export function abonnementGepauzeerdAdmin(data) {
     reden
   } = data;
 
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Abonnement Gepauzeerd - Admin Notificatie</title>
-      ${emailStyles}
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>⏸️ Abonnement Gepauzeerd</h1>
-        </div>
-        
-        <div class="content">
+  const content = `
+        <h2>⏸️ Abonnement Gepauzeerd</h2>
           <p>Een klant heeft zijn/haar abonnement gepauzeerd.</p>
           
           <div class="info-box">
@@ -75,13 +61,7 @@ export function abonnementGepauzeerdAdmin(data) {
             <li>Automatisch hervatten is ingesteld na week ${eindweek} (${eindjaar})</li>
             <li>Monitor of klant daadwerkelijk hervat of mogelijk opzegt</li>
           </ul>
-        </div>
-        
-        <div class="footer">
-          <p>Heppy Admin Notificatie</p>
-        </div>
-      </div>
-    </body>
-    </html>
   `;
+
+  return baseLayout(content, 'Abonnement Gepauzeerd - Admin');
 }

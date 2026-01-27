@@ -34,19 +34,44 @@ async function pauzeGeschiedenisHandler(req, res) {
     }
 
     // Check ownership: haal abonnement op
-    const abonnementResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${abonnement_id}&select=klant_id`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': supabaseConfig.key,
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
+    let abonnementResponse;
+    try {
+      abonnementResponse = await httpClient(
+        `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${abonnement_id}&select=klant_id`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseConfig.key,
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          }
         }
-      }
-    );
+      );
+    } catch (error) {
+      console.error(JSON.stringify({
+        level: 'ERROR',
+        correlationId,
+        route: 'dashboard/klant/pauze-geschiedenis',
+        action: 'fetch_abonnement_error',
+        error: error.message
+      }));
+      return res.status(500).json({
+        correlationId,
+        error: 'Fout bij ophalen abonnement'
+      });
+    }
 
-    if (!abonnementResponse || abonnementResponse.length === 0) {
+    if (!abonnementResponse || !Array.isArray(abonnementResponse) || abonnementResponse.length === 0) {
+      console.warn(JSON.stringify({
+        level: 'WARN',
+        correlationId,
+        route: 'dashboard/klant/pauze-geschiedenis',
+        action: 'abonnement_not_found',
+        abonnementId: abonnement_id,
+        userId,
+        responseType: typeof abonnementResponse,
+        isArray: Array.isArray(abonnementResponse)
+      }));
       return res.status(404).json({
         correlationId,
         error: 'Abonnement niet gevonden'
@@ -54,6 +79,20 @@ async function pauzeGeschiedenisHandler(req, res) {
     }
 
     const abonnement = abonnementResponse[0];
+
+    if (!abonnement || !abonnement.klant_id) {
+      console.error(JSON.stringify({
+        level: 'ERROR',
+        correlationId,
+        route: 'dashboard/klant/pauze-geschiedenis',
+        action: 'invalid_abonnement_data',
+        abonnement
+      }));
+      return res.status(500).json({
+        correlationId,
+        error: 'Ongeldige abonnement data'
+      });
+    }
 
     // Check ownership
     if (abonnement.klant_id !== userId) {
