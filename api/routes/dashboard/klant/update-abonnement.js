@@ -11,11 +11,16 @@ import { withAuth } from '../../../utils/authMiddleware.js';
 import { fetchPricingConfiguration, formatPricingConfiguration } from '../../../services/configService.js';
 import { calculateAbonnementPricing } from '../../../services/pricingCalculator.js';
 import { sendEmail } from '../../../services/emailService.js';
+import { auditService } from '../../../services/auditService.js';
 import { 
   abonnementGewijzigdKlant,
   abonnementGewijzigdSchoonmaker,
   abonnementGewijzigdAdmin
 } from '../../../templates/emails/index.js';
+
+function uuid(){
+  return globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});
+}
 
 async function updateAbonnementHandler(req, res) {
   const correlationId = req.headers['x-correlation-id'] || `update-abonnement-${Date.now()}`;
@@ -191,6 +196,64 @@ async function updateAbonnementHandler(req, res) {
     }
 
     console.log('✅ [Update Abonnement] Succesvol bijgewerkt');
+
+    // === AUDIT LOGGING ===
+    // Log naar audit_logs (algemene audit trail)
+    await auditService.log(
+      'abonnementen',
+      id,
+      'updated',
+      userId,
+      {
+        oude_uren: abonnement.uren,
+        oude_frequentie: abonnement.frequentie,
+        oude_prijs_cents: abonnement.bundle_amount_cents,
+        nieuwe_uren: parsedUren,
+        nieuwe_frequentie: frequentie,
+        nieuwe_prijs_cents: pricingResult.bundleAmountCents
+      },
+      correlationId
+    );
+
+    // Log naar abonnement_wijzigingen (specifieke abonnement history)
+    try {
+      const wijzigingUrl = `${supabaseConfig.url}/rest/v1/abonnement_wijzigingen`;
+      const wijzigingBody = {
+        id: uuid(),
+        abonnement_id: id,
+        wijziging_type: 'extra_uren', // Type voor uren/frequentie wijziging
+        oude_waarde: JSON.stringify({
+          uren: abonnement.uren,
+          frequentie: abonnement.frequentie,
+          prijs_cents: abonnement.bundle_amount_cents
+        }),
+        nieuwe_waarde: JSON.stringify({
+          uren: parsedUren,
+          frequentie: frequentie,
+          prijs_cents: pricingResult.bundleAmountCents
+        }),
+        gewijzigd_door: userId
+      };
+
+      const wijzigingResp = await httpClient(wijzigingUrl, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(wijzigingBody)
+      }, correlationId);
+
+      if (!wijzigingResp.ok) {
+        console.warn(`⚠️ [Update Abonnement] Failed to log to abonnement_wijzigingen: ${wijzigingResp.status}`);
+      } else {
+        console.log('✅ [Update Abonnement] Wijziging history logged');
+      }
+    } catch (error) {
+      console.error('⚠️ [Update Abonnement] Error logging wijziging:', error.message);
+    }
 
     // === HAAL GEBRUIKER + SCHOONMAKER GEGEVENS OP VOOR EMAILS ===
     console.log('📧 [Update Abonnement] Fetching user + schoonmaker data voor emails...');
