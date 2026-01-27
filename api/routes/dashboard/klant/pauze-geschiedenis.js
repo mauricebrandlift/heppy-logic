@@ -33,17 +33,16 @@ async function pauzeGeschiedenisHandler(req, res) {
       });
     }
 
-    // Check ownership: haal abonnement op
+    // Check ownership: haal abonnement op (gebruik gebruiker_id zoals opzeg-abonnement)
     let abonnementResponse;
     try {
       abonnementResponse = await httpClient(
-        `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${abonnement_id}&select=klant_id`,
+        `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${abonnement_id}&gebruiker_id=eq.${userId}&select=id,gebruiker_id`,
         {
           method: 'GET',
           headers: {
-            'apikey': supabaseConfig.key,
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
+            'apikey': supabaseConfig.anonKey,
+            'Authorization': `Bearer ${authToken}`
           }
         }
       );
@@ -61,16 +60,23 @@ async function pauzeGeschiedenisHandler(req, res) {
       });
     }
 
-    if (!abonnementResponse || !Array.isArray(abonnementResponse) || abonnementResponse.length === 0) {
+    if (!abonnementResponse.ok) {
+      return res.status(404).json({
+        correlationId,
+        error: 'Abonnement niet gevonden'
+      });
+    }
+
+    const abonnementen = await abonnementResponse.json();
+
+    if (!abonnementen || abonnementen.length === 0) {
       console.warn(JSON.stringify({
         level: 'WARN',
         correlationId,
         route: 'dashboard/klant/pauze-geschiedenis',
         action: 'abonnement_not_found',
         abonnementId: abonnement_id,
-        userId,
-        responseType: typeof abonnementResponse,
-        isArray: Array.isArray(abonnementResponse)
+        userId
       }));
       return res.status(404).json({
         correlationId,
@@ -78,51 +84,26 @@ async function pauzeGeschiedenisHandler(req, res) {
       });
     }
 
-    const abonnement = abonnementResponse[0];
+    const abonnement = abonnementen[0];
 
-    if (!abonnement || !abonnement.klant_id) {
-      console.error(JSON.stringify({
-        level: 'ERROR',
-        correlationId,
-        route: 'dashboard/klant/pauze-geschiedenis',
-        action: 'invalid_abonnement_data',
-        abonnement
-      }));
-      return res.status(500).json({
-        correlationId,
-        error: 'Ongeldige abonnement data'
-      });
-    }
+    // Ownership is al gevalideerd door gebruiker_id in query
 
-    // Check ownership
-    if (abonnement.klant_id !== userId) {
-      console.warn(JSON.stringify({
-        level: 'WARN',
-        correlationId,
-        route: 'dashboard/klant/pauze-geschiedenis',
-        action: 'unauthorized_access',
-        abonnementId: abonnement_id,
-        userId,
-        klantId: abonnement.klant_id
-      }));
-      return res.status(403).json({
-        correlationId,
-        error: 'Je mag alleen je eigen abonnementen bekijken'
-      });
-    }
 
     // Haal pauze geschiedenis op (alle pauzes, ook afgelopen)
-    const pauzesResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/abonnement_pauzes?abonnement_id=eq.${abonnement_id}&select=*&order=startdatum.desc`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': supabaseConfig.key,
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
+    const pauzesUrl = `${supabaseConfig.url}/rest/v1/abonnement_pauzes?abonnement_id=eq.${abonnement_id}&select=*&order=startdatum.desc`;
+    const pauzesResponse = await httpClient(pauzesUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`
       }
-    );
+    });
+
+    if (!pauzesResponse.ok) {
+      throw new Error('Fout bij ophalen pauze geschiedenis');
+    }
+
+    const pauzes = await pauzesResponse.json();
 
     console.log(JSON.stringify({
       level: 'INFO',
@@ -131,10 +112,10 @@ async function pauzeGeschiedenisHandler(req, res) {
       action: 'pauze_geschiedenis_opgehaald',
       abonnementId: abonnement_id,
       userId,
-      aantalPauzes: pauzesResponse?.length || 0
+      aantalPauzes: pauzes?.length || 0
     }));
 
-    return res.status(200).json(pauzesResponse || []);
+    return res.status(200).json(pauzes || []);
 
   } catch (error) {
     console.error(JSON.stringify({

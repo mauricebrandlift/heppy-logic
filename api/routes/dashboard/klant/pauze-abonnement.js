@@ -165,20 +165,23 @@ async function pauzeAbonnementHandler(req, res) {
       });
     }
 
-    // Haal abonnement op + check ownership
-    const abonnementResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}&select=*`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': supabaseConfig.key,
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
+    // Haal abonnement op + check ownership (gebruik gebruiker_id zoals opzeg-abonnement)
+    const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}&gebruiker_id=eq.${userId}&select=*`;
+    const abonnementResponse = await httpClient(abonnementUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`
       }
-    );
+    });
 
-    if (!abonnementResponse || abonnementResponse.length === 0) {
+    if (!abonnementResponse.ok) {
+      throw new Error('Kan abonnement niet ophalen');
+    }
+
+    const abonnementen = await abonnementResponse.json();
+
+    if (!abonnementen || abonnementen.length === 0) {
       console.warn(JSON.stringify({
         level: 'WARN',
         correlationId,
@@ -193,24 +196,9 @@ async function pauzeAbonnementHandler(req, res) {
       });
     }
 
-    const abonnement = abonnementResponse[0];
+    const abonnement = abonnementen[0];
 
-    // Check ownership
-    if (abonnement.klant_id !== userId) {
-      console.warn(JSON.stringify({
-        level: 'WARN',
-        correlationId,
-        route: 'dashboard/klant/pauze-abonnement',
-        action: 'unauthorized_access',
-        abonnementId: id,
-        userId,
-        klantId: abonnement.klant_id
-      }));
-      return res.status(403).json({
-        correlationId,
-        error: 'Je mag alleen je eigen abonnementen pauzeren'
-      });
-    }
+    // Ownership is al gevalideerd door gebruiker_id in query
 
     // Check of abonnement al opgezegd is
     if (abonnement.canceled_at) {
@@ -229,23 +217,26 @@ async function pauzeAbonnementHandler(req, res) {
     }
 
     // Check bestaande pauzes + totale pauze duur validatie (max 8 weken inclusief nieuwe)
-    const existingPausesResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/abonnement_pauzes?abonnement_id=eq.${id}&einddatum=gte.${new Date().toISOString()}&select=*`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': supabaseConfig.key,
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
+    const existingPausesUrl = `${supabaseConfig.url}/rest/v1/abonnement_pauzes?abonnement_id=eq.${id}&einddatum=gte.${new Date().toISOString()}&select=*`;
+    const existingPausesResponse = await httpClient(existingPausesUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`
       }
-    );
+    });
+
+    if (!existingPausesResponse.ok) {
+      throw new Error('Kan bestaande pauzes niet ophalen');
+    }
+
+    const existingPauzes = await existingPausesResponse.json();
 
     // Bereken totale pauze duur (bestaande + nieuwe)
     let totalPauzeWeken = pauseDuration;
     
-    if (existingPausesResponse && existingPausesResponse.length > 0) {
-      for (const existingPauze of existingPausesResponse) {
+    if (existingPauzes && existingPauzes.length > 0) {
+      for (const existingPauze of existingPauzes) {
         const existingStart = new Date(existingPauze.startdatum);
         const existingEnd = new Date(existingPauze.einddatum);
         const existingWeeks = Math.ceil((existingEnd - existingStart) / (7 * 24 * 60 * 60 * 1000));
@@ -274,36 +265,38 @@ async function pauzeAbonnementHandler(req, res) {
       reden: pauze_reden || null
     };
 
-    await httpClient(
-      `${supabaseConfig.url}/rest/v1/abonnement_pauzes`,
-      {
-        method: 'POST',
-        headers: {
-          'apikey': supabaseConfig.key,
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: pauzeData
-      }
-    );
+    const insertPauzeUrl = `${supabaseConfig.url}/rest/v1/abonnement_pauzes`;
+    const insertPauzeResponse = await httpClient(insertPauzeUrl, {
+      method: 'POST',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify(pauzeData)
+    });
+
+    if (!insertPauzeResponse.ok) {
+      throw new Error('Kan pauze niet toevoegen');
+    }
 
     // Update abonnement status naar 'gepauzeerd'
-    await httpClient(
-      `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'apikey': supabaseConfig.key,
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
-        },
-        body: {
-          status: 'gepauzeerd'
-        }
-      }
-    );
+    const updateAbonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}`;
+    const updateAbonnementResponse = await httpClient(updateAbonnementUrl, {
+      method: 'PATCH',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ status: 'gepauzeerd' })
+    });
+
+    if (!updateAbonnementResponse.ok) {
+      throw new Error('Kan abonnement status niet updaten');
+    }
 
     console.log(JSON.stringify({
       level: 'INFO',
@@ -322,19 +315,21 @@ async function pauzeAbonnementHandler(req, res) {
     }));
 
     // Haal klant gegevens op voor email
-    const klantResponse = await httpClient(
-      `${supabaseConfig.url}/rest/v1/users?id=eq.${userId}&select=email,voornaam,achternaam`,
-      {
-        method: 'GET',
-        headers: {
-          'apikey': supabaseConfig.key,
-          'Authorization': `Bearer ${authToken}`,
-          'Content-Type': 'application/json'
-        }
+    const klantUrl = `${supabaseConfig.url}/rest/v1/users?id=eq.${userId}&select=email,voornaam,achternaam`;
+    const klantResponse = await httpClient(klantUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${authToken}`
       }
-    );
+    });
 
-    const klant = klantResponse?.[0];
+    if (!klantResponse.ok) {
+      throw new Error('Kan klant gegevens niet ophalen');
+    }
+
+    const klanten = await klantResponse.json();
+    const klant = klanten?.[0];
 
     // Email data voor klant
     const klantEmailData = {
@@ -358,20 +353,18 @@ async function pauzeAbonnementHandler(req, res) {
 
     // Als schoonmaker toegewezen, stuur ook email
     if (abonnement.schoonmaker_id) {
-      const schoonmakerResponse = await httpClient(
-        `${supabaseConfig.url}/rest/v1/users?id=eq.${abonnement.schoonmaker_id}&select=email,voornaam,achternaam`,
-        {
-          method: 'GET',
-          headers: {
-            'apikey': supabaseConfig.key,
-            'Authorization': `Bearer ${authToken}`,
-            'Content-Type': 'application/json'
-          }
+      const schoonmakerUrl = `${supabaseConfig.url}/rest/v1/users?id=eq.${abonnement.schoonmaker_id}&select=email,voornaam,achternaam`;
+      const schoonmakerResponse = await httpClient(schoonmakerUrl, {
+        method: 'GET',
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${authToken}`
         }
-      );
+      });
 
-      const schoonmaker = schoonmakerResponse?.[0];
-      if (schoonmaker) {
+      if (schoonmakerResponse.ok) {
+        const schoonmakers = await schoonmakerResponse.json();
+        const schoonmaker = schoonmakers?.[0];
         const schoonmakerEmailData = {
           voornaam: schoonmaker.voornaam || 'Schoonmaker',
           achternaam: schoonmaker.achternaam || '',
