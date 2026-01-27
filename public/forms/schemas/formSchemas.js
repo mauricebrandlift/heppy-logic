@@ -1881,6 +1881,58 @@ export function getFormSchema(name) {
         }
       )
     },
+    'abb_pauze-form': {
+      name: 'abb_pauze-form',
+      selector: '[data-form-name="abb_pauze-form"]',
+      fields: {
+        pauze_start_weeknr: {
+          label: 'Startweek pauze',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'weeknrAllowed'],
+          persist: 'none',
+          allowedWeeks: [], // Wordt dynamisch gevuld door initWeekSelectTrigger
+          messages: {
+            required: 'Startweek is verplicht',
+            integer: 'Voer een geldig weeknummer in',
+            weeknrAllowed: 'Je kunt pas pauzeren vanaf 1 week in de toekomst'
+          }
+        },
+        pauze_eind_weeknr: {
+          label: 'Eindweek pauze',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'weeknrAllowed'],
+          persist: 'none',
+          allowedWeeks: [], // Wordt dynamisch gevuld door initWeekSelectTrigger
+          messages: {
+            required: 'Eindweek is verplicht',
+            integer: 'Voer een geldig weeknummer in',
+            weeknrAllowed: 'Eindweek moet na startweek zijn'
+          }
+        },
+        pauze_reden: {
+          label: 'Reden voor pauze',
+          inputType: 'textarea',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none',
+          messages: {
+            required: 'Reden voor pauze is verplicht'
+          }
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          PAUZE_SUCCESS: 'Je pauze is verwerkt. Het abonnement wordt automatisch hervat na de eindweek.',
+          ALREADY_PAUSED: 'Dit abonnement is al gepauzeerd',
+          MAX_PAUSE_EXCEEDED: 'Je kunt maximaal 8 weken pauzeren (inclusief bestaande pauzes)',
+          INVALID_WEEK_RANGE: 'Eindweek moet na startweek zijn'
+        }
+      )
+    },
   };
 
   return schemas[name] || null;

@@ -62,6 +62,11 @@ export { abonnementOpgezegdKlant } from './abonnementOpgezegdKlant.js';
 export { abonnementOpgezegdSchoonmaker } from './abonnementOpgezegdSchoonmaker.js';
 export { abonnementOpgezegdAdmin } from './abonnementOpgezegdAdmin.js';
 
+// Account Beheren Templates - Abonnement Pauze
+export { abonnementGepauzeerdKlant } from './abonnementGepauzeerdKlant.js';
+export { abonnementGepauzeerdSchoonmaker } from './abonnementGepauzeerdSchoonmaker.js';
+export { abonnementGepauzeerdAdmin } from './abonnementGepauzeerdAdmin.js';
+
 // Helper functions
 export { 
   baseLayout, 

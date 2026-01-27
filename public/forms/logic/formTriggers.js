@@ -679,6 +679,7 @@ export function initHoursCalculationTrigger(formHandler, options = {}) {
  * @param {Object} options - Configuratie opties voor de trigger
  * @param {string} options.weekField - Naam van het weeknummer veld (default: 'weeknr')
  * @param {string} options.infoField - Naam van het info veld voor datumbereik (default: 'weeknr')
+ * @param {number} options.minWeeksAhead - Minimum aantal weken vooraf (default: 2)
  * @param {number} options.maxWeeks - Aantal weken vooruit dat geselecteerd kan worden (default: 8)
  * @returns {Function} Cleanup functie om event listeners te verwijderen
  */
@@ -686,6 +687,7 @@ export function initWeekSelectTrigger(formHandler, options = {}) {
   const config = {
     weekField: 'weeknr',
     infoField: 'weeknr',
+    minWeeksAhead: 2, // minimum aantal weken vooraf (opzeggen = 2, pauze = 1)
     maxWeeks: 8, // aantal weken vooruit (offset) vanaf huidige week (inclusief grens)
     ...options,
   };
@@ -708,9 +710,9 @@ export function initWeekSelectTrigger(formHandler, options = {}) {
   const currentYear = now.getFullYear();
   const isoWeeksCurrentYear = weeksInISOYear(currentYear);
 
-  // Bouw de lijst toegestane weken (weekNum & year) vanaf huidige week +2 t/m +maxWeeks
+  // Bouw de lijst toegestane weken (weekNum & year) vanaf huidige week +minWeeksAhead t/m +maxWeeks
   const allowedWeeks = [];
-  for (let offset = 2; offset <= config.maxWeeks; offset++) { // offset 2 = eerste geldige week
+  for (let offset = config.minWeeksAhead; offset <= config.maxWeeks; offset++) {
     let targetWeek = currentISOWeek + offset;
     let targetYear = currentYear;
     let weeksInYear = isoWeeksCurrentYear;
