@@ -8,6 +8,7 @@ import { betalingService } from '../../services/betalingService.js';
 import { auditService } from '../../services/auditService.js';
 import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
 import { sendEmail } from '../../services/emailService.js';
+import { notificeerNieuweMatch } from '../../services/notificatieService.js';
 import { emailConfig } from '../../config/index.js';
 import { 
   nieuweVerhuisAdmin, 
@@ -352,6 +353,23 @@ export async function processVerhuisPayment({ paymentIntent, metadata, correlati
         opdracht_id: opdracht.id,
         auto_assigned: finalAutoAssigned
       }, correlationId);
+      
+      // 🔔 NOTIFICATIE: Nieuwe match
+      if (finalSchoonmakerId) {
+        console.log(`🔔 [ProcessVerhuis] Creating notificaties for new match`);
+        try {
+          await notificeerNieuweMatch({
+            matchId: schoonmaakMatch.id,
+            klantId: user.id,
+            schoonmakerId: finalSchoonmakerId,
+            abonnementId: null,
+            opdrachtId: opdracht.id
+          });
+          console.log(`✅ [ProcessVerhuis] Notificaties aangemaakt`);
+        } catch (notifError) {
+          console.error(`⚠️ [ProcessVerhuis] Notificaties failed (niet-blokkerende fout):`, notifError.message);
+        }
+      }
       
     } catch (error) {
       console.error(`❌ [ProcessVerhuis] FAILED: Match creation error [${correlationId}]`, {

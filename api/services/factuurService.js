@@ -14,6 +14,7 @@
 
 import { stripeConfig, supabaseConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
+import { notificeerFactuurVerzonden } from './notificatieService.js';
 
 /**
  * Bereken BTW bedrag
@@ -356,6 +357,20 @@ export async function createFactuurForBetaling({
   }
 
   console.log(`✅ [FactuurService] Factuur opgeslagen in database: ${factuurId} [${correlationId}]`);
+
+  // 🔔 NOTIFICATIE: Factuur verzonden
+  console.log(`🔔 [FactuurService] Creating notificatie for factuur verzonden`);
+  try {
+    await notificeerFactuurVerzonden({
+      klantId: gebruikerId,
+      factuurId,
+      factuurNummer,
+      bedragCents: totaalCents
+    });
+    console.log(`✅ [FactuurService] Notificatie aangemaakt`);
+  } catch (notifError) {
+    console.error(`⚠️ [FactuurService] Notificatie failed (niet-blokkerende fout):`, notifError.message);
+  }
 
   return {
     id: factuurId,

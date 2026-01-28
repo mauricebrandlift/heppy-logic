@@ -11,6 +11,7 @@ import { intakeService } from '../../services/intakeService.js';
 import { voorkeursDagdelenService } from '../../services/voorkeursDagdelenService.js';
 import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
 import { sendEmail } from '../../services/emailService.js';
+import { notificeerNieuweMatch } from '../../services/notificatieService.js';
 import { emailConfig, frontendConfig } from '../../config/index.js';
 import { 
   nieuweAanvraagAdmin, 
@@ -491,7 +492,24 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
         auto_assigned: finalAutoAssigned
       }, correlationId);
       
-      // 📧 EMAIL TRIGGER 3: Match toegewezen → Schoonmaker (als schoonmaker assigned OR auto-assigned)
+      // � NOTIFICATIE: Nieuwe match
+      if (finalSchoonmakerId) {
+        console.log(`🔔 [ProcessSuccessfulPayment] Creating notificaties for new match`);
+        try {
+          await notificeerNieuweMatch({
+            matchId: schoonmaakMatch.id,
+            klantId: user.id,
+            schoonmakerId: finalSchoonmakerId,
+            abonnementId: abonnement.id,
+            opdrachtId: null
+          });
+          console.log(`✅ [ProcessSuccessfulPayment] Notificaties aangemaakt`);
+        } catch (notifError) {
+          console.error(`⚠️ [ProcessSuccessfulPayment] Notificaties failed (niet-blokkerende fout):`, notifError.message);
+        }
+      }
+      
+      // �📧 EMAIL TRIGGER 3: Match toegewezen → Schoonmaker (als schoonmaker assigned OR auto-assigned)
       if (finalSchoonmakerId) {
         console.log(`📧 [ProcessSuccessfulPayment] Sending email to schoonmaker${finalAutoAssigned ? ' (auto-assigned)' : ''}: ${finalSchoonmakerId}`);
         try {

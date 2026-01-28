@@ -9,6 +9,7 @@ import { supabaseConfig, emailConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { withAuth } from '../../../utils/authMiddleware.js';
 import { sendEmail } from '../../../services/emailService.js';
+import { notificeerAbonnementOpgezegd } from '../../../services/notificatieService.js';
 import { 
   abonnementOpgezegdKlant,
   abonnementOpgezegdSchoonmaker,
@@ -357,6 +358,33 @@ async function opzegAbonnementHandler(req, res) {
     } catch (error) {
       console.error('⚠️ [Opzeg Abonnement] Admin email failed:', error.message);
       console.error('⚠️ [Opzeg Abonnement] Admin email error stack:', error.stack);
+    }
+
+    // === MAAK NOTIFICATIES AAN ===
+    console.log('🔔 [Opzeg Abonnement] Creating notificaties...');
+    try {
+      // Haal admin user ID op (eerste admin)
+      const adminUrl = `${supabaseConfig.url}/rest/v1/user_profiles?rol=eq.admin&select=id&limit=1`;
+      const adminResp = await httpClient(adminUrl, {
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`,
+        }
+      });
+      const admins = await adminResp.json();
+      const adminId = admins[0]?.id || null;
+
+      await notificeerAbonnementOpgezegd({
+        abonnementId: id,
+        klantId: userId,
+        schoonmakerId: abonnement.schoonmaker_id || null,
+        adminId,
+        opzegWeek: parsedWeek,
+        opzegJaar: parsedYear
+      });
+      console.log('✅ [Opzeg Abonnement] Notificaties aangemaakt');
+    } catch (error) {
+      console.error('⚠️ [Opzeg Abonnement] Notificaties failed (niet-blokkerende fout):', error.message);
     }
 
     return res.status(200).json({

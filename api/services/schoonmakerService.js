@@ -7,6 +7,7 @@ import { supabaseConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
 import { getBeschikbareSchoonmakers } from './cleanerService.js';
 import * as schoonmaakMatchService from './schoonmaakMatchService.js';
+import { notificeerNieuweMatch } from './notificatieService.js';
 
 /**
  * Vindt de beste matching schoonmaker voor een aanvraag
@@ -176,6 +177,47 @@ export async function findAndAssignSchoonmaker(aanvraagId, abonnementId = null, 
     match_id: matchResult.id,
     schoonmaker_id: schoonmaker.id
   });
+
+  // === MAAK NOTIFICATIES AAN ===
+  console.log(`🔔 [SchoonmakerService] Creating notificaties for new match [${correlationId}]`);
+  try {
+    // Haal aanvraag op voor klant ID
+    const aanvraagUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_aanvragen?id=eq.${aanvraagId}&select=email`;
+    const aanvraagResp = await httpClient(aanvraagUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+      }
+    }, correlationId);
+    const aanvragen = await aanvraagResp.json();
+    const klantEmail = aanvragen[0]?.email;
+
+    // Haal klant user_profile op
+    if (klantEmail) {
+      const userUrl = `${supabaseConfig.url}/rest/v1/user_profiles?email=eq.${klantEmail}&select=id`;
+      const userResp = await httpClient(userUrl, {
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+        }
+      }, correlationId);
+      const users = await userResp.json();
+      const klantId = users[0]?.id;
+
+      if (klantId) {
+        await notificeerNieuweMatch({
+          matchId: matchResult.id,
+          klantId,
+          schoonmakerId: schoonmaker.id,
+          abonnementId,
+          opdrachtId: null // Voor aanvragen is dit altijd null
+        });
+        console.log(`✅ [SchoonmakerService] Notificaties aangemaakt [${correlationId}]`);
+      }
+    }
+  } catch (notifError) {
+    console.error(`⚠️ [SchoonmakerService] Notificaties failed (niet-blokkerende fout) [${correlationId}]`, notifError.message);
+  }
 
   return {
     id: matchResult.id,

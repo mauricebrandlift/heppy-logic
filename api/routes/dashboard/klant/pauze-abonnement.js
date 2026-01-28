@@ -10,6 +10,7 @@ import { supabaseConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { withAuth } from '../../../utils/authMiddleware.js';
 import { sendEmail } from '../../../services/emailService.js';
+import { notificeerPauzeGestart } from '../../../services/notificatieService.js';
 import { 
   abonnementGepauzeerdKlant,
   abonnementGepauzeerdSchoonmaker,
@@ -507,6 +508,21 @@ async function pauzeAbonnementHandler(req, res) {
       subject: `Abonnement gepauzeerd - ${klant?.voornaam} ${klant?.achternaam}`,
       html: abonnementGepauzeerdAdmin(adminEmailData)
     });
+
+    // === MAAK NOTIFICATIES AAN ===
+    console.log('🔔 [Pauze Abonnement] Creating notificaties...');
+    try {
+      await notificeerPauzeGestart({
+        abonnementId: id,
+        klantId: userId,
+        schoonmakerId: abonnement.schoonmaker_id || null,
+        pauzeStartWeek: startWeek,
+        pauzeStartJaar: startJaar
+      });
+      console.log('✅ [Pauze Abonnement] Notificaties aangemaakt');
+    } catch (error) {
+      console.error('⚠️ [Pauze Abonnement] Notificaties failed (niet-blokkerende fout):', error.message);
+    }
 
     return res.status(200).json({
       correlationId,

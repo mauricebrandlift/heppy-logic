@@ -8,6 +8,10 @@
 import { supabaseConfig, emailConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
 import { sendEmail } from './emailService.js';
+import { 
+  notificeerMatchGeaccepteerd,
+  notificeerMatchAfgewezen
+} from './notificatieService.js';
 import { matchGeaccepteerdKlant } from '../templates/emails/matchGeaccepteerdKlant.js';
 import { matchGeaccepteerdSchoonmaker } from '../templates/emails/matchGeaccepteerdSchoonmaker.js';
 import { matchGeaccepteerdAdmin } from '../templates/emails/matchGeaccepteerdAdmin.js';
@@ -465,6 +469,40 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
     // Don't throw - match is already approved
   }
 
+  // === MAAK NOTIFICATIES AAN ===
+  console.log(`[matchService.approveMatch] Creating notificaties [${correlationId}]`);
+  try {
+    // Haal gebruiker ID op vanuit aanvraag/opdracht
+    let klantId;
+    if (matchDetails.type === 'aanvraag') {
+      // Voor aanvraag: haal user_profiles op via email
+      const userUrl = `${supabaseConfig.url}/rest/v1/user_profiles?email=eq.${klantEmail}&select=id`;
+      const userResp = await httpClient(userUrl, {
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+        }
+      }, correlationId);
+      const users = await userResp.json();
+      klantId = users[0]?.id;
+    } else {
+      // Voor opdracht: gebruiker_id is direct beschikbaar
+      klantId = matchDetails.opdracht?.gebruiker_id;
+    }
+
+    if (klantId) {
+      await notificeerMatchGeaccepteerd({
+        matchId: matchDetails.match_id,
+        klantId,
+        abonnementId: matchDetails.aanvraag?.abonnement_id || null,
+        opdrachtId: matchDetails.opdracht?.id || null
+      });
+      console.log(`[matchService.approveMatch] Notificaties aangemaakt [${correlationId}]`);
+    }
+  } catch (notifError) {
+    console.error(`[matchService.approveMatch] Notificaties failed (niet-blokkerende fout) [${correlationId}]`, notifError.message);
+  }
+
   console.log(`[matchService.approveMatch] SUCCESS [${correlationId}]`);
 
   return {
@@ -653,6 +691,55 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
   } catch (emailError) {
     console.error(`[matchService.rejectMatch] Email sending failed [${correlationId}]`, emailError);
     // Don't throw - match is already rejected
+  }
+
+  // === MAAK NOTIFICATIES AAN ===
+  console.log(`[matchService.rejectMatch] Creating notificaties [${correlationId}]`);
+  try {
+    // Haal klant ID en admin ID op
+    let klantId;
+    const isAanvraag = matchDetails.type === 'aanvraag';
+    const klantEmail = isAanvraag ? matchDetails.aanvraag?.email : matchDetails.opdracht?.email;
+
+    if (isAanvraag && klantEmail) {
+      // Voor aanvraag: haal user_profiles op via email
+      const userUrl = `${supabaseConfig.url}/rest/v1/user_profiles?email=eq.${klantEmail}&select=id`;
+      const userResp = await httpClient(userUrl, {
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+        }
+      }, correlationId);
+      const users = await userResp.json();
+      klantId = users[0]?.id;
+    } else {
+      // Voor opdracht: gebruiker_id is direct beschikbaar
+      klantId = matchDetails.opdracht?.gebruiker_id;
+    }
+
+    // Haal admin user ID op
+    const adminUrl = `${supabaseConfig.url}/rest/v1/user_profiles?rol=eq.admin&select=id&limit=1`;
+    const adminResp = await httpClient(adminUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+      }
+    }, correlationId);
+    const admins = await adminResp.json();
+    const adminId = admins[0]?.id || null;
+
+    if (klantId) {
+      await notificeerMatchAfgewezen({
+        matchId: matchDetails.match_id,
+        klantId,
+        adminId,
+        abonnementId: matchDetails.aanvraag?.abonnement_id || null,
+        opdrachtId: matchDetails.opdracht?.id || null
+      });
+      console.log(`[matchService.rejectMatch] Notificaties aangemaakt [${correlationId}]`);
+    }
+  } catch (notifError) {
+    console.error(`[matchService.rejectMatch] Notificaties failed (niet-blokkerende fout) [${correlationId}]`, notifError.message);
   }
 
   console.log(`[matchService.rejectMatch] SUCCESS [${correlationId}]`);

@@ -5,6 +5,7 @@
 import { supabaseConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
 import { emailService } from './emailService.js';
+import { notificeerBetalingMislukt } from './notificatieService.js';
 import Stripe from 'stripe';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -154,6 +155,38 @@ async function sendFailureEmails(abonnement, retryCount, nextRetryDate, correlat
   }, correlationId);
   
   console.log(`📧 [RetryPayment] Failure emails sent (retry ${retryCount}) [${correlationId}]`);
+  
+  // 🔔 NOTIFICATIE: Betaling mislukt
+  console.log(`🔔 [RetryPayment] Creating notificatie for payment failure`);
+  try {
+    // Haal admin ID op
+    const adminUrl = `${supabaseConfig.url}/rest/v1/user_profiles?rol=eq.admin&select=id&limit=1`;
+    const adminResp = await httpClient(adminUrl, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`,
+      }
+    }, correlationId);
+    
+    if (adminResp.ok) {
+      const admins = await adminResp.json();
+      const adminId = admins[0]?.id;
+      
+      if (adminId) {
+        await notificeerBetalingMislukt({
+          klantId: gebruiker_id,
+          adminId,
+          abonnementId: abonnement.id,
+          retryCount,
+          nextRetryDate: retryCount < 3 ? nextRetryDate : null
+        });
+        console.log(`✅ [RetryPayment] Notificatie aangemaakt`);
+      }
+    }
+  } catch (notifError) {
+    console.error(`⚠️ [RetryPayment] Notificatie failed (niet-blokkerende fout):`, notifError.message);
+  }
 }
 
 /**
