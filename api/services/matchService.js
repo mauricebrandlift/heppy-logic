@@ -5,7 +5,7 @@
  * Gebruikt door zowel aanvraag (abonnement) als opdracht (eenmalig) flows.
  */
 
-import { supabaseConfig } from '../config/index.js';
+import { supabaseConfig, emailConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
 import { sendEmail } from './emailService.js';
 import { matchGeaccepteerdKlant } from '../templates/emails/matchGeaccepteerdKlant.js';
@@ -426,7 +426,7 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
     console.log(`[matchService.approveMatch] Sending emails [${correlationId}]`, {
       klantEmail,
       schoonmakerEmail: matchDetails.schoonmaker.email,
-      adminEmail: 'info@heppy.nl'
+      adminEmail: emailConfig.notificationsEmail
     });
     
     // 1. Email naar klant
@@ -453,7 +453,7 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
     
     // 3. Email naar admin
     await sendEmail({
-      to: 'info@heppy.nl',
+      to: emailConfig.notificationsEmail,
       subject: `🎉 Match geaccepteerd: ${schoonmakerNaam} → ${klantNaam}`,
       html: matchGeaccepteerdAdmin(emailData)
     });
@@ -616,7 +616,7 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
     console.log(`[matchService.rejectMatch] Sending emails [${correlationId}]`, {
       klantEmail,
       schoonmakerEmail: matchDetails.schoonmaker?.email,
-      adminEmail: 'info@heppy.nl'
+      adminEmail: emailConfig.notificationsEmail
     });
     
     // 1. Email naar klant - stel gerust dat we een nieuwe schoonmaker zoeken
@@ -643,7 +643,7 @@ export async function rejectMatch(matchId, reden, correlationId = 'no-correlatio
     
     // 3. Email naar admin - actie vereist!
     await sendEmail({
-      to: 'info@heppy.nl',
+      to: emailConfig.notificationsEmail,
       subject: `🚨 ACTIE: ${schoonmakerNaam} heeft match afgewezen - ${klantNaam} in ${plaats}`,
       html: schoonmakerWeigertAdmin(emailData)
     });

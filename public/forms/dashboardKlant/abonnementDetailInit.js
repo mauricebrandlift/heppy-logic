@@ -1079,6 +1079,7 @@ async function initializeOpzeggenSection(data) {
 
   const actiefState = document.querySelector('[data-abonnementen-opzeg-state="is-actief"]');
   const opgezegtState = document.querySelector('[data-abonnementen-opzeg-state="is-opgezegd"]');
+  const pauzeFormWrapper = document.querySelector('[data-abonnement-pauze-form-wrapper]');
   
   // Check of abonnement al is opgezegd
   if (data.canceled_at) {
@@ -1087,6 +1088,10 @@ async function initializeOpzeggenSection(data) {
     // Toggle states
     if (actiefState) actiefState.style.display = 'none';
     if (opgezegtState) opgezegtState.style.display = 'block';
+    if (pauzeFormWrapper) {
+      pauzeFormWrapper.style.display = 'none';
+      console.log('⏸️ [Abonnement Detail] Pauze formulier verborgen voor opgezegd abonnement (geschiedenis blijft zichtbaar)');
+    }
     
     // Vul opzeg informatie in
     const opzegInfo = document.querySelector('[data-opzeg-info]');
@@ -1098,6 +1103,12 @@ async function initializeOpzeggenSection(data) {
       const datumStr = `${dag}-${maand}-${jaar}`;
       
       let html = `<strong>Opzegdatum:</strong> ${datumStr}`;
+      
+      // Voeg ingangsweek toe als deze beschikbaar is
+      if (data.opzeg_week && data.opzeg_jaar) {
+        html += `<br><strong>Laatste schoonmaak:</strong> Week ${data.opzeg_week} (${data.opzeg_jaar})`;
+      }
+      
       if (data.cancellation_reason) {
         html += `<br><strong>Reden:</strong> ${data.cancellation_reason}`;
       }

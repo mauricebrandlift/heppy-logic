@@ -503,7 +503,7 @@ async function pauzeAbonnementHandler(req, res) {
     };
 
     await sendEmail({
-      to: 'info@heppy.nl',
+      to: emailConfig.notificationsEmail,
       subject: `Abonnement gepauzeerd - ${klant?.voornaam} ${klant?.achternaam}`,
       html: abonnementGepauzeerdAdmin(adminEmailData)
     });

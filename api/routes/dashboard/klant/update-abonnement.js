@@ -5,7 +5,7 @@
  * Valideert minimum uren en herberekent prijzen
  */
 
-import { supabaseConfig } from '../../../config/index.js';
+import { supabaseConfig, emailConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { withAuth } from '../../../utils/authMiddleware.js';
 import { fetchPricingConfiguration, formatPricingConfiguration } from '../../../services/configService.js';
@@ -385,7 +385,7 @@ async function updateAbonnementHandler(req, res) {
       };
       
       await sendEmail({
-        to: 'info@heppy-schoonmaak.nl',
+        to: emailConfig.notificationsEmail,
         subject: `Abonnement gewijzigd - ${user.voornaam} ${user.achternaam}`,
         html: abonnementGewijzigdAdmin(adminEmailData)
       }, correlationId);

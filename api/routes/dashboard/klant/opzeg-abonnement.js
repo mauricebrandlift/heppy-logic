@@ -327,7 +327,7 @@ async function opzegAbonnementHandler(req, res) {
     }
 
     // Email naar admin
-    console.log(`📧 [Opzeg Abonnement] Sending admin email to: info@heppy-schoonmaak.nl`);
+    console.log(`📧 [Opzeg Abonnement] Sending admin email to: ${emailConfig.notificationsEmail}`);
     try {
       const adminEmailData = {
         klantNaam: `${user.voornaam} ${user.achternaam}`,
@@ -346,7 +346,7 @@ async function opzegAbonnementHandler(req, res) {
       };
       
       await sendEmail({
-        to: 'info@heppy-schoonmaak.nl',
+        to: emailConfig.notificationsEmail,
         subject: `⚠️ Churn Alert - ${user.voornaam} ${user.achternaam}`,
         html: abonnementOpgezegdAdmin(adminEmailData)
       }, correlationId);
