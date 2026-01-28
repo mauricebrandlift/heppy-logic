@@ -50,6 +50,24 @@ const TYPE_ICONS = {
 };
 
 /**
+ * Type naar link tekst mapping
+ */
+const TYPE_LINK_TEKST = {
+  'nieuwe_match': 'Bekijk match',
+  'match_geaccepteerd': 'Bekijk match',
+  'match_afgewezen': 'Meer info',
+  'pauze_gestart': 'Bekijk abonnement',
+  'pauze_beeindigd': 'Bekijk abonnement',
+  'abonnement_opgezegd': 'Bekijk abonnement',
+  'nieuw_bericht': 'Lees bericht',
+  'nieuwe_opdracht': 'Bekijk opdracht',
+  'offerte_goedgekeurd': 'Bekijk offerte',
+  'betaling_mislukt': 'Bijwerken',
+  'betaling_geslaagd': 'Bekijk betaling',
+  'factuur_verzonden': 'Download factuur'
+};
+
+/**
  * Formatteer datum naar relatieve tijd (bijv. "2 uur geleden")
  */
 function formatRelativeTime(dateString) {
@@ -175,6 +193,7 @@ export async function initNotificaties(options = {}) {
       // Link functionaliteit (optioneel)
       if (linkEl && notificatie.link_url) {
         linkEl.href = notificatie.link_url;
+        linkEl.textContent = TYPE_LINK_TEKST[notificatie.type] || 'Meer info';
         linkEl.style.display = 'inline-block';
       } else if (linkEl) {
         linkEl.style.display = 'none';
