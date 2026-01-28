@@ -69,6 +69,7 @@ const TYPE_LINK_TEKST = {
 
 /**
  * Formatteer datum naar relatieve tijd (bijv. "2 uur geleden")
+ * Let op: altijd afronden naar beneden (floor)
  */
 function formatRelativeTime(dateString) {
   const date = new Date(dateString);
@@ -79,7 +80,8 @@ function formatRelativeTime(dateString) {
   const diffDays = Math.floor(diffMs / 86400000);
 
   if (diffMins < 1) return 'Zojuist';
-  if (diffMins < 60) return `${diffMins} minuten geleden`;
+  if (diffMins < 60) return `${diffMins} min geleden`;
+  if (diffHours === 0) return `${diffMins} min geleden`; // Extra check: < 1 uur blijft minuten
   if (diffHours < 24) return `${diffHours} uur geleden`;
   if (diffDays === 1) return 'Gisteren';
   if (diffDays < 7) return `${diffDays} dagen geleden`;

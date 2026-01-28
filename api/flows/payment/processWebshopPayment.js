@@ -13,6 +13,7 @@
 import { supabaseConfig, emailConfig } from '../../config/index.js';
 import { httpClient } from '../../utils/apiClient.js';
 import { sendEmail } from '../../services/emailService.js';
+import { notificeerBetalingGeslaagd } from '../../services/notificatieService.js';
 import { webshopBestellingKlant, nieuweWebshopBestellingAdmin } from '../../templates/emails/index.js';
 import { createPaidInvoice } from '../../services/invoiceService.js';
 import { createFactuurForBetaling } from '../../services/factuurService.js';
@@ -607,6 +608,34 @@ export async function processWebshopPayment({ paymentIntent, metadata, correlati
         message: 'Failed to send admin notification email',
         error: emailError.message,
         to: emailConfig.notificationsEmail
+      }));
+    }
+
+    // 🔔 NOTIFICATIE: Betaling geslaagd (webshop)
+    console.info(JSON.stringify({
+      ...logMeta,
+      level: 'INFO',
+      message: '🔔 Creating betaling_geslaagd notificatie'
+    }));
+    try {
+      await notificeerBetalingGeslaagd({
+        klantId: gebruiker.id,
+        bedragCents: paymentIntent.amount,
+        betalingType: 'webshop',
+        entityId: bestelling.id,
+        entityType: 'bestelling'
+      });
+      console.info(JSON.stringify({
+        ...logMeta,
+        level: 'INFO',
+        message: '✅ Betaling geslaagd notificatie aangemaakt'
+      }));
+    } catch (notifError) {
+      console.error(JSON.stringify({
+        ...logMeta,
+        level: 'ERROR',
+        message: '⚠️ Notificatie failed (niet-blokkerende fout)',
+        error: notifError.message
       }));
     }
 

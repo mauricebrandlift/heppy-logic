@@ -8,7 +8,7 @@ import { betalingService } from '../../services/betalingService.js';
 import { auditService } from '../../services/auditService.js';
 import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
 import { sendEmail } from '../../services/emailService.js';
-import { notificeerNieuweMatch } from '../../services/notificatieService.js';
+import { notificeerNieuweMatch, notificeerBetalingGeslaagd } from '../../services/notificatieService.js';
 import { emailConfig } from '../../config/index.js';
 import { 
   nieuweDieptereinigingAdmin, 
@@ -475,6 +475,21 @@ export async function processDieptereinigingPayment({ paymentIntent, metadata, c
       }
     } else {
       console.log(`ℹ️ [ProcessDieptereiniging] No schoonmaker assigned (auto-assignment failed), skipping schoonmaker email`);
+    }
+
+    // 🔔 NOTIFICATIE: Betaling geslaagd (dieptereiniging opdracht)
+    console.log(`🔔 [ProcessDieptereiniging] Creating betaling_geslaagd notificatie`);
+    try {
+      await notificeerBetalingGeslaagd({
+        klantId: user.id,
+        bedragCents: paymentIntent.amount,
+        betalingType: 'dieptereiniging',
+        entityId: opdracht.id,
+        entityType: 'opdracht'
+      });
+      console.log(`✅ [ProcessDieptereiniging] Betaling geslaagd notificatie aangemaakt`);
+    } catch (notifError) {
+      console.error(`⚠️ [ProcessDieptereiniging] Notificatie failed (niet-blokkerende fout):`, notifError.message);
     }
 
     console.log(`🎉 [ProcessDieptereiniging] ========== SUCCESS ========== [${correlationId}]`);

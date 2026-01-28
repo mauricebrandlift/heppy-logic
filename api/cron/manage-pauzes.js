@@ -1,5 +1,6 @@
 import { supabaseConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
+import { notificeerPauzeBeëindigd } from '../services/notificatieService.js';
 
 /**
  * Dagelijkse cron job om abonnement pauzes te beheren:
@@ -202,6 +203,34 @@ export default async function managePauzesHandler(req, res) {
               abonnementId: pauze.abonnement_id,
               pauzeId: pauze.id
             }));
+            
+            // 🔔 NOTIFICATIE: Pauze beëindigd
+            try {
+              // Haal gebruiker_id op van abonnement
+              const abonnementDataUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${pauze.abonnement_id}&select=gebruiker_id,schoonmaak_aanvraag_id`;
+              const abonnementDataResp = await httpClient(abonnementDataUrl, {
+                method: 'GET',
+                headers: {
+                  'apikey': supabaseConfig.anonKey,
+                  'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+                }
+              });
+              
+              if (abonnementDataResp.ok) {
+                const [abonnementData] = await abonnementDataResp.json();
+                if (abonnementData?.gebruiker_id) {
+                  await notificeerPauzeBeëindigd({
+                    klantId: abonnementData.gebruiker_id,
+                    abonnementId: pauze.abonnement_id,
+                    eersteSchoonmaakWeek: currentWeek,
+                    eersteSchoonmaakJaar: currentYear
+                  });
+                  console.log('✅ Pauze beëindigd notificatie aangemaakt');
+                }
+              }
+            } catch (notifError) {
+              console.error('⚠️ Notificatie failed (niet-blokkerende fout):', notifError.message);
+            }
           }
         }
       } catch (error) {

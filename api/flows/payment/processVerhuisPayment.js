@@ -8,7 +8,7 @@ import { betalingService } from '../../services/betalingService.js';
 import { auditService } from '../../services/auditService.js';
 import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
 import { sendEmail } from '../../services/emailService.js';
-import { notificeerNieuweMatch } from '../../services/notificatieService.js';
+import { notificeerNieuweMatch, notificeerBetalingGeslaagd } from '../../services/notificatieService.js';
 import { emailConfig } from '../../config/index.js';
 import { 
   nieuweVerhuisAdmin, 
@@ -487,6 +487,21 @@ export async function processVerhuisPayment({ paymentIntent, metadata, correlati
       }
     } else {
       console.log(`ℹ️ [ProcessVerhuis] No schoonmaker assigned (auto-assignment failed), skipping schoonmaker email`);
+    }
+
+    // 🔔 NOTIFICATIE: Betaling geslaagd (verhuis opdracht)
+    console.log(`🔔 [ProcessVerhuis] Creating betaling_geslaagd notificatie`);
+    try {
+      await notificeerBetalingGeslaagd({
+        klantId: user.id,
+        bedragCents: paymentIntent.amount,
+        betalingType: 'verhuis',
+        entityId: opdracht.id,
+        entityType: 'opdracht'
+      });
+      console.log(`✅ [ProcessVerhuis] Betaling geslaagd notificatie aangemaakt`);
+    } catch (notifError) {
+      console.error(`⚠️ [ProcessVerhuis] Notificatie failed (niet-blokkerende fout):`, notifError.message);
     }
 
     console.log(`🎉 [ProcessVerhuis] ========== SUCCESS ========== [${correlationId}]`);

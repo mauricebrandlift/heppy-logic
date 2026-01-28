@@ -289,3 +289,52 @@ export async function notificeerBetalingMislukt({ klantId, adminId, factuurId, b
     });
   }
 }
+
+/**
+ * Helper: Maak notificatie voor pauze beëindigd
+ */
+export async function notificeerPauzeBeëindigd({ klantId, abonnementId, eersteSchoonmaakWeek, eersteSchoonmaakJaar }) {
+  // Notificatie voor klant
+  await maakNotificatie({
+    gebruiker_id: klantId,
+    type: 'pauze_beeindigd',
+    titel: '▶️ Je abonnement is weer actief',
+    bericht: `Je pauze is afgelopen. De schoonmaak start weer in week ${eersteSchoonmaakWeek}, ${eersteSchoonmaakJaar}.`,
+    link_url: `/dashboard/klant/schoonmaak-abonnement?id=${abonnementId}`,
+    abonnement_id: abonnementId
+  });
+}
+
+/**
+ * Helper: Maak notificatie voor betaling geslaagd
+ */
+export async function notificeerBetalingGeslaagd({ klantId, bedragCents, betalingType, entityId, entityType }) {
+  const bedragText = `€${(bedragCents / 100).toFixed(2)}`;
+  
+  let titel = '✅ Betaling geslaagd';
+  let bericht = `Je betaling van ${bedragText} is succesvol verwerkt.`;
+  let linkUrl = '/dashboard/klant/facturen';
+
+  // Pas tekst aan op basis van type
+  if (betalingType === 'abonnement') {
+    bericht = `Je eerste betaling van ${bedragText} voor je schoonmaakabonnement is ontvangen. Welkom bij Heppy!`;
+    linkUrl = `/dashboard/klant/schoonmaak-abonnement?id=${entityId}`;
+  } else if (betalingType === 'dieptereiniging' || betalingType === 'verhuis') {
+    bericht = `Je betaling van ${bedragText} voor je eenmalige schoonmaak is ontvangen. We nemen contact op voor planning.`;
+    linkUrl = `/dashboard/klant/opdrachten?id=${entityId}`;
+  } else if (betalingType === 'webshop') {
+    bericht = `Je betaling van ${bedragText} voor je webshop bestelling is ontvangen. Bedankt!`;
+    linkUrl = `/dashboard/klant/bestellingen?id=${entityId}`;
+  }
+
+  await maakNotificatie({
+    gebruiker_id: klantId,
+    type: 'betaling_geslaagd',
+    titel,
+    bericht,
+    link_url: linkUrl,
+    ...(entityType === 'abonnement' && { abonnement_id: entityId }),
+    ...(entityType === 'opdracht' && { opdracht_id: entityId }),
+    ...(entityType === 'bestelling' && { bestelling_id: entityId })
+  });
+}

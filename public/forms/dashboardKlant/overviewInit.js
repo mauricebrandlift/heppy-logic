@@ -6,6 +6,7 @@
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
 import { initNotificaties } from '../shared/notificatiesInit.js';
+import { initChatStats } from '../shared/chatStatsInit.js';
 
 /**
  * Formatteer frequentie voor weergave
@@ -389,6 +390,9 @@ export async function initDashboardOverview() {
 
     // Initialiseer notificaties (bovenaan overview)
     await initNotificaties({ limit: 10 });
+
+    // Initialiseer chat statistieken
+    await initChatStats();
 
     // Populeer secties
     if (data.abonnementen) {

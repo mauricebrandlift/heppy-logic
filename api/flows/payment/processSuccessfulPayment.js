@@ -11,7 +11,7 @@ import { intakeService } from '../../services/intakeService.js';
 import { voorkeursDagdelenService } from '../../services/voorkeursDagdelenService.js';
 import * as schoonmaakMatchService from '../../services/schoonmaakMatchService.js';
 import { sendEmail } from '../../services/emailService.js';
-import { notificeerNieuweMatch } from '../../services/notificatieService.js';
+import { notificeerNieuweMatch, notificeerBetalingGeslaagd } from '../../services/notificatieService.js';
 import { emailConfig, frontendConfig } from '../../config/index.js';
 import { 
   nieuweAanvraagAdmin, 
@@ -585,6 +585,21 @@ export async function processSuccessfulPayment({ paymentIntent, metadata, correl
 
     // NOTE: Tracking wordt nu volledig door frontend simpleFunnelTracker.js afgehandeld
     // Geen backend tracking sessies meer nodig
+
+    // 🔔 NOTIFICATIE: Betaling geslaagd (eerste abonnement betaling)
+    console.log(`🔔 [ProcessSuccessfulPayment] Creating betaling_geslaagd notificatie`);
+    try {
+      await notificeerBetalingGeslaagd({
+        klantId: user.id,
+        bedragCents: paymentIntent.amount,
+        betalingType: 'abonnement',
+        entityId: abonnement.id,
+        entityType: 'abonnement'
+      });
+      console.log(`✅ [ProcessSuccessfulPayment] Betaling geslaagd notificatie aangemaakt`);
+    } catch (notifError) {
+      console.error(`⚠️ [ProcessSuccessfulPayment] Notificatie failed (niet-blokkerende fout):`, notifError.message);
+    }
 
     console.log(`🎉 [ProcessSuccessfulPayment] ========== SUCCESS ========== [${correlationId}]`);
     return { handled:true, intent: paymentIntent.id, abonnement_id: abonnement.id };
