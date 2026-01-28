@@ -5,7 +5,7 @@
  * Minimum opzegtermijn: 2 weken
  */
 
-import { supabaseConfig } from '../../../config/index.js';
+import { supabaseConfig, emailConfig } from '../../../config/index.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { withAuth } from '../../../utils/authMiddleware.js';
 import { sendEmail } from '../../../services/emailService.js';
