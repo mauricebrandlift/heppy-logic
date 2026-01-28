@@ -349,7 +349,7 @@ async function opzegAbonnementHandler(req, res) {
       
       await sendEmail({
         to: emailConfig.notificationsEmail,
-        subject: `⚠️ Churn Alert - ${user.voornaam} ${user.achternaam}`,
+        subject: `⚠️ Abonnement opgezegd - ${user.voornaam} ${user.achternaam}`,
         html: abonnementOpgezegdAdmin(adminEmailData)
       }, correlationId);
       

@@ -5,6 +5,7 @@
  */
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
+import { initNotificaties } from '../shared/notificatiesInit.js';
 
 /**
  * Formatteer frequentie voor weergave
@@ -385,6 +386,9 @@ export async function initDashboardOverview() {
     if (nameEl && data.user) {
       nameEl.textContent = data.user.voornaam || 'daar';
     }
+
+    // Initialiseer notificaties (bovenaan overview)
+    await initNotificaties({ limit: 10 });
 
     // Populeer secties
     if (data.abonnementen) {
