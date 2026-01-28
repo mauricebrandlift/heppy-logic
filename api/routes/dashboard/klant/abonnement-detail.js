@@ -161,6 +161,8 @@ async function abonnementDetailHandler(req, res) {
       bundle_amount_cents: abonnement.bundle_amount_cents,
       canceled_at: abonnement.canceled_at,
       cancellation_reason: abonnement.cancellation_reason,
+      opzeg_week: abonnement.opzeg_week,
+      opzeg_jaar: abonnement.opzeg_jaar,
       
       // Schoonmaker gegevens (combinatie van schoonmakers en user_profiles)
       schoonmaker: schoonmakerProfile ? {

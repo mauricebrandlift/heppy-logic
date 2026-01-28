@@ -220,7 +220,9 @@ async function opzegAbonnementHandler(req, res) {
       body: JSON.stringify({
         canceled_at: new Date().toISOString(),
         cancellation_reason: opzeg_reden || 'Geen reden opgegeven',
-        status: 'gestopt' // Status direct op gestopt zetten
+        status: 'gestopt', // Status direct op gestopt zetten
+        opzeg_week: parsedWeek,
+        opzeg_jaar: parsedYear
       })
     });
 
