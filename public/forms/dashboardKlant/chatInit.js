@@ -467,7 +467,20 @@ function stopPolling() {
 }
 
 /**
- * InToon loading state
+ * Initialiseer chat pagina
+ */
+export async function initChat() {
+  console.log('💬 [Chat] Initialiseren chat pagina...');
+
+  // Check auth
+  const authState = authClient.getAuthState();
+  if (!authState || !authState.access_token) {
+    console.error('[Chat] Geen auth token - redirect naar login');
+    window.location.href = '/login';
+    return;
+  }
+
+  // Toon loading state
   const loadingState = document.querySelector('[data-loading-state]');
   const contentState = document.querySelector('[data-content-state]');
   
@@ -516,20 +529,7 @@ function stopPolling() {
     });
   }
 
-  // Enter key in input (zonder Shift = verstuur)er('submit', async (e) => {
-      e.preventDefault();
-      await verstuurBericht();
-    });
-  }
-
-  if (submitBtn) {
-    submitBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      await verstuurBericht();
-    });
-  }
-
-  // Enter key in input
+  // Enter key in input (zonder Shift = verstuur)
   if (inputEl) {
     inputEl.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && !e.shiftKey) {
