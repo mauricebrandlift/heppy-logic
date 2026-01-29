@@ -238,7 +238,8 @@ async function openChat(schoonmaker) {
  */
 async function loadChatMessages(anderePersoonId, scrollToTop = true) {
   console.log(`📥 [Chat] Laden berichten met ${anderePersoonId}`);
-chatContainer = document.querySelector('[data-chat-container]');
+  
+  const chatContainer = document.querySelector('[data-chat-container]');
   const chatLoadingState = document.querySelector('[data-chat-loading-state]');
   const berichtenContainer = document.querySelector('[data-berichten-container]');
   const template = document.querySelector('[data-bericht-item]');
@@ -283,16 +284,16 @@ chatContainer = document.querySelector('[data-chat-container]');
         const chatNaam = document.querySelector('[data-chat-naam]')?.textContent || 'deze schoonmaker';
         emptyChat.textContent = `Nog geen berichten met ${chatNaam}. Stuur een bericht om de chat te starten!`;
       }
-      if (template) template.style.display = 'none';
+      if (berichtenContainer) berichtenContainer.style.display = 'none';
       return;
     }
 
     if (emptyChat) emptyChat.style.display = 'none';
     if (berichtenContainer) berichtenContainer.style.display = 'block';
 
-    // Clear bestaande items
+    // Clear bestaande items (behalve template)
     const parent = template.parentElement;
-    const existingItems = parent.querySelectorAll('[data-bericht-item]:not([data-bericht-item][data-bericht-id=""])');
+    const existingItems = parent.querySelectorAll('[data-bericht-item]:not(.bericht-item-template)');
     existingItems.forEach(item => item.remove());
 
     // Render berichten (nieuwste bovenaan, dus DESC volgorde is al goed)
