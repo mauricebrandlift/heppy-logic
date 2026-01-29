@@ -11,30 +11,36 @@ let pollingInterval = null;
 let isInitialLoad = true;
 
 /**
- * Formatteer tijd voor weergave
+ * Formatteer tijd voor schoonmaker lijst preview
+ * Vandaag = tijdstip (14:32), anders = datum (28 jan)
+ */
+function formatTimeForList(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+
+  if (isToday) {
+    // Vandaag: toon alleen tijd
+    return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  } else {
+    // Andere dag: toon datum
+    return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+  }
+}
+
+/**
+ * Formatteer tijd voor chat berichten
+ * Volledige datum + tijd
  */
 function formatTime(dateString) {
   const date = new Date(dateString);
-  const now = new Date();
-  const diffDays = Math.floor((now - date) / 86400000);
-
-  // Vandaag: toon tijd
-  if (diffDays === 0) {
-    return date.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
-  }
-  
-  // Gisteren
-  if (diffDays === 1) {
-    return 'Gisteren';
-  }
-  
-  // Deze week: toon dag
-  if (diffDays < 7) {
-    return date.toLocaleDateString('nl-NL', { weekday: 'short' });
-  }
-  
-  // Ouder: toon datum
-  return date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' });
+  return date.toLocaleString('nl-NL', { 
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
 }
 
 /**
@@ -77,10 +83,10 @@ async function loadSchoonmakersList() {
 
     console.log(`✅ [Chat] ${data.gebruikers.length} schoonmakers opgehaald`);
 
-    // Toggle empty state
+    // Toggle empty state - gebruik display style
     if (data.gebruikers.length === 0) {
       if (emptyState) emptyState.style.display = 'block';
-      template.style.display = 'none';
+      if (template) template.style.display = 'none';
       return;
     }
 
@@ -96,12 +102,13 @@ async function loadSchoonmakersList() {
       const clone = template.cloneNode(true);
       clone.setAttribute('data-schoonmaker-id', schoonmaker.id);
       clone.classList.remove('schoonmaker-item-template');
+      clone.style.display = ''; // Zichtbaar maken
 
       // Vul data in
       const fotoEl = clone.querySelector('[data-schoonmaker-foto]');
       const naamEl = clone.querySelector('[data-schoonmaker-naam]');
       const previewEl = clone.querySelector('[data-laatste-bericht-preview]');
-      const tijdEl = clone.querySelector('[data-laatste-bericht-tijd]');
+      const datumTijdEl = clone.querySelector('[data-laatste-bericht-datum-tijd]');
       const badgeEl = clone.querySelector('[data-ongelezen-badge]');
 
       if (fotoEl && schoonmaker.foto_url) {
@@ -123,11 +130,11 @@ async function loadSchoonmakersList() {
         }
       }
 
-      if (tijdEl) {
+      if (datumTijdEl) {
         if (schoonmaker.laatsteBericht) {
-          tijdEl.textContent = formatTime(schoonmaker.laatsteBericht.aangemaakt_op);
+          datumTijdEl.textContent = formatTimeForList(schoonmaker.laatsteBericht.aangemaakt_op);
         } else {
-          tijdEl.textContent = '';
+          datumTijdEl.textContent = '';
         }
       }
 
@@ -172,13 +179,13 @@ async function openChat(schoonmaker) {
   console.log(`💬 [Chat] Open chat met ${schoonmaker.id}`);
 
   currentChatUser = schoonmaker;
-
-  // Update actieve state in lijst
+ - gebruik is-active
   const allItems = document.querySelectorAll('[data-schoonmaker-list-item]');
   allItems.forEach(item => {
     if (item.getAttribute('data-schoonmaker-id') === schoonmaker.id) {
-      item.classList.add('is-actief');
+      item.classList.add('is-active');
     } else {
+      item.classList.remove('is-active
       item.classList.remove('is-actief');
     }
   });
@@ -227,7 +234,8 @@ async function openChat(schoonmaker) {
  */
 async function loadChatMessages(anderePersoonId, scrollToTop = true) {
   console.log(`📥 [Chat] Laden berichten met ${anderePersoonId}`);
-
+chatContainer = document.querySelector('[data-chat-container]');
+  const chatLoadingState = document.querySelector('[data-chat-loading-state]');
   const berichtenContainer = document.querySelector('[data-berichten-container]');
   const template = document.querySelector('[data-bericht-item]');
   const emptyChat = document.querySelector('[data-chat-leeg]');
@@ -236,6 +244,11 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     console.error('[Chat] Berichten container of template niet gevonden');
     return;
   }
+
+  // Toon loading state
+  if (chatLoadingState) chatLoadingState.style.display = 'block';
+  if (berichtenContainer) berichtenContainer.style.display = 'none';
+  if (emptyChat) emptyChat.style.display = 'none';
 
   try {
     const authState = authClient.getAuthState();
@@ -256,6 +269,9 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
 
     console.log(`✅ [Chat] ${data.berichten.length} berichten opgehaald`);
 
+    // Verberg loading state
+    if (chatLoadingState) chatLoadingState.style.display = 'none';
+
     // Toggle empty state
     if (data.berichten.length === 0) {
       if (emptyChat) {
@@ -263,11 +279,12 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
         const chatNaam = document.querySelector('[data-chat-naam]')?.textContent || 'deze schoonmaker';
         emptyChat.textContent = `Nog geen berichten met ${chatNaam}. Stuur een bericht om de chat te starten!`;
       }
-      template.style.display = 'none';
+      if (template) template.style.display = 'none';
       return;
     }
 
     if (emptyChat) emptyChat.style.display = 'none';
+    if (berichtenContainer) berichtenContainer.style.display = 'block';
 
     // Clear bestaande items
     const parent = template.parentElement;
@@ -279,6 +296,7 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
       const clone = template.cloneNode(true);
       clone.setAttribute('data-bericht-id', bericht.id);
       clone.classList.remove('bericht-item-template');
+      clone.style.display = ''; // Zichtbaar maken
 
       // Bepaal of ontvangen of verzonden
       const isOntvangen = bericht.verzender_id !== userId;
@@ -304,13 +322,7 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
       }
 
       if (tijdEl) {
-        const berichtDatum = new Date(bericht.aangemaakt_op);
-        tijdEl.textContent = berichtDatum.toLocaleString('nl-NL', { 
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit'
-        });
+        tijdEl.textContent = formatTime(bericht.aangemaakt_op);
       }
 
       // Voeg toe BOVEN aan de container (nieuwste bovenaan)
@@ -329,6 +341,14 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     }
 
   } catch (error) {
+    console.error('❌ [Chat] Error bij laden berichten:', error);
+    
+    // Verberg loading, toon error
+    if (chatLoadingState) chatLoadingState.style.display = 'none';
+    if (emptyChat) {
+      emptyChat.style.display = 'block';
+      emptyChat.textContent = 'Er ging iets mis bij het laden van berichten.';
+    }
     console.error('❌ [Chat] Error bij laden berichten:', error);
   }
 }
@@ -447,21 +467,35 @@ function stopPolling() {
 }
 
 /**
- * Initialiseer chat pagina
- */
-export async function initChat() {
-  console.log('💬 [Chat] Initialiseren chat pagina...');
+ * InToon loading state
+  const loadingState = document.querySelector('[data-loading-state]');
+  const contentState = document.querySelector('[data-content-state]');
+  
+  if (loadingState) loadingState.style.display = 'block';
+  if (contentState) contentState.style.display = 'none';
 
-  // Check auth
-  const authState = authClient.getAuthState();
-  if (!authState || !authState.access_token) {
-    console.error('[Chat] Geen auth token - redirect naar login');
-    window.location.href = '/login';
-    return;
+  try {
+    // Laad schoonmakers lijst
+    await loadSchoonmakersList();
+
+    // Verberg loading, toon content
+    if (loadingState) loadingState.style.display = 'none';
+    if (contentState) contentState.style.display = 'block';
+
+  } catch (error) {
+    console.error('❌ [Chat] Initialisatie error:', error);
+    
+    // Toon error state
+    if (loadingState) loadingState.style.display = 'none';
+    if (contentState) {
+      contentState.style.display = 'block';
+      const emptyState = document.querySelector('[data-schoonmaker-empty]');
+      if (emptyState) {
+        emptyState.style.display = 'block';
+        emptyState.textContent = 'Er ging iets mis bij het laden. Probeer de pagina te verversen.';
+      }
+    }
   }
-
-  // Laad schoonmakers lijst
-  await loadSchoonmakersList();
 
   // Setup form submit handler
   const form = document.querySelector('[data-bericht-form]');
@@ -470,6 +504,19 @@ export async function initChat() {
 
   if (form) {
     form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      await verstuurBericht();
+    });
+  }
+
+  if (submitBtn) {
+    submitBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await verstuurBericht();
+    });
+  }
+
+  // Enter key in input (zonder Shift = verstuur)er('submit', async (e) => {
       e.preventDefault();
       await verstuurBericht();
     });
