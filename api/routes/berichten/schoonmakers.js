@@ -4,7 +4,7 @@
 import { withAuth } from '../../utils/authMiddleware.js';
 import { getGekoppeldeGebruikers } from '../../services/berichtenService.js';
 
-export default withAuth(async (req, res, user) => {
+export default withAuth(async (req, res) => {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -13,7 +13,7 @@ export default withAuth(async (req, res, user) => {
   res.setHeader('X-Correlation-ID', correlationId);
 
   try {
-    const userId = user.id;
+    const userId = req.user.id;
 
     // Haal gekoppelde gebruikers op
     const gekoppeldeGebruikers = await getGekoppeldeGebruikers(userId, correlationId);

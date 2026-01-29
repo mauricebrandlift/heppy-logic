@@ -5,7 +5,7 @@ import { withAuth } from '../../utils/authMiddleware.js';
 import { verstuurBericht, markeerBerichtenAlsGelezen } from '../../services/berichtenService.js';
 import { notificeerNieuwBericht } from '../../services/notificatieService.js';
 
-export default withAuth(async (req, res, user) => {
+export default withAuth(async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -14,7 +14,7 @@ export default withAuth(async (req, res, user) => {
   res.setHeader('X-Correlation-ID', correlationId);
 
   try {
-    const userId = user.id;
+    const userId = req.user.id;
     const { ontvanger_id, inhoud, match_id, opdracht_id } = req.body;
 
     // Validatie
