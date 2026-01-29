@@ -203,11 +203,15 @@ async function openChat(schoonmaker) {
     chatNaam.textContent = `${schoonmaker.voornaam} ${schoonmaker.achternaam || ''}`.trim();
   }
 
-  // Toon chat container
+  // Toon chat container, verberg empty state
   const chatContainer = document.querySelector('[data-chat-container]');
+  const chatHeader = document.querySelector('[data-chat-header]');
+  const berichtenFormWrapper = document.querySelector('[data-berichten-form-wrapper]');
   const emptyChat = document.querySelector('[data-chat-empty]');
   
   if (chatContainer) chatContainer.style.display = 'block';
+  if (chatHeader) chatHeader.style.display = 'block';
+  if (berichtenFormWrapper) berichtenFormWrapper.style.display = 'block';
   if (emptyChat) emptyChat.style.display = 'none';
 
   // Laad berichten
@@ -486,6 +490,17 @@ export async function initChat() {
   
   if (loadingState) loadingState.style.display = 'block';
   if (contentState) contentState.style.display = 'none';
+
+  // Zet initial state rechterkant: alleen empty state zichtbaar
+  const chatContainer = document.querySelector('[data-chat-container]');
+  const chatHeader = document.querySelector('[data-chat-header]');
+  const berichtenFormWrapper = document.querySelector('[data-berichten-form-wrapper]');
+  const emptyChat = document.querySelector('[data-chat-empty]');
+  
+  if (chatContainer) chatContainer.style.display = 'none';
+  if (chatHeader) chatHeader.style.display = 'none';
+  if (berichtenFormWrapper) berichtenFormWrapper.style.display = 'none';
+  if (emptyChat) emptyChat.style.display = 'block';
 
   try {
     // Laad schoonmakers lijst
