@@ -143,6 +143,8 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
 
   const schoonmakerIdsArray = Array.from(schoonmakerIds);
   const profilesUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=in.(${schoonmakerIdsArray.join(',')})&select=id,voornaam,achternaam,email,foto_url`;
+  console.log(`🔍 [BerichtenService] Ophalen user_profiles met URL: ${profilesUrl}`);
+  
   const profilesResp = await httpClient(profilesUrl, {
     headers: {
       'apikey': supabaseConfig.anonKey,
@@ -151,10 +153,12 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
   }, correlationId);
 
   if (!profilesResp.ok) {
+    console.error(`❌ [BerichtenService] User profiles ophalen mislukt: ${profilesResp.status}`);
     return [];
   }
 
   const profiles = await profilesResp.json();
+  console.log(`📊 [BerichtenService] ${profiles.length} user_profiles gevonden`);
 
   // 4. Haal laatste bericht per schoonmaker op
   const result = [];
