@@ -47,12 +47,11 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
 
   // 1. Haal schoonmakers van abonnementen
   // Status = actief → altijd tonen
-  // Einddatum logica → 3 weken NA einddatum nog tonen
+  // Status = gestopt + canceled_at binnen 3 weken → nog tonen (voor nabetaling/contact)
   const drieWekenGeleden = new Date();
   drieWekenGeleden.setDate(drieWekenGeleden.getDate() - 21);
-  const cutoffDate = drieWekenGeleden.toISOString().split('T')[0];
 
-  const abonnementenUrl = `${supabaseConfig.url}/rest/v1/abonnementen?gebruiker_id=eq.${klantId}&select=schoonmaker_id,status,einddatum`;
+  const abonnementenUrl = `${supabaseConfig.url}/rest/v1/abonnementen?gebruiker_id=eq.${klantId}&select=schoonmaker_id,status,canceled_at`;
   const abonnementenResp = await httpClient(abonnementenUrl, {
     headers: {
       'apikey': supabaseConfig.anonKey,
@@ -67,10 +66,10 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
       if (!abonnement.schoonmaker_id) continue;
 
       // Status actief → altijd tonen
-      // Einddatum > 3 weken geleden → tonen (voor nabetaling/contact)
+      // Status gestopt + canceled_at binnen 3 weken → nog tonen (voor nabetaling/contact)
       const toonSchoonmaker = 
         abonnement.status === 'actief' ||
-        (abonnement.einddatum && abonnement.einddatum >= cutoffDate);
+        (abonnement.status === 'gestopt' && abonnement.canceled_at && new Date(abonnement.canceled_at) >= drieWekenGeleden);
 
       if (toonSchoonmaker) {
         schoonmakerIds.add(abonnement.schoonmaker_id);
@@ -211,12 +210,11 @@ async function getGekoppeldeKlantenVoorSchoonmaker(schoonmakerId, correlationId)
 
   // 1. Haal klanten van abonnementen
   // Status = actief → altijd tonen
-  // Einddatum logica → 3 weken NA einddatum nog tonen
+  // Status = gestopt + canceled_at binnen 3 weken → nog tonen
   const drieWekenGeleden = new Date();
   drieWekenGeleden.setDate(drieWekenGeleden.getDate() - 21);
-  const cutoffDate = drieWekenGeleden.toISOString().split('T')[0];
 
-  const abonnementenUrl = `${supabaseConfig.url}/rest/v1/abonnementen?schoonmaker_id=eq.${schoonmakerId}&select=gebruiker_id,status,einddatum`;
+  const abonnementenUrl = `${supabaseConfig.url}/rest/v1/abonnementen?schoonmaker_id=eq.${schoonmakerId}&select=gebruiker_id,status,canceled_at`;
   const abonnementenResp = await httpClient(abonnementenUrl, {
     headers: {
       'apikey': supabaseConfig.anonKey,
@@ -231,10 +229,10 @@ async function getGekoppeldeKlantenVoorSchoonmaker(schoonmakerId, correlationId)
       if (!abonnement.gebruiker_id) continue;
 
       // Status actief → altijd tonen
-      // Einddatum > 3 weken geleden → tonen
+      // Status gestopt + canceled_at binnen 3 weken → tonen
       const toonKlant = 
         abonnement.status === 'actief' ||
-        (abonnement.einddatum && abonnement.einddatum >= cutoffDate);
+        (abonnement.status === 'gestopt' && abonnement.canceled_at && new Date(abonnement.canceled_at) >= drieWekenGeleden);
 
       if (toonKlant) {
         klantIds.add(abonnement.gebruiker_id);
