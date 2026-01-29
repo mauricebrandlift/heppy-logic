@@ -179,14 +179,14 @@ async function openChat(schoonmaker) {
   console.log(`💬 [Chat] Open chat met ${schoonmaker.id}`);
 
   currentChatUser = schoonmaker;
- - gebruik is-active
+
+  // Update actieve state in lijst - gebruik is-active
   const allItems = document.querySelectorAll('[data-schoonmaker-list-item]');
   allItems.forEach(item => {
     if (item.getAttribute('data-schoonmaker-id') === schoonmaker.id) {
       item.classList.add('is-active');
     } else {
-      item.classList.remove('is-active
-      item.classList.remove('is-actief');
+      item.classList.remove('is-active');
     }
   });
 
