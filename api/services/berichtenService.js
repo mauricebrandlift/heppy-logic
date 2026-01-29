@@ -45,68 +45,47 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
   const schoonmakerIds = new Set();
   const schoonmakerData = {};
 
-  // 1. Haal schoonmakers van actieve abonnementen (via aanvragen)
-  const aanvragenUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_aanvragen?email=eq.(select email from user_profiles where id='${klantId}')&select=id`;
-  const aanvragenResp = await httpClient(aanvragenUrl, {
+  // 1. Haal schoonmakers van abonnementen
+  // Status = actief → altijd tonen
+  // Einddatum logica → 3 weken NA einddatum nog tonen
+  const drieWekenGeleden = new Date();
+  drieWekenGeleden.setDate(drieWekenGeleden.getDate() - 21);
+  const cutoffDate = drieWekenGeleden.toISOString().split('T')[0];
+
+  const abonnementenUrl = `${supabaseConfig.url}/rest/v1/abonnementen?gebruiker_id=eq.${klantId}&select=schoonmaker_id,status,einddatum`;
+  const abonnementenResp = await httpClient(abonnementenUrl, {
     headers: {
       'apikey': supabaseConfig.anonKey,
       'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
     }
   }, correlationId);
 
-  if (aanvragenResp.ok) {
-    const aanvragen = await aanvragenResp.json();
+  if (abonnementenResp.ok) {
+    const abonnementen = await abonnementenResp.json();
     
-    for (const aanvraag of aanvragen) {
-      // Haal matches op voor deze aanvraag
-      const matchUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?schoonmaak_aanvraag_id=eq.${aanvraag.id}&select=schoonmaker_id,abonnement_id`;
-      const matchResp = await httpClient(matchUrl, {
-        headers: {
-          'apikey': supabaseConfig.anonKey,
-          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
-        }
-      }, correlationId);
+    for (const abonnement of abonnementen) {
+      if (!abonnement.schoonmaker_id) continue;
 
-      if (matchResp.ok) {
-        const matches = await matchResp.json();
-        
-        for (const match of matches) {
-          if (!match.schoonmaker_id || !match.abonnement_id) continue;
+      // Status actief → altijd tonen
+      // Einddatum > 3 weken geleden → tonen (voor nabetaling/contact)
+      const toonSchoonmaker = 
+        abonnement.status === 'actief' ||
+        (abonnement.einddatum && abonnement.einddatum >= cutoffDate);
 
-          // Check of abonnement nog actief is
-          const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${match.abonnement_id}&select=status,einddatum`;
-          const abonnementResp = await httpClient(abonnementUrl, {
-            headers: {
-              'apikey': supabaseConfig.anonKey,
-              'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
-            }
-          }, correlationId);
-
-          if (abonnementResp.ok) {
-            const [abonnement] = await abonnementResp.json();
-            
-            // Alleen actieve abonnementen OF einddatum in toekomst
-            const isActief = abonnement?.status === 'actief' || 
-                            (abonnement?.einddatum && new Date(abonnement.einddatum) > new Date());
-            
-            if (isActief) {
-              schoonmakerIds.add(match.schoonmaker_id);
-              if (!schoonmakerData[match.schoonmaker_id]) {
-                schoonmakerData[match.schoonmaker_id] = { matchId: match.id };
-              }
-            }
-          }
+      if (toonSchoonmaker) {
+        schoonmakerIds.add(abonnement.schoonmaker_id);
+        if (!schoonmakerData[abonnement.schoonmaker_id]) {
+          schoonmakerData[abonnement.schoonmaker_id] = {};
         }
       }
     }
   }
 
-  // 2. Haal schoonmakers van recente opdrachten (laatste 3 maanden)
-  const drieWeken = new Date();
-  drieWeken.setDate(drieWeken.getDate() - 21);
-  const cutoffDate = drieWeken.toISOString().split('T')[0];
-
-  const opdrachtenUrl = `${supabaseConfig.url}/rest/v1/opdrachten?gebruiker_id=eq.${klantId}&uitgevoerd_op=gte.${cutoffDate}&select=id`;
+  // 2. Haal schoonmakers van opdrachten
+  // gewenste_datum IS NULL → altijd tonen (aanvraag in behandeling)
+  // gewenste_datum gevuld → tonen tot 3 weken NA deze datum
+  // Status check: geannuleerd → niet tonen, anders wel
+  const opdrachtenUrl = `${supabaseConfig.url}/rest/v1/opdrachten?gebruiker_id=eq.${klantId}&select=schoonmaker_id,gewenste_datum,status`;
   const opdrachtenResp = await httpClient(opdrachtenUrl, {
     headers: {
       'apikey': supabaseConfig.anonKey,
@@ -118,21 +97,31 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
     const opdrachten = await opdrachtenResp.json();
     
     for (const opdracht of opdrachten) {
-      const matchUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?opdracht_id=eq.${opdracht.id}&select=schoonmaker_id,id`;
-      const matchResp = await httpClient(matchUrl, {
-        headers: {
-          'apikey': supabaseConfig.anonKey,
-          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
-        }
-      }, correlationId);
+      if (!opdracht.schoonmaker_id) continue;
+      
+      // Geannuleerde opdrachten niet tonen
+      if (opdracht.status === 'geannuleerd') continue;
 
-      if (matchResp.ok) {
-        const [match] = await matchResp.json();
-        if (match?.schoonmaker_id) {
-          schoonmakerIds.add(match.schoonmaker_id);
-          if (!schoonmakerData[match.schoonmaker_id]) {
-            schoonmakerData[match.schoonmaker_id] = { matchId: match.id };
-          }
+      let toonSchoonmaker = false;
+
+      // gewenste_datum NULL → altijd tonen (aanvraag nog in behandeling)
+      if (!opdracht.gewenste_datum) {
+        toonSchoonmaker = true;
+      } else {
+        // gewenste_datum gevuld → tonen tot 3 weken erna
+        const gewensteDatum = new Date(opdracht.gewenste_datum);
+        const drieWekenNaOpdracht = new Date(gewensteDatum);
+        drieWekenNaOpdracht.setDate(drieWekenNaOpdracht.getDate() + 21);
+        
+        if (new Date() <= drieWekenNaOpdracht) {
+          toonSchoonmaker = true;
+        }
+      }
+
+      if (toonSchoonmaker) {
+        schoonmakerIds.add(opdracht.schoonmaker_id);
+        if (!schoonmakerData[opdracht.schoonmaker_id]) {
+          schoonmakerData[opdracht.schoonmaker_id] = {};
         }
       }
     }
@@ -198,7 +187,6 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
       foto_url: profile.foto_url,
       laatsteBericht,
       ongelezenCount,
-      matchId: schoonmakerData[profile.id]?.matchId
     });
   }
 
@@ -221,71 +209,84 @@ async function getGekoppeldeKlantenVoorSchoonmaker(schoonmakerId, correlationId)
   const klantIds = new Set();
   const klantData = {};
 
-  // 1. Haal klanten van actieve matches
-  const matchesUrl = `${supabaseConfig.url}/rest/v1/schoonmaak_match?schoonmaker_id=eq.${schoonmakerId}&select=id,schoonmaak_aanvraag_id,opdracht_id,abonnement_id`;
-  const matchesResp = await httpClient(matchesUrl, {
+  // 1. Haal klanten van abonnementen
+  // Status = actief → altijd tonen
+  // Einddatum logica → 3 weken NA einddatum nog tonen
+  const drieWekenGeleden = new Date();
+  drieWekenGeleden.setDate(drieWekenGeleden.getDate() - 21);
+  const cutoffDate = drieWekenGeleden.toISOString().split('T')[0];
+
+  const abonnementenUrl = `${supabaseConfig.url}/rest/v1/abonnementen?schoonmaker_id=eq.${schoonmakerId}&select=gebruiker_id,status,einddatum`;
+  const abonnementenResp = await httpClient(abonnementenUrl, {
     headers: {
       'apikey': supabaseConfig.anonKey,
       'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
     }
   }, correlationId);
 
-  if (!matchesResp.ok) {
-    return [];
+  if (abonnementenResp.ok) {
+    const abonnementen = await abonnementenResp.json();
+    
+    for (const abonnement of abonnementen) {
+      if (!abonnement.gebruiker_id) continue;
+
+      // Status actief → altijd tonen
+      // Einddatum > 3 weken geleden → tonen
+      const toonKlant = 
+        abonnement.status === 'actief' ||
+        (abonnement.einddatum && abonnement.einddatum >= cutoffDate);
+
+      if (toonKlant) {
+        klantIds.add(abonnement.gebruiker_id);
+        if (!klantData[abonnement.gebruiker_id]) {
+          klantData[abonnement.gebruiker_id] = {};
+        }
+      }
+    }
   }
 
-  const matches = await matchesResp.json();
+  // 2. Haal klanten van opdrachten
+  // gewenste_datum IS NULL → altijd tonen
+  // gewenste_datum gevuld → tonen tot 3 weken NA deze datum
+  // Status check: geannuleerd → niet tonen
+  const opdrachtenUrl = `${supabaseConfig.url}/rest/v1/opdrachten?schoonmaker_id=eq.${schoonmakerId}&select=gebruiker_id,gewenste_datum,status`;
+  const opdrachtenResp = await httpClient(opdrachtenUrl, {
+    headers: {
+      'apikey': supabaseConfig.anonKey,
+      'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+    }
+  }, correlationId);
 
-  for (const match of matches) {
-    let klantId = null;
+  if (opdrachtenResp.ok) {
+    const opdrachten = await opdrachtenResp.json();
+    
+    for (const opdracht of opdrachten) {
+      if (!opdracht.gebruiker_id) continue;
+      
+      // Geannuleerde opdrachten niet tonen
+      if (opdracht.status === 'geannuleerd') continue;
 
-    // Via abonnement
-    if (match.abonnement_id) {
-      const abonnementUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${match.abonnement_id}&select=gebruiker_id,status,einddatum`;
-      const abonnementResp = await httpClient(abonnementUrl, {
-        headers: {
-          'apikey': supabaseConfig.anonKey,
-          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
-        }
-      }, correlationId);
+      let toonKlant = false;
 
-      if (abonnementResp.ok) {
-        const [abonnement] = await abonnementResp.json();
-        const isActief = abonnement?.status === 'actief' || 
-                        (abonnement?.einddatum && new Date(abonnement.einddatum) > new Date());
+      // gewenste_datum NULL → altijd tonen
+      if (!opdracht.gewenste_datum) {
+        toonKlant = true;
+      } else {
+        // gewenste_datum gevuld → tonen tot 3 weken erna
+        const gewensteDatum = new Date(opdracht.gewenste_datum);
+        const drieWekenNaOpdracht = new Date(gewensteDatum);
+        drieWekenNaOpdracht.setDate(drieWekenNaOpdracht.getDate() + 21);
         
-        if (isActief) {
-          klantId = abonnement.gebruiker_id;
+        if (new Date() <= drieWekenNaOpdracht) {
+          toonKlant = true;
         }
       }
-    }
 
-    // Via opdracht (laatste 3 weken)
-    if (!klantId && match.opdracht_id) {
-      const drieWeken = new Date();
-      drieWeken.setDate(drieWeken.getDate() - 21);
-      const cutoffDate = drieWeken.toISOString().split('T')[0];
-
-      const opdrachtUrl = `${supabaseConfig.url}/rest/v1/opdrachten?id=eq.${match.opdracht_id}&uitgevoerd_op=gte.${cutoffDate}&select=gebruiker_id`;
-      const opdrachtResp = await httpClient(opdrachtUrl, {
-        headers: {
-          'apikey': supabaseConfig.anonKey,
-          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+      if (toonKlant) {
+        klantIds.add(opdracht.gebruiker_id);
+        if (!klantData[opdracht.gebruiker_id]) {
+          klantData[opdracht.gebruiker_id] = {};
         }
-      }, correlationId);
-
-      if (opdrachtResp.ok) {
-        const [opdracht] = await opdrachtResp.json();
-        if (opdracht) {
-          klantId = opdracht.gebruiker_id;
-        }
-      }
-    }
-
-    if (klantId) {
-      klantIds.add(klantId);
-      if (!klantData[klantId]) {
-        klantData[klantId] = { matchId: match.id };
       }
     }
   }
@@ -349,7 +350,6 @@ async function getGekoppeldeKlantenVoorSchoonmaker(schoonmakerId, correlationId)
       foto_url: profile.foto_url,
       laatsteBericht,
       ongelezenCount,
-      matchId: klantData[profile.id]?.matchId
     });
   }
 
