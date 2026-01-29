@@ -289,7 +289,7 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     }
 
     if (emptyChat) emptyChat.style.display = 'none';
-    if (berichtenContainer) berichtenContainer.style.display = 'block';
+    if (berichtenContainer) berichtenContainer.style.display = 'flex';
 
     // Clear bestaande items (behalve template)
     const parent = template.parentElement;
