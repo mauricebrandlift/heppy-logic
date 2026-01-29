@@ -37,10 +37,15 @@
 
 ### DATABASE SCHEMA
 - **ALWAYS read `docs/database/schema.sql`** when working with database tables
+- **MANDATORY**: Before ANY database query, SQL generation, or backend service work → READ schema.sql FIRST
+- **NEVER assume or guess** table names, column names, data types, or constraints
 - Verify table names (e.g., `schoonmaak_match` not `schoonmaak_matches`, `schoonmaak_aanvragen` not `aanvragen`)
 - Verify column names (e.g., `schoonmaak_aanvraag_id`, `opdracht_id`, `aangemaakt_op`)
+- Verify column existence (e.g., abonnementen has `canceled_at` NOT `einddatum`)
+- Verify data types (e.g., `status` is TEXT with CHECK constraints, `frequentie` is USER-DEFINED enum)
 - Verify foreign key relationships for Supabase REST API joins
-- Never guess table/column names - always check schema.sql first
+- **Always use read_file or grep_search** on schema.sql before writing database code
+- This prevents errors from non-existent columns, wrong types, or invalid enum values
 
 ### FRONTEND BASE URL
 - **NEVER hardcode Vercel URLs** in backend code or email templates

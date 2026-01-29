@@ -61,15 +61,21 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
 
   if (abonnementenResp.ok) {
     const abonnementen = await abonnementenResp.json();
+    console.log(`📊 [BerichtenService] ${abonnementen.length} abonnementen gevonden voor klant ${klantId}`);
     
     for (const abonnement of abonnementen) {
-      if (!abonnement.schoonmaker_id) continue;
+      if (!abonnement.schoonmaker_id) {
+        console.log(`⚠️ Abonnement ${abonnement.status} heeft geen schoonmaker_id`);
+        continue;
+      }
 
       // Status actief → altijd tonen
       // Status gestopt + canceled_at binnen 3 weken → nog tonen (voor nabetaling/contact)
       const toonSchoonmaker = 
         abonnement.status === 'actief' ||
         (abonnement.status === 'gestopt' && abonnement.canceled_at && new Date(abonnement.canceled_at) >= drieWekenGeleden);
+
+      console.log(`🔍 Abonnement status=${abonnement.status}, schoonmaker=${abonnement.schoonmaker_id}, tonen=${toonSchoonmaker}`);
 
       if (toonSchoonmaker) {
         schoonmakerIds.add(abonnement.schoonmaker_id);
@@ -94,6 +100,7 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
 
   if (opdrachtenResp.ok) {
     const opdrachten = await opdrachtenResp.json();
+    console.log(`📊 [BerichtenService] ${opdrachten.length} opdrachten gevonden voor klant ${klantId}`);
     
     for (const opdracht of opdrachten) {
       if (!opdracht.schoonmaker_id) continue;
@@ -128,8 +135,11 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
 
   // 3. Haal user profiles op voor alle schoonmakers
   if (schoonmakerIds.size === 0) {
+    console.log(`⚠️ [BerichtenService] Geen schoonmakers gevonden voor klant ${klantId}`);
     return [];
   }
+
+  console.log(`✅ [BerichtenService] ${schoonmakerIds.size} unieke schoonmaker(s) gevonden: ${Array.from(schoonmakerIds).join(', ')}`);
 
   const schoonmakerIdsArray = Array.from(schoonmakerIds);
   const profilesUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=in.(${schoonmakerIdsArray.join(',')})&select=id,voornaam,achternaam,email,foto_url`;
