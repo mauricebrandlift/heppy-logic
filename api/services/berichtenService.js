@@ -153,7 +153,8 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
   }, correlationId);
 
   if (!profilesResp.ok) {
-    console.error(`❌ [BerichtenService] User profiles ophalen mislukt: ${profilesResp.status}`);
+    const errorText = await profilesResp.text();
+    console.error(`❌ [BerichtenService] User profiles ophalen mislukt: ${profilesResp.status} - ${errorText}`);
     return [];
   }
 
