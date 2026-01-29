@@ -142,7 +142,7 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
   console.log(`✅ [BerichtenService] ${schoonmakerIds.size} unieke schoonmaker(s) gevonden: ${Array.from(schoonmakerIds).join(', ')}`);
 
   const schoonmakerIdsArray = Array.from(schoonmakerIds);
-  const profilesUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=in.(${schoonmakerIdsArray.join(',')})&select=id,voornaam,achternaam,email,foto_url`;
+  const profilesUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=in.(${schoonmakerIdsArray.join(',')})&select=id,voornaam,achternaam,email,profielfoto`;
   console.log(`🔍 [BerichtenService] Ophalen user_profiles met URL: ${profilesUrl}`);
   
   const profilesResp = await httpClient(profilesUrl, {
@@ -198,7 +198,7 @@ async function getGekoppeldeSchoonmakersVoorKlant(klantId, correlationId) {
       voornaam: profile.voornaam,
       achternaam: profile.achternaam,
       email: profile.email,
-      foto_url: profile.foto_url,
+      foto_url: profile.profielfoto,
       laatsteBericht,
       ongelezenCount,
     });
@@ -310,7 +310,7 @@ async function getGekoppeldeKlantenVoorSchoonmaker(schoonmakerId, correlationId)
 
   // 2. Haal user profiles op
   const klantIdsArray = Array.from(klantIds);
-  const profilesUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=in.(${klantIdsArray.join(',')})&select=id,voornaam,achternaam,email,foto_url`;
+  const profilesUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=in.(${klantIdsArray.join(',')})&select=id,voornaam,achternaam,email,profielfoto`;
   const profilesResp = await httpClient(profilesUrl, {
     headers: {
       'apikey': supabaseConfig.anonKey,
@@ -360,7 +360,7 @@ async function getGekoppeldeKlantenVoorSchoonmaker(schoonmakerId, correlationId)
       voornaam: profile.voornaam,
       achternaam: profile.achternaam,
       email: profile.email,
-      foto_url: profile.foto_url,
+      foto_url: profile.profielfoto,
       laatsteBericht,
       ongelezenCount,
     });
