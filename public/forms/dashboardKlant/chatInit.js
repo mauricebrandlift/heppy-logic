@@ -264,8 +264,14 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
 
     const userId = authState.user.id;
 
-    // Haal berichten op
-    const data = await apiClient(`/routes/berichten/chat?andere_persoon_id=${anderePersoonId}`, {
+    // Haal berichten op (bij polling: alleen nieuwe berichten)
+    let url = `/routes/berichten/chat?andere_persoon_id=${anderePersoonId}`;
+    if (laatsteBerichtId && !scrollToTop) {
+      // Bij polling: alleen berichten NA laatste bekende bericht
+      url += `&na_bericht_id=${laatsteBerichtId}`;
+    }
+    
+    const data = await apiClient(url, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${authState.access_token}`
@@ -274,11 +280,22 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
 
     console.log(`✅ [Chat] ${data.berichten.length} berichten opgehaald`);
 
+    // Bij volledige load (niet polling): clear laatste bericht ID
+    if (scrollToTop) {
+      laatsteBerichtId = null;
+    }
+
     // Verberg loading state
     if (chatLoadingState) chatLoadingState.style.display = 'none';
 
-    // Toggle empty state
-    if (data.berichten.length === 0) {
+    // Als polling en geen nieuwe berichten: return vroeg
+    if (!scrollToTop && data.berichten.length === 0) {
+      console.log('🔄 [Chat] Geen nieuwe berichten bij polling');
+      return;
+    }
+
+    // Toggle empty state (alleen bij volledige load)
+    if (scrollToTop && data.berichten.length === 0) {
       if (emptyChat) {
         emptyChat.style.display = 'block';
         const chatNaam = document.querySelector('[data-chat-naam]')?.textContent || 'deze schoonmaker';
@@ -291,10 +308,13 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     if (emptyChat) emptyChat.style.display = 'none';
     if (berichtenContainer) berichtenContainer.style.display = 'flex';
 
-    // Clear bestaande items (behalve template)
     const parent = template.parentElement;
-    const existingItems = parent.querySelectorAll('[data-bericht-item]:not(.bericht-item-template)');
-    existingItems.forEach(item => item.remove());
+    
+    // Bij volledige load: clear bestaande items, bij polling: append alleen
+    if (scrollToTop) {
+      const existingItems = parent.querySelectorAll('[data-bericht-item]:not(.bericht-item-template)');
+      existingItems.forEach(item => item.remove());
+    }
 
     // Render berichten (nieuwste bovenaan, dus DESC volgorde is al goed)
     data.berichten.forEach(bericht => {
@@ -337,6 +357,11 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
         parent.appendChild(clone);
       }
     });
+
+    // Update laatste bericht ID (eerste in array = nieuwste, want DESC order)
+    if (data.berichten.length > 0) {
+      laatsteBerichtId = data.berichten[0].id;
+    }
 
     template.style.display = 'none';
 

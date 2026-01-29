@@ -14,14 +14,14 @@ export default withAuth(async (req, res) => {
 
   try {
     const userId = req.user.id;
-    const { andere_persoon_id } = req.query;
+    const { andere_persoon_id, na_bericht_id } = req.query;
 
     if (!andere_persoon_id) {
       return res.status(400).json({ error: 'andere_persoon_id is verplicht' });
     }
 
-    // Haal berichten op
-    const berichten = await getChatBerichten(userId, andere_persoon_id, correlationId);
+    // Haal berichten op (optioneel alleen nieuwe na bepaald bericht ID)
+    const berichten = await getChatBerichten(userId, andere_persoon_id, na_bericht_id, correlationId);
 
     console.log(`✅ [ChatGet] ${berichten.length} berichten opgehaald`);
 

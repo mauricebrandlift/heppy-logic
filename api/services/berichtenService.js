@@ -380,11 +380,36 @@ async function getGekoppeldeKlantenVoorSchoonmaker(schoonmakerId, correlationId)
 
 /**
  * Haal chat berichten op tussen twee gebruikers
+ * @param {string} naBericht ID - optioneel, haal alleen berichten op NA dit bericht (voor polling)
  */
-export async function getChatBerichten(userId, anderePersoonId, correlationId = 'default') {
-  console.log(`💬 [BerichtenService] Ophalen berichten tussen ${userId} en ${anderePersoonId}`);
+export async function getChatBerichten(userId, anderePersoonId, naBerichtId = null, correlationId = 'default') {
+  console.log(`💬 [BerichtenService] Ophalen berichten tussen ${userId} en ${anderePersoonId}${naBerichtId ? ` (na ${naBerichtId})` : ''}`);
 
-  const url = `${supabaseConfig.url}/rest/v1/berichten?or=(and(verzender_id.eq.${userId},ontvanger_id.eq.${anderePersoonId}),and(verzender_id.eq.${anderePersoonId},ontvanger_id.eq.${userId}))&select=id,verzender_id,ontvanger_id,inhoud,aangemaakt_op,gelezen_op&order=aangemaakt_op.desc`;
+  let url = `${supabaseConfig.url}/rest/v1/berichten?or=(and(verzender_id.eq.${userId},ontvanger_id.eq.${anderePersoonId}),and(verzender_id.eq.${anderePersoonId},ontvanger_id.eq.${userId}))&select=id,verzender_id,ontvanger_id,inhoud,aangemaakt_op,gelezen_op&order=aangemaakt_op.desc`;
+  
+  // Als naBerichtId, filter op aangemaakt_op groter dan dat bericht
+  if (naBerichtId) {
+    // Haal eerst timestamp van het na-bericht op
+    const naBericht = await httpClient(
+      `${supabaseConfig.url}/rest/v1/berichten?id=eq.${naBerichtId}&select=aangemaakt_op`,
+      {
+        headers: {
+          'apikey': supabaseConfig.anonKey,
+          'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+        }
+      },
+      correlationId
+    );
+    
+    if (naBericht.ok) {
+      const [berichtData] = await naBericht.json();
+      if (berichtData?.aangemaakt_op) {
+        url += `&aangemaakt_op=gt.${berichtData.aangemaakt_op}`;
+      }
+    }
+  }
+  
+  url = url;
   
   const response = await httpClient(url, {
     headers: {
