@@ -9,6 +9,7 @@ import { authClient } from '../../utils/auth/authClient.js';
 let currentChatUser = null;
 let pollingInterval = null;
 let laatsteBerichtId = null; // Track laatste bericht voor polling
+let currentChatBerichten = []; // State array met alle berichten van huidige chat
 let isInitialLoad = true;
 
 /**
@@ -181,8 +182,9 @@ async function openChat(schoonmaker) {
 
   currentChatUser = schoonmaker;
   
-  // Reset laatste bericht ID voor nieuwe chat
+  // Reset state voor nieuwe chat
   laatsteBerichtId = null;
+  currentChatBerichten = [];
 
   // Update actieve state in lijst - gebruik is-active
   const allItems = document.querySelectorAll('[data-schoonmaker-list-item]');
@@ -289,14 +291,32 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     // Verberg loading state
     if (chatLoadingState) chatLoadingState.style.display = 'none';
 
-    // Als polling en geen nieuwe berichten: return vroeg
-    if (!scrollToTop && data.berichten.length === 0) {
-      console.log('🔄 [Chat] Geen nieuwe berichten bij polling');
-      return;
+    // Update state array
+    if (scrollToTop) {
+      // Volledige load: vervang hele array
+      currentChatBerichten = data.berichten;
+    } else {
+      // Polling: merge nieuwe berichten (filter duplicaten)
+      const nieuweIds = new Set(currentChatBerichten.map(b => b.id));
+      const echteNieuweBerichten = data.berichten.filter(b => !nieuweIds.has(b.id));
+      
+      if (echteNieuweBerichten.length === 0) {
+        console.log('🔄 [Chat] Geen nieuwe berichten bij polling');
+        return;
+      }
+      
+      // Voeg nieuwe berichten toe aan BEGIN van array (DESC order = nieuwste eerst)
+      currentChatBerichten = [...echteNieuweBerichten, ...currentChatBerichten];
+      console.log(`✅ [Chat] ${echteNieuweBerichten.length} nieuwe berichten toegevoegd`);
     }
 
-    // Toggle empty state (alleen bij volledige load)
-    if (scrollToTop && data.berichten.length === 0) {
+    // Update laatste bericht ID
+    if (currentChatBerichten.length > 0) {
+      laatsteBerichtId = currentChatBerichten[0].id;
+    }
+
+    // Toggle empty state
+    if (currentChatBerichten.length === 0) {
       if (emptyChat) {
         emptyChat.style.display = 'block';
         const chatNaam = document.querySelector('[data-chat-naam]')?.textContent || 'deze schoonmaker';
@@ -311,15 +331,13 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
 
     const parent = template.parentElement;
     
-    // Bij volledige load: clear bestaande items, bij polling: append alleen
-    if (scrollToTop) {
-      const existingItems = parent.querySelectorAll('[data-bericht-item]:not(.bericht-item-template)');
-      existingItems.forEach(item => item.remove());
-    }
+    // ALTIJD clear en re-render vanuit state array (garantie uniciteit)
+    const existingItems = parent.querySelectorAll('[data-bericht-item]:not(.bericht-item-template)');
+    existingItems.forEach(item => item.remove());
 
-    // Backend geeft berichten in DESC order (nieuwste eerst)
-    // Reverse om van oud→nieuw te loopen, zodat nieuwste bovenaan komt
-    const berichtenOudNaarNieuw = [...data.berichten].reverse();
+    // Render vanuit state array (al in DESC order: nieuwste eerst)
+    // Reverse om van oud→nieuw te loopen, insertBefore zorgt dat nieuwste bovenaan komt
+    const berichtenOudNaarNieuw = [...currentChatBerichten].reverse();
     
     berichtenOudNaarNieuw.forEach(bericht => {
       const clone = template.cloneNode(true);
@@ -367,14 +385,9 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
       }
     });
 
-    // Update laatste bericht ID (eerste in array = nieuwste, want DESC order)
-    if (data.berichten.length > 0) {
-      laatsteBerichtId = data.berichten[0].id;
-    }
-
     template.style.display = 'none';
 
-    // Scroll naar boven (nieuwste bericht)
+    // Scroll naar boven (nieuwste bericht) alleen bij eerste load
     if (scrollToTop && berichtenContainer) {
       berichtenContainer.scrollTop = 0;
     }
