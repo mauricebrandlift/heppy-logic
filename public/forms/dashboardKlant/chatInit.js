@@ -329,15 +329,20 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     if (emptyChat) emptyChat.style.display = 'none';
     if (berichtenContainer) berichtenContainer.style.display = 'flex';
 
-    // ALTIJD clear en re-render vanuit state array (garantie uniciteit)
-    const existingItems = berichtenContainer.querySelectorAll('[data-bericht-item]:not(.bericht-item-template)');
-    existingItems.forEach(item => item.remove());
+    // Bij eerste load: clear alles en render volledig
+    // Bij polling: render alleen nieuwe berichten (geen clear!)
+    if (scrollToTop) {
+      const existingItems = berichtenContainer.querySelectorAll('[data-bericht-item]:not(.bericht-item-template)');
+      existingItems.forEach(item => item.remove());
+    }
 
-    // Render vanuit state array (al in DESC order: nieuwste eerst)
-    // Reverse om van oud→nieuw te loopen, appendChild zorgt voor juiste volgorde met template onderaan
-    const berichtenOudNaarNieuw = [...currentChatBerichten].reverse();
+    // Bepaal welke berichten te renderen
+    const teRenderen = scrollToTop ? currentChatBerichten : data.berichten;
     
-    berichtenOudNaarNieuw.forEach(bericht => {
+    // Render berichten backwards (backend geeft DESC: nieuwste eerst)
+    // Loop van achter naar voren, prepend() zorgt dat nieuwste bovenaan komt
+    for (let i = teRenderen.length - 1; i >= 0; i--) {
+      const bericht = teRenderen[i];
       const clone = template.cloneNode(true);
       clone.setAttribute('data-bericht-id', bericht.id);
       clone.classList.remove('bericht-item-template');
@@ -370,10 +375,10 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
         tijdEl.textContent = formatTime(bericht.aangemaakt_op);
       }
 
-      // Voeg toe aan container, VOOR de template
-      // Template blijft onderaan door bericht-item-template class
-      berichtenContainer.insertBefore(clone, template);
-    });
+      // Gebruik prepend om aan BEGIN van container toe te voegen
+      // Loop backwards zodat nieuwste bovenaan komt
+      berichtenContainer.prepend(clone);
+    }
 
     template.style.display = 'none';
 
