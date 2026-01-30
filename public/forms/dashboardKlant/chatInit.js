@@ -254,10 +254,12 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     return;
   }
 
-  // Toon loading state
-  if (chatLoadingState) chatLoadingState.style.display = 'block';
-  if (berichtenContainer) berichtenContainer.style.display = 'none';
-  if (emptyChat) emptyChat.style.display = 'none';
+  // Toon loading state ALLEEN bij eerste load, niet bij polling
+  if (scrollToTop) {
+    if (chatLoadingState) chatLoadingState.style.display = 'block';
+    if (berichtenContainer) berichtenContainer.style.display = 'none';
+    if (emptyChat) emptyChat.style.display = 'none';
+  }
 
   try {
     const authState = authClient.getAuthState();
