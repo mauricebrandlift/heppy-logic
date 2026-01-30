@@ -5,6 +5,7 @@
  */
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
+import { showGlobalError, clearGlobalError } from '../ui/formUi.js';
 
 let currentChatUser = null;
 let pollingInterval = null;
@@ -422,10 +423,20 @@ async function verstuurBericht() {
 
   console.log(`📤 [Chat] Verstuur bericht naar ${currentChatUser.id}`);
 
+  const formWrapper = document.querySelector('[data-berichten-form-wrapper]');
+  if (!formWrapper) {
+    console.error('[Chat] Form wrapper niet gevonden');
+    return;
+  }
+
+  // Clear eventuele oude errors
+  clearGlobalError(formWrapper);
+
   try {
     const authState = authClient.getAuthState();
     if (!authState?.access_token) {
       console.error('[Chat] Geen auth token');
+      showGlobalError(formWrapper, 'Je bent uitgelogd. Log opnieuw in om berichten te versturen.');
       return;
     }
 
@@ -455,7 +466,7 @@ async function verstuurBericht() {
 
   } catch (error) {
     console.error('❌ [Chat] Error bij versturen bericht:', error);
-    alert('Er ging iets mis bij het versturen van je bericht. Probeer het opnieuw.');
+    showGlobalError(formWrapper, 'Er ging iets mis bij het versturen van je bericht. Probeer het opnieuw.');
   }
 }
 
