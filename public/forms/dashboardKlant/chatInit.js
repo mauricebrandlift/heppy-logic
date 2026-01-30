@@ -143,7 +143,7 @@ async function loadSchoonmakersList() {
       if (badgeEl) {
         if (schoonmaker.ongelezenCount > 0) {
           badgeEl.textContent = schoonmaker.ongelezenCount;
-          badgeEl.style.display = 'block';
+          badgeEl.style.display = 'flex';
         } else {
           badgeEl.style.display = 'none';
         }
@@ -372,17 +372,9 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
         tijdEl.textContent = formatTime(bericht.aangemaakt_op);
       }
 
-      // Voeg toe BOVEN aan de container (nieuwste bovenaan)
-      // Zoek het eerste niet-template item, of voeg toe voor template
-      const firstNonTemplateChild = Array.from(parent.children).find(
-        child => !child.classList.contains('bericht-item-template')
-      );
-      
-      if (firstNonTemplateChild) {
-        parent.insertBefore(clone, firstNonTemplateChild);
-      } else {
-        parent.insertBefore(clone, template);
-      }
+      // Voeg altijd toe VOOR de template (template blijft onderaan)
+      // Dit zorgt dat nieuwste berichten bovenaan komen (door reverse loop)
+      parent.insertBefore(clone, template);
     });
 
     template.style.display = 'none';
