@@ -317,8 +317,11 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
       existingItems.forEach(item => item.remove());
     }
 
-    // Render berichten (nieuwste bovenaan, dus DESC volgorde is al goed)
-    data.berichten.forEach(bericht => {
+    // Backend geeft berichten in DESC order (nieuwste eerst)
+    // Reverse om van oud→nieuw te loopen, zodat nieuwste bovenaan komt
+    const berichtenOudNaarNieuw = [...data.berichten].reverse();
+    
+    berichtenOudNaarNieuw.forEach(bericht => {
       const clone = template.cloneNode(true);
       clone.setAttribute('data-bericht-id', bericht.id);
       clone.classList.remove('bericht-item-template');
