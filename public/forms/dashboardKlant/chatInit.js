@@ -8,6 +8,7 @@ import { authClient } from '../../utils/auth/authClient.js';
 
 let currentChatUser = null;
 let pollingInterval = null;
+let laatsteBerichtId = null; // Track laatste bericht voor polling
 let isInitialLoad = true;
 
 /**
