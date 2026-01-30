@@ -329,14 +329,12 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     if (emptyChat) emptyChat.style.display = 'none';
     if (berichtenContainer) berichtenContainer.style.display = 'flex';
 
-    const parent = template.parentElement;
-    
     // ALTIJD clear en re-render vanuit state array (garantie uniciteit)
-    const existingItems = parent.querySelectorAll('[data-bericht-item]:not(.bericht-item-template)');
+    const existingItems = berichtenContainer.querySelectorAll('[data-bericht-item]:not(.bericht-item-template)');
     existingItems.forEach(item => item.remove());
 
     // Render vanuit state array (al in DESC order: nieuwste eerst)
-    // Reverse om van oud→nieuw te loopen, insertBefore zorgt dat nieuwste bovenaan komt
+    // Reverse om van oud→nieuw te loopen, appendChild zorgt voor juiste volgorde met template onderaan
     const berichtenOudNaarNieuw = [...currentChatBerichten].reverse();
     
     berichtenOudNaarNieuw.forEach(bericht => {
@@ -372,9 +370,9 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
         tijdEl.textContent = formatTime(bericht.aangemaakt_op);
       }
 
-      // Voeg altijd toe VOOR de template (template blijft onderaan)
-      // Dit zorgt dat nieuwste berichten bovenaan komen (door reverse loop)
-      parent.insertBefore(clone, template);
+      // Voeg toe aan container, VOOR de template
+      // Template blijft onderaan door bericht-item-template class
+      berichtenContainer.insertBefore(clone, template);
     });
 
     template.style.display = 'none';
