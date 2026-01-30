@@ -352,10 +352,15 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
       }
 
       // Voeg toe BOVEN aan de container (nieuwste bovenaan)
-      if (parent.firstChild && parent.firstChild !== template) {
-        parent.insertBefore(clone, parent.firstChild);
+      // Zoek het eerste niet-template item, of voeg toe voor template
+      const firstNonTemplateChild = Array.from(parent.children).find(
+        child => !child.classList.contains('bericht-item-template')
+      );
+      
+      if (firstNonTemplateChild) {
+        parent.insertBefore(clone, firstNonTemplateChild);
       } else {
-        parent.appendChild(clone);
+        parent.insertBefore(clone, template);
       }
     });
 
