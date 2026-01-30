@@ -180,6 +180,9 @@ async function openChat(schoonmaker) {
   console.log(`💬 [Chat] Open chat met ${schoonmaker.id}`);
 
   currentChatUser = schoonmaker;
+  
+  // Reset laatste bericht ID voor nieuwe chat
+  laatsteBerichtId = null;
 
   // Update actieve state in lijst - gebruik is-active
   const allItems = document.querySelectorAll('[data-schoonmaker-list-item]');
@@ -280,11 +283,6 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     });
 
     console.log(`✅ [Chat] ${data.berichten.length} berichten opgehaald`);
-
-    // Bij volledige load (niet polling): clear laatste bericht ID
-    if (scrollToTop) {
-      laatsteBerichtId = null;
-    }
 
     // Verberg loading state
     if (chatLoadingState) chatLoadingState.style.display = 'none';
