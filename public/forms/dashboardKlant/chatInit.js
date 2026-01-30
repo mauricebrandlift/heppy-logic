@@ -338,7 +338,21 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     }
 
     // Bepaal welke berichten te renderen
-    const teRenderen = scrollToTop ? currentChatBerichten : data.berichten;
+    let teRenderen;
+    if (scrollToTop) {
+      // Eerste load: render ALLE berichten
+      teRenderen = currentChatBerichten;
+    } else {
+      // Polling: filter alleen berichten die NOG NIET in DOM zitten
+      teRenderen = data.berichten.filter(bericht => {
+        return !berichtenContainer.querySelector(`[data-bericht-id="${bericht.id}"]`);
+      });
+    }
+    
+    // Als geen nieuwe berichten bij polling, skip render
+    if (!scrollToTop && teRenderen.length === 0) {
+      return;
+    }
     
     // Render berichten backwards (backend geeft DESC: nieuwste eerst)
     // Loop van achter naar voren, prepend() zorgt dat nieuwste bovenaan komt
