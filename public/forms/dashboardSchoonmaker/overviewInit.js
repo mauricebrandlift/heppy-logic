@@ -249,6 +249,14 @@ export async function initSchoonmakerOverview() {
     return;
   }
 
+  // ⚠️ BELANGRIJK: Check authenticatie EERST voordat we iets doen
+  // Dit voorkomt race conditions tijdens redirect
+  const authState = authClient.getAuthState();
+  if (!authState || !authState.access_token) {
+    console.warn('⚠️ [Schoonmaker Overview] Geen authenticatie, stoppen met initialisatie');
+    return; // Stop direct, laat dashboardAuth.js de redirect afhandelen
+  }
+
   // Check auth
   const user = await authClient.getCurrentUser();
   if (!user) {
@@ -277,7 +285,10 @@ export async function initSchoonmakerOverview() {
     console.log('🔄 [Schoonmaker Overview] Fetching aanvragen...');
     
     const response = await apiClient('/routes/dashboard/schoonmaker/aanvragen', {
-      method: 'GET'
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authState.access_token}`
+      }
     });
 
     if (!response.success) {
