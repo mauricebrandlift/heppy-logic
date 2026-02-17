@@ -250,7 +250,7 @@ export async function initSchoonmakerOverview() {
   }
 
   // Check auth
-  const user = authClient.getCurrentUser();
+  const user = await authClient.getCurrentUser();
   if (!user) {
     console.error('[Schoonmaker Overview] Geen gebruiker ingelogd');
     showError('Je bent niet ingelogd. Log opnieuw in.');
