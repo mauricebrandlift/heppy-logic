@@ -340,24 +340,25 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
     // Bepaal welke berichten te renderen
     let teRenderen;
     if (scrollToTop) {
-      // Eerste load: render ALLE berichten
-      teRenderen = currentChatBerichten;
+      // Eerste load: render ALLE berichten (reversed voor oudste→nieuwste)
+      teRenderen = [...currentChatBerichten].reverse();
     } else {
       // Polling: filter alleen berichten die NOG NIET in DOM zitten
-      teRenderen = data.berichten.filter(bericht => {
+      const nieuweInDom = data.berichten.filter(bericht => {
         return !berichtenContainer.querySelector(`[data-bericht-id="${bericht.id}"]`);
       });
+      // Reverse voor oudste→nieuwste (zodat append() werkt)
+      teRenderen = [...nieuweInDom].reverse();
     }
     
     // Als geen nieuwe berichten bij polling, skip render
-    if (!scrollToTop && teRenderen.length === 0) {
+    if (teRenderen.length === 0) {
       return;
     }
     
-    // Render berichten backwards (backend geeft DESC: nieuwste eerst)
-    // Loop van achter naar voren, prepend() zorgt dat nieuwste bovenaan komt
-    for (let i = teRenderen.length - 1; i >= 0; i--) {
-      const bericht = teRenderen[i];
+    // Render berichten (array is al reversed: oudste eerst)
+    // append() voegt toe aan EIND, dus nieuwste komt onderaan
+    teRenderen.forEach(bericht => {
       const clone = template.cloneNode(true);
       clone.setAttribute('data-bericht-id', bericht.id);
       clone.classList.remove('bericht-item-template');
@@ -390,16 +391,16 @@ async function loadChatMessages(anderePersoonId, scrollToTop = true) {
         tijdEl.textContent = formatTime(bericht.aangemaakt_op);
       }
 
-      // Gebruik prepend om aan BEGIN van container toe te voegen
-      // Loop backwards zodat nieuwste bovenaan komt
-      berichtenContainer.prepend(clone);
-    }
+      // Gebruik append om aan EIND van container toe te voegen
+      // Nieuwste berichten komen onderaan (zoals WhatsApp)
+      berichtenContainer.append(clone);
+    });
 
     template.style.display = 'none';
 
-    // Scroll naar boven (nieuwste bericht) alleen bij eerste load
+    // Scroll naar beneden (nieuwste bericht onderaan)
     if (scrollToTop && berichtenContainer) {
-      berichtenContainer.scrollTop = 0;
+      berichtenContainer.scrollTop = berichtenContainer.scrollHeight;
     }
 
   } catch (error) {

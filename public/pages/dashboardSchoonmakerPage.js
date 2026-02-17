@@ -4,6 +4,7 @@
  * Zorgt voor authenticatie en laadt relevante functies
  */
 import { initDashboardAuth } from '../utils/auth/dashboardAuth.js';
+import { initSchoonmakerOverview } from '../forms/dashboardSchoonmaker/overviewInit.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🧹 [SchoonmakerDashboard] Pagina geladen');
@@ -18,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!user) return;
 
   // Initialiseer dashboard specifieke functies
-  // Dit is waar je de verschillende functies voor het schoonmaker dashboard initialiseert
   initSchoonmakerDashboardFuncties();
 
   console.log('✅ [SchoonmakerDashboard] Initialisatie voltooid');
@@ -26,16 +26,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 /**
  * Initialisatie van schoonmaker dashboard functies
- * Dit kan later worden uitgebreid met specifieke functionaliteiten
+ * Detecteert welke pagina actief is en initialiseert de juiste module
  */
 function initSchoonmakerDashboardFuncties() {
-  // Deze functie kan later worden uitgebreid wanneer er meer 
-  // schoonmaker-specifieke functionaliteit moet worden geïnitialiseerd
+  // Check welke dashboard pagina actief is
+  const overviewPage = document.querySelector('[data-dashboard-page="overview"]');
   
-  // Voorbeeld: data ophalen voor schoonmakerdashboard
-  const dashboardContent = document.querySelector('[data-dashboard="schoonmaker-content"]');
-  if (dashboardContent) {
-    // Hier kan je bijvoorbeeld een API call doen om schoonmakergegevens op te halen
-    // en deze in het dashboard te tonen
+  if (overviewPage) {
+    console.log('📊 [SchoonmakerDashboard] Overview pagina gedetecteerd');
+    initSchoonmakerOverview();
+    return;
   }
+  
+  // Andere pagina's kunnen hier worden toegevoegd:
+  // const accountPage = document.querySelector('[data-dashboard-page="account"]');
+  // const chatPage = document.querySelector('[data-dashboard-page="chat"]');
+  // etc.
+  
+  console.log('ℹ️ [SchoonmakerDashboard] Geen specifieke pagina gedetecteerd, standaard init');
 }
