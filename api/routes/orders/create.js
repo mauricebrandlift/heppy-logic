@@ -10,12 +10,9 @@
  * 4. Update product stock (optioneel)
  * 5. Verstuur bevestigingsmail (toekomstig)
  */
-import { supabaseConfig } from '../../config/index.js';
+import { supabaseConfig, stripeConfig } from '../../config/index.js';
 import { httpClient } from '../../utils/apiClient.js';
 import { withAuth } from '../../utils/authMiddleware.js';
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 async function handler(req, res) {
   // CORS headers
@@ -73,8 +70,34 @@ async function handler(req, res) {
       itemCount: items.length
     }));
 
-    // Stap 1: Verifieer payment intent bij Stripe
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    // Stap 1: Verifieer payment intent bij Stripe via REST API
+    const { secretKey } = stripeConfig || {};
+    if (!secretKey) {
+      throw new Error('Stripe secret key not configured');
+    }
+
+    const stripeResponse = await fetch(`https://api.stripe.com/v1/payment_intents/${encodeURIComponent(paymentIntentId)}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${secretKey}`,
+      },
+    });
+
+    const paymentIntent = await stripeResponse.json();
+
+    if (!stripeResponse.ok) {
+      console.warn(JSON.stringify({
+        ...logMeta,
+        level: 'WARN',
+        message: 'Stripe API error bij ophalen payment intent',
+        error: paymentIntent?.error?.message
+      }));
+      return res.status(400).json({
+        correlationId: logMeta.correlationId,
+        error: 'Kon betaling niet verifiëren',
+        code: 'STRIPE_API_ERROR'
+      });
+    }
 
     if (paymentIntent.status !== 'succeeded') {
       console.warn(JSON.stringify({

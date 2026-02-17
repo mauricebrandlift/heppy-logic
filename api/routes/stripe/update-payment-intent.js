@@ -1,7 +1,6 @@
 // api/routes/stripe/update-payment-intent.js
 // Update een bestaande Payment Intent metadata
 
-import Stripe from 'stripe';
 import { stripeConfig } from '../../config/index.js';
 import { handleErrorResponse } from '../../utils/errorHandler.js';
 
@@ -45,8 +44,6 @@ export default async function handler(req, res) {
       throw new Error('Stripe secret key not configured');
     }
 
-    const stripe = new Stripe(secretKey, { apiVersion: '2023-10-16' });
-
     console.log(JSON.stringify({
       level: 'INFO',
       correlationId,
@@ -56,10 +53,27 @@ export default async function handler(req, res) {
       metadataKeys: Object.keys(metadata)
     }));
 
-    // Update payment intent metadata
-    const paymentIntent = await stripe.paymentIntents.update(paymentIntentId, {
-      metadata
+    // Update payment intent metadata via REST API
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(metadata)) {
+      params.set(`metadata[${key}]`, typeof value === 'string' ? value : JSON.stringify(value));
+    }
+
+    const response = await fetch(`https://api.stripe.com/v1/payment_intents/${encodeURIComponent(paymentIntentId)}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${secretKey}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: params.toString(),
     });
+
+    const paymentIntent = await response.json();
+
+    if (!response.ok) {
+      const errorMsg = paymentIntent?.error?.message || 'Stripe API error';
+      throw new Error(errorMsg);
+    }
 
     console.log(JSON.stringify({
       level: 'INFO',

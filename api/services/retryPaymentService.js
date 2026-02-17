@@ -6,9 +6,6 @@ import { supabaseConfig } from '../config/index.js';
 import { httpClient } from '../utils/apiClient.js';
 import { emailService } from './emailService.js';
 import { notificeerBetalingMislukt } from './notificatieService.js';
-import Stripe from 'stripe';
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 /**
  * Calculate next retry date based on retry count
