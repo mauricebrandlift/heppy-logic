@@ -338,3 +338,19 @@ export async function notificeerBetalingGeslaagd({ klantId, bedragCents, betalin
     ...(entityType === 'bestelling' && { bestelling_id: entityId })
   });
 }
+
+/**
+ * Helper: Maak notificatie voor factuur verzonden
+ */
+export async function notificeerFactuurVerzonden({ klantId, factuurId, factuurNummer, bedragCents }) {
+  const bedragText = `€${(bedragCents / 100).toFixed(2)}`;
+  
+  await maakNotificatie({
+    gebruiker_id: klantId,
+    type: 'factuur_verzonden',
+    titel: '📄 Factuur beschikbaar',
+    bericht: `Factuur ${factuurNummer} (${bedragText}) is beschikbaar. Je kunt deze downloaden in je dashboard.`,
+    link_url: '/dashboard/klant/facturen',
+    factuur_id: factuurId
+  });
+}
