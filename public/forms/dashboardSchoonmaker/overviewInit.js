@@ -276,7 +276,7 @@ export async function initSchoonmakerOverview() {
     // === HAAL AANVRAGEN OP ===
     console.log('🔄 [Schoonmaker Overview] Fetching aanvragen...');
     
-    const response = await apiClient('/api/routes/dashboard/schoonmaker/aanvragen', {
+    const response = await apiClient('/routes/dashboard/schoonmaker/aanvragen', {
       method: 'GET'
     });
 
