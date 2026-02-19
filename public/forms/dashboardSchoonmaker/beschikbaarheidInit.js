@@ -98,8 +98,8 @@ function populateBeschikbaarheid(beschikbaarheidPerDag) {
       uurStatusMap[item.uur] = item.status;
     });
 
-    // Render uren van 07:00 tot 21:00 (15 uren)
-    for (let hour = 7; hour <= 21; hour++) {
+    // Render uren van 08:00 tot 19:00 (12 uren)
+    for (let hour = 8; hour <= 19; hour++) {
       const uurFormatted = `${hour.toString().padStart(2, '0')}:00:00`;
       const uurClone = uurTemplate.cloneNode(true);
       
