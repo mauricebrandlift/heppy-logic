@@ -5,6 +5,7 @@
  */
 import { initDashboardAuth } from '../utils/auth/dashboardAuth.js';
 import { initSchoonmakerOverview } from '../forms/dashboardSchoonmaker/overviewInit.js';
+import { initBeschikbaarheidOverview } from '../forms/dashboardSchoonmaker/beschikbaarheidInit.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🧹 [SchoonmakerDashboard] Pagina geladen');
@@ -35,6 +36,7 @@ function initSchoonmakerDashboardFuncties() {
   if (overviewPage) {
     console.log('📊 [SchoonmakerDashboard] Overview pagina gedetecteerd');
     initSchoonmakerOverview();
+    initBeschikbaarheidOverview();
     return;
   }
   
