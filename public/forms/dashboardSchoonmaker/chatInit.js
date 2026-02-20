@@ -60,9 +60,9 @@ function truncateText(text, maxLength = 50) {
 async function loadKlantenLijst() {
   console.log('📋 [Chat] Laden klanten lijst...');
 
-  const listContainer = document.querySelector('[data-schoonmaker-list-container]');
-  const emptyState = document.querySelector('[data-schoonmaker-empty]');
-  const template = document.querySelector('[data-schoonmaker-list-item]');
+  const listContainer = document.querySelector('[data-klant-list-container]');
+  const emptyState = document.querySelector('[data-klant-empty]');
+  const template = document.querySelector('[data-klant-list-item]');
 
   if (!listContainer || !template) {
     console.error('[Chat] List container of template niet gevonden');
@@ -97,19 +97,19 @@ async function loadKlantenLijst() {
 
     // Clear bestaande items
     const parent = template.parentElement;
-    const existingItems = parent.querySelectorAll('[data-schoonmaker-list-item]:not([data-schoonmaker-list-item][data-schoonmaker-id=""])');
+    const existingItems = parent.querySelectorAll('[data-klant-list-item]:not([data-klant-list-item][data-klant-id=""])');
     existingItems.forEach(item => item.remove());
 
     // Render klanten
     data.gebruikers.forEach((klant, index) => {
       const clone = template.cloneNode(true);
-      clone.setAttribute('data-schoonmaker-id', klant.id);
-      clone.classList.remove('schoonmaker-item-template');
+      clone.setAttribute('data-klant-id', klant.id);
+      clone.classList.remove('klant-item-template');
       clone.style.display = ''; // Zichtbaar maken
 
       // Vul data in
-      const fotoEl = clone.querySelector('[data-schoonmaker-foto]');
-      const naamEl = clone.querySelector('[data-schoonmaker-naam]');
+      const fotoEl = clone.querySelector('[data-klant-foto]');
+      const naamEl = clone.querySelector('[data-klant-naam]');
       const previewEl = clone.querySelector('[data-laatste-bericht-preview]');
       const datumTijdEl = clone.querySelector('[data-laatste-bericht-datum-tijd]');
       const badgeEl = clone.querySelector('[data-ongelezen-badge]');
@@ -188,9 +188,9 @@ async function openChat(klant) {
   currentChatBerichten = [];
 
   // Update actieve state in lijst - gebruik is-active
-  const allItems = document.querySelectorAll('[data-schoonmaker-list-item]');
+  const allItems = document.querySelectorAll('[data-klant-list-item]');
   allItems.forEach(item => {
-    if (item.getAttribute('data-schoonmaker-id') === klant.id) {
+    if (item.getAttribute('data-klant-id') === klant.id) {
       item.classList.add('is-active');
     } else {
       item.classList.remove('is-active');
@@ -231,7 +231,7 @@ async function openChat(klant) {
   await markAsRead(klant.id);
 
   // Update ongelezen badge naar 0
-  const listItem = document.querySelector(`[data-schoonmaker-id="${klant.id}"]`);
+  const listItem = document.querySelector(`[data-klant-id="${klant.id}"]`);
   if (listItem) {
     const badge = listItem.querySelector('[data-ongelezen-badge]');
     if (badge) {
@@ -585,7 +585,7 @@ export async function initChat() {
     if (loadingState) loadingState.style.display = 'none';
     if (contentState) {
       contentState.style.display = 'block';
-      const emptyState = document.querySelector('[data-schoonmaker-empty]');
+      const emptyState = document.querySelector('[data-klant-empty]');
       if (emptyState) {
         emptyState.style.display = 'block';
         emptyState.textContent = 'Er ging iets mis bij het laden. Probeer de pagina te verversen.';
