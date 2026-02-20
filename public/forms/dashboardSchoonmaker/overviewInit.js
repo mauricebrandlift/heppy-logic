@@ -59,6 +59,42 @@ function formatDatum(dateString) {
 }
 
 /**
+ * Bereken ISO weeknummer uit datum
+ */
+function getISOWeek(date) {
+  if (!date) return null;
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 4 - (d.getDay() || 7));
+  const yearStart = new Date(d.getFullYear(), 0, 1);
+  const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  return weekNum;
+}
+
+/**
+ * Formatteer startdatum voor abonnement: "2025, week: 3"
+ */
+function formatStartdatum(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  const year = date.getFullYear();
+  const week = getISOWeek(dateString);
+  return `${year}, week: ${week}`;
+}
+
+/**
+ * Formatteer gewenste datum voor eenmalig: "dag, maand, jaar"
+ */
+function formatGewensteDatum(dateString) {
+  if (!dateString) return '-';
+  const date = new Date(dateString);
+  const day = date.getDate();
+  const month = date.getMonth() + 1;
+  const year = date.getFullYear();
+  return `${day}, ${month}, ${year}`;
+}
+
+/**
  * Formatteer adres naar string
  */
 function formatAdres(adres) {
@@ -175,6 +211,18 @@ function populateAanvragen(aanvragen) {
       }
     }
 
+    // === START SCHOONMAAK ===
+    const startEl = clone.querySelector('[data-aanvraag-start]');
+    if (startEl) {
+      if (aanvraag.type === 'abonnement') {
+        // Voor abonnement: "2025, week: 3"
+        startEl.textContent = formatStartdatum(aanvraag.startdatum);
+      } else {
+        // Voor eenmalig: "dag, maand, jaar"
+        startEl.textContent = formatGewensteDatum(aanvraag.gewenste_datum);
+      }
+    }
+
     // === STATUS ===
     const statusEl = clone.querySelector('[data-aanvraag-status]');
     if (statusEl) {
@@ -193,7 +241,11 @@ function populateAanvragen(aanvragen) {
     if (detailBtn) {
       detailBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        window.location.href = `/dashboard/schoonmaker/aanvraag-detail?match_id=${aanvraag.match_id}`;
+        // Routering: abonnement → /schoonmaak-abonnement, eenmalig → /eenmalige-schoonmaak
+        const detailPagePath = aanvraag.type === 'abonnement' 
+          ? `/dashboard/schoonmaker/schoonmaak-abonnement?id=${aanvraag.match_id}`
+          : `/dashboard/schoonmaker/eenmalige-schoonmaak?id=${aanvraag.match_id}`;
+        window.location.href = detailPagePath;
       });
     }
 
