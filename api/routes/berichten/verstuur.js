@@ -79,4 +79,4 @@ export default withAuth(async (req, res) => {
       message: error.message 
     });
   }
-}
+});
