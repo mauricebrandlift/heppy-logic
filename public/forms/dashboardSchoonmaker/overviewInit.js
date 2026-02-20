@@ -5,6 +5,7 @@
  */
 import { apiClient } from '../../utils/api/client.js';
 import { authClient } from '../../utils/auth/authClient.js';
+import { initChatStats } from '../shared/chatStatsInit.js';
 
 /**
  * Formatteer frequentie voor weergave
@@ -363,6 +364,9 @@ export async function initSchoonmakerOverview() {
 
     // Hide loading
     setLoadingState(false);
+
+    // === LAAD CHAT STATISTIEKEN ===
+    await initChatStats();
 
     console.log('✅ [Schoonmaker Overview] Initialisatie voltooid');
 
