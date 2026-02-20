@@ -168,34 +168,64 @@ function initAdresForm(userData) {
   const schema = getFormSchema('account-adres-form');
   if (!schema) return;
 
-  // Setup postcode lookup trigger
-  initAddressLookupTrigger('account-adres-form');
-
   schema.submit = {
     action: async (formData) => {
+      // Address verification - before submitting
+      const addressDetails = await fetchAddressDetails(
+        formData.postcode,
+        formData.huisnummer,
+        formData.toevoeging || ''
+      );
+
+      if (!addressDetails) {
+        const error = new Error('Ongeldig adres. Controleer je postcode en huisnummer.');
+        error.code = 'ADDRESS_NOT_FOUND';
+        throw error;
+      }
+
       const authState = authClient.getAuthState();
-      await apiClient('/routes/dashboard/schoonmaker/update-adres', {
+      const response = await apiClient('/routes/dashboard/schoonmaker/update-adres', {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${authState.access_token}` },
-        body: formData
+        body: {
+          ...formData,
+          straatnaam: addressDetails.straat,
+          plaats: addressDetails.plaats
+        }
       });
+
       return { message: 'Adres succesvol bijgewerkt' };
     },
     onSuccess: () => {
       const formName = 'account-adres-form';
+      // Show inline success message
       formHandler.showSuccessState(formName, {
         messageAttribute: formName,
         hideForm: false,
         scrollIntoView: false
       });
+      
+      // Auto-hide success message after 5 seconds
       setTimeout(() => {
+        console.log(`[Account Beheren Schoonmaker] Auto-hiding success for ${formName}`);
         const successEl = document.querySelector(`[data-success-message="${formName}"]`);
-        if (successEl) successEl.style.display = 'none';
+        if (successEl) {
+          successEl.style.display = 'none';
+        }
       }, 5000);
     }
   };
 
+  // Pass userData as initialData to formHandler
   formHandler.init(schema, userData);
+
+  // Initialize address lookup trigger (automatic lookup on postcode/huisnummer change)
+  initAddressLookupTrigger(formHandler, {
+    postcodeField: 'postcode',
+    huisnummerField: 'huisnummer',
+    straatField: 'straatnaam',
+    plaatsField: 'plaats'
+  });
 }
 
 // ============================================================================
@@ -208,25 +238,60 @@ function initWachtwoordForm() {
 
   schema.submit = {
     action: async (formData) => {
+      // Custom validation: passwords must match
+      if (formData.nieuwWachtwoord !== formData.bevestigWachtwoord) {
+        const error = new Error('Wachtwoorden komen niet overeen');
+        error.code = 'PASSWORD_MISMATCH';
+        throw error;
+      }
+
+      // Custom validation: new password must be different
+      if (formData.huidigWachtwoord === formData.nieuwWachtwoord) {
+        const error = new Error('Nieuw wachtwoord moet verschillen van huidig wachtwoord');
+        error.code = 'SAME_PASSWORD';
+        throw error;
+      }
+
       const authState = authClient.getAuthState();
       await apiClient('/routes/dashboard/schoonmaker/update-wachtwoord', {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${authState.access_token}` },
-        body: formData
+        body: {
+          huidigWachtwoord: formData.huidigWachtwoord,
+          nieuwWachtwoord: formData.nieuwWachtwoord
+        }
       });
-      return { message: 'Wachtwoord succesvol gewijzigd' };
+
+      // Clear password fields after success
+      ['huidigWachtwoord', 'nieuwWachtwoord', 'bevestigWachtwoord'].forEach(fieldName => {
+        const field = document.querySelector(`[data-field-name="${fieldName}"]`);
+        if (field) field.value = '';
+      });
+
+      return { message: 'Wachtwoord succesvol gewijzigd • Je wordt uitgelogd...' };
     },
     onSuccess: () => {
       const formName = 'account-wachtwoord-form';
+      
+      // 🔒 BELANGRIJK: Clear localStorage DIRECT om race conditions te voorkomen
+      // Token is al invalid op server (Supabase invalideerde bij password change)
+      // Als we niet direct clearen, kan gebruiker nog navigeren naar dashboard pages
+      // die dan 401 errors krijgen en dubbele redirects veroorzaken
+      console.log('[Account Beheren Schoonmaker] Clearing localStorage direct na wachtwoord wijziging');
+      localStorage.removeItem('heppy_auth');
+      
+      // Show inline success message
       formHandler.showSuccessState(formName, {
         messageAttribute: formName,
         hideForm: false,
         scrollIntoView: false
       });
+      
+      // Logout en redirect na 3 seconden
       setTimeout(() => {
-        const successEl = document.querySelector(`[data-success-message="${formName}"]`);
-        if (successEl) successEl.style.display = 'none';
-      }, 5000);
+        console.log('[Account Beheren Schoonmaker] Redirecting na wachtwoord wijziging...');
+        window.location.href = '/inloggen?message=Wachtwoord gewijzigd. Log opnieuw in met je nieuwe wachtwoord.';
+      }, 3000);
     }
   };
 
@@ -281,47 +346,33 @@ function initStripeConnectButton() {
 export async function initAccountBeheren() {
   console.log('⚙️ [Account Beheren Schoonmaker] Initialiseren...');
 
-  // Check of we op account beheren pagina zijn
-  const accountBeherenPage = document.querySelector('[data-dashboard-page="account-beheren"]');
-  if (!accountBeherenPage) {
-    console.log('[Account Beheren Schoonmaker] Niet op account beheren pagina, skip init');
-    return;
-  }
-
-  // Check authenticatie
+  // ⚠️ BELANGRIJK: Check authenticatie EERST voordat we iets doen
+  // Dit voorkomt race conditions tijdens redirect
   const authState = authClient.getAuthState();
   if (!authState || !authState.access_token) {
-    console.warn('⚠️ [Account Beheren Schoonmaker] Geen authenticatie');
+    console.warn('⚠️ [Account Beheren Schoonmaker] Geen authenticatie, stoppen met initialisatie');
+    return; // Stop direct, laat dashboardAuth.js de redirect afhandelen
+  }
+
+  // Hide all success messages on page load (so they're visible in Webflow editor)
+  hideAllSuccessMessages();
+
+  // Load user data
+  const userData = await loadUserData();
+  if (!userData) {
+    console.error('❌ [Account Beheren Schoonmaker] Kon user data niet laden');
     return;
   }
 
-  const user = await authClient.getCurrentUser();
-  if (!user || user.rol !== 'schoonmaker') {
-    console.error('❌ [Account Beheren Schoonmaker] Geen toegang');
-    return;
-  }
+  // Initialize all 5 forms (each isolated via formHandler)
+  initProfielForm(userData);
+  initEmailForm(userData);
+  initTelefoonForm(userData);
+  initAdresForm(userData);
+  initWachtwoordForm();
 
-  try {
-    // Load user data
-    const userData = await loadUserData();
-    if (!userData) {
-      console.error('❌ [Account Beheren Schoonmaker] Kon user data niet laden');
-      return;
-    }
+  // Initialize Stripe Connect button
+  initStripeConnectButton();
 
-    // Initialize all forms
-    initProfielForm(userData);
-    initEmailForm(userData);
-    initTelefoonForm(userData);
-    initAdresForm(userData);
-    initWachtwoordForm();
-
-    // Initialize Stripe Connect button
-    initStripeConnectButton();
-
-    console.log('✅ [Account Beheren Schoonmaker] Alle formulieren geïnitialiseerd');
-
-  } catch (error) {
-    console.error('❌ [Account Beheren Schoonmaker] Error:', error);
-  }
+  console.log('✅ [Account Beheren Schoonmaker] Alle formulieren geïnitialiseerd');
 }
