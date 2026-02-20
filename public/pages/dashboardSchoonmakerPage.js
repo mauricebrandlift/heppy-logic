@@ -8,6 +8,7 @@ import { initSchoonmakerOverview } from '../forms/dashboardSchoonmaker/overviewI
 import { initBeschikbaarheidOverview } from '../forms/dashboardSchoonmaker/beschikbaarheidInit.js';
 import { initAbonnementenOverview } from '../forms/dashboardSchoonmaker/abonnementenOverviewInit.js';
 import { initEenmaligeAangenomen } from '../forms/dashboardSchoonmaker/eenmaligeAangenomenInit.js';
+import { initAccountBeheren } from '../forms/dashboardSchoonmaker/accountBeherenInit.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🧹 [SchoonmakerDashboard] Pagina geladen');
@@ -43,10 +44,18 @@ function initSchoonmakerDashboardFuncties() {
     initEenmaligeAangenomen();
     return;
   }
+
+  const accountBeherenPage = document.querySelector('[data-dashboard-page="account-beheren"]');
+  
+  if (accountBeherenPage) {
+    console.log('⚙️ [SchoonmakerDashboard] Account beheren pagina gedetecteerd');
+    initAccountBeheren();
+    return;
+  }
   
   // Andere pagina's kunnen hier worden toegevoegd:
-  // const accountPage = document.querySelector('[data-dashboard-page="account"]');
   // const chatPage = document.querySelector('[data-dashboard-page="chat"]');
+  // const uitbetalingenPage = document.querySelector('[data-dashboard-page="uitbetalingen"]');
   // etc.
   
   console.log('ℹ️ [SchoonmakerDashboard] Geen specifieke pagina gedetecteerd, standaard init');
