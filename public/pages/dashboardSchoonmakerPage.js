@@ -7,6 +7,7 @@ import { initDashboardAuth } from '../utils/auth/dashboardAuth.js';
 import { initSchoonmakerOverview } from '../forms/dashboardSchoonmaker/overviewInit.js';
 import { initBeschikbaarheidOverview } from '../forms/dashboardSchoonmaker/beschikbaarheidInit.js';
 import { initAbonnementenOverview } from '../forms/dashboardSchoonmaker/abonnementenOverviewInit.js';
+import { initEenmaligeAangenomen } from '../forms/dashboardSchoonmaker/eenmaligeAangenomenInit.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🧹 [SchoonmakerDashboard] Pagina geladen');
@@ -39,6 +40,7 @@ function initSchoonmakerDashboardFuncties() {
     initSchoonmakerOverview();
     initBeschikbaarheidOverview();
     initAbonnementenOverview();
+    initEenmaligeAangenomen();
     return;
   }
   
