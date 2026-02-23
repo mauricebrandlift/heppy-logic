@@ -255,6 +255,7 @@ export async function getMatchDetails(matchId, correlationId = 'no-correlation-i
     match_id: match.id,
     status: match.status,
     type: isAanvraag ? 'aanvraag' : 'opdracht',
+    abonnement_id: match.abonnement_id || null,
     schoonmaker: schoonmaker,
     aanvraag: aanvraag,
     opdracht: opdracht,
@@ -326,8 +327,9 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
     }, correlationId);
 
     // Update abonnement with schoonmaker if exists
-    if (matchDetails.aanvraag?.abonnement_id) {
-      const abonnementUpdateUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${matchDetails.aanvraag.abonnement_id}`;
+    // abonnement_id zit op de match record, niet op schoonmaak_aanvragen
+    if (matchDetails.abonnement_id) {
+      const abonnementUpdateUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${matchDetails.abonnement_id}`;
       await httpClient(abonnementUpdateUrl, {
         method: 'PATCH',
         headers: {
