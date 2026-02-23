@@ -1935,6 +1935,45 @@ export function getFormSchema(name) {
         }
       )
     },
+    // Formulier voor schoonmaker om te stoppen met schoonmaken bij klant
+    'abb_stop-form': {
+      name: 'abb_stop-form',
+      selector: '[data-form-name="abb_stop-form"]',
+      fields: {
+        opzeg_weeknr: {
+          label: 'Laatste schoonmaakweek',
+          inputType: 'number',
+          sanitizers: ['trim'],
+          validators: ['required', 'integer', 'weeknrAllowed'],
+          persist: 'none',
+          allowedWeeks: [], // Wordt dynamisch gevuld door initWeekSelectTrigger
+          messages: {
+            required: 'Weeknummer is verplicht',
+            integer: 'Voer een geldig weeknummer in',
+            weeknrAllowed: 'Je kunt pas stoppen vanaf 2 weken in de toekomst'
+          }
+        },
+        opzeg_reden: {
+          label: 'Reden voor stopzetting',
+          inputType: 'textarea',
+          sanitizers: ['trim'],
+          validators: ['required'],
+          persist: 'none',
+          messages: {
+            required: 'Reden voor stopzetting is verplicht'
+          }
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          STOP_SUCCESS: 'Je stopverzoek is verwerkt. De klant en het Heppy team worden op de hoogte gebracht.',
+          ALREADY_STOPPED: 'Dit abonnement is al gestopt',
+          INVALID_WEEK: 'Ongeldige week gekozen'
+        }
+      )
+    },
   };
 
   return schemas[name] || null;

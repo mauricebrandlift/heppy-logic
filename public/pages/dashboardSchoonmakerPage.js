@@ -9,6 +9,7 @@ import { initBeschikbaarheidOverview } from '../forms/dashboardSchoonmaker/besch
 import { initAbonnementenOverview } from '../forms/dashboardSchoonmaker/abonnementenOverviewInit.js';
 import { initEenmaligeAangenomen } from '../forms/dashboardSchoonmaker/eenmaligeAangenomenInit.js';
 import { initAccountBeheren } from '../forms/dashboardSchoonmaker/accountBeherenInit.js';
+import { initSchoonmakerAbonnementDetail } from '../forms/dashboardSchoonmaker/abonnementDetailInit.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🧹 [SchoonmakerDashboard] Pagina geladen');
@@ -50,6 +51,14 @@ function initSchoonmakerDashboardFuncties() {
   if (accountBeherenPage) {
     console.log('⚙️ [SchoonmakerDashboard] Account beheren pagina gedetecteerd');
     initAccountBeheren();
+    return;
+  }
+
+  const abonnementDetailPage = document.querySelector('[data-dashboard-page="abonnement-detail"]');
+  
+  if (abonnementDetailPage) {
+    console.log('📋 [SchoonmakerDashboard] Abonnement detail pagina gedetecteerd');
+    initSchoonmakerAbonnementDetail();
     return;
   }
   
