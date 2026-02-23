@@ -258,8 +258,11 @@ async function initializeStopSection(data) {
       } else {
         // Gestopt door schoonmaker
         let html = '<strong>Status:</strong> Gestopt door jou';
+        if (data.stop_info.opzeg_week && data.stop_info.opzeg_jaar) {
+          html += `<br><strong>Laatste week:</strong> Week ${data.stop_info.opzeg_week} (${data.stop_info.opzeg_jaar})`;
+        }
         if (data.stop_info.stopdatum) {
-          html += `<br><strong>Datum:</strong> ${formatDatum(data.stop_info.stopdatum)}`;
+          html += `<br><strong>Aangevraagd op:</strong> ${formatDatum(data.stop_info.stopdatum)}`;
         }
         if (data.stop_info.reden) {
           html += `<br><strong>Reden:</strong> ${data.stop_info.reden}`;

@@ -142,7 +142,9 @@ async function stopAbonnementHandler(req, res) {
       body: JSON.stringify({
         abonnement_id: id,
         schoonmaker_id: schoonmakerId,
-        reden: opzeg_reden.trim()
+        reden: opzeg_reden.trim(),
+        opzeg_week: parsedWeek,
+        opzeg_jaar: parsedYear
       })
     }, correlationId);
 
@@ -152,34 +154,9 @@ async function stopAbonnementHandler(req, res) {
       throw new Error('Kon stopverzoek niet registreren');
     }
 
-    // === ONTKOPPEL SCHOONMAKER VAN ABONNEMENT ===
-    // Zet schoonmaker_id op null, zodat admin een nieuwe schoonmaker kan toewijzen
-    console.log(`🔄 [SM Stop Abonnement] Ontkoppelen schoonmaker van abonnement [${correlationId}]`);
-
-    const updateUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${id}`;
-
-    const updateResponse = await httpClient(updateUrl, {
-      method: 'PATCH',
-      headers: {
-        'apikey': supabaseConfig.anonKey,
-        'Authorization': `Bearer ${authToken}`,
-        'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({
-        schoonmaker_id: null,
-        opzeg_week: parsedWeek,
-        opzeg_jaar: parsedYear
-      })
-    }, correlationId);
-
-    if (!updateResponse.ok) {
-      const errorText = await updateResponse.text();
-      console.error(`❌ [SM Stop Abonnement] Failed to update abonnement [${correlationId}]`, errorText);
-      throw new Error('Kon abonnement niet bijwerken');
-    }
-
-    console.log(`✅ [SM Stop Abonnement] Schoonmaker ontkoppeld van abonnement [${correlationId}]`);
+    // Schoonmaker_id wordt NIET direct op null gezet.
+    // De cron job 'manage-schoonmaker-stops' verwerkt dit na de opzeg_week.
+    console.log(`✅ [SM Stop Abonnement] Stop geregistreerd, schoonmaker behoudt toegang tot week ${parsedWeek} (${parsedYear}) [${correlationId}]`);
 
     // === HAAL GEGEVENS OP VOOR EMAILS ===
     // Schoonmaker profiel

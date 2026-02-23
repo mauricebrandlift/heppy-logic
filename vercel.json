@@ -18,6 +18,10 @@
     {
     "path": "/api/cron/manage-pauzes",
     "schedule": "30 0 * * *"
+    },
+    {
+    "path": "/api/cron/manage-schoonmaker-stops",
+    "schedule": "0 1 * * *"
     }
 ]
 }

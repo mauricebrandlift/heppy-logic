@@ -114,7 +114,7 @@ async function abonnementDetailHandler(req, res) {
     // === CHECK OF SCHOONMAKER GESTOPT IS (stopgeschiedenis) ===
     let stopInfo = null;
 
-    const stopUrl = `${supabaseConfig.url}/rest/v1/schoonmaker_stopgeschiedenis?abonnement_id=eq.${id}&schoonmaker_id=eq.${schoonmakerId}&select=reden,stopdatum&order=stopdatum.desc&limit=1`;
+    const stopUrl = `${supabaseConfig.url}/rest/v1/schoonmaker_stopgeschiedenis?abonnement_id=eq.${id}&schoonmaker_id=eq.${schoonmakerId}&select=reden,stopdatum,opzeg_week,opzeg_jaar&order=stopdatum.desc&limit=1`;
 
     const stopResponse = await httpClient(stopUrl, {
       headers: {
@@ -129,6 +129,8 @@ async function abonnementDetailHandler(req, res) {
         stopInfo = {
           reden: stopRecords[0].reden,
           stopdatum: stopRecords[0].stopdatum,
+          opzeg_week: stopRecords[0].opzeg_week,
+          opzeg_jaar: stopRecords[0].opzeg_jaar,
           gestopt_door: 'schoonmaker'
         };
       }
