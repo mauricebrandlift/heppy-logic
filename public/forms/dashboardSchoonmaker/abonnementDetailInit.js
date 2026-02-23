@@ -236,6 +236,8 @@ function populateKlantSection(data) {
 async function initializeStopSection(data) {
   console.log('🚫 [SM Abonnement Detail] Initialiseren stop sectie...');
 
+  const actiefState = document.querySelector('[data-abonnementen-stop-state="is-actief"]');
+  const opgezegtState = document.querySelector('[data-abonnementen-stop-state="is-opgezegd"]');
   const stopInfoEl = document.querySelector('[data-stop-info]');
   const formElement = document.querySelector('[data-form-name="abb_stop-form"]');
 
@@ -243,8 +245,9 @@ async function initializeStopSection(data) {
   if (data.stop_info) {
     console.log('[SM Abonnement Detail] Abonnement heeft stop info:', data.stop_info);
 
-    // Verberg formulier, toon info
-    if (formElement) formElement.style.display = 'none';
+    // Toggle states: verberg actief, toon opgezegd
+    if (actiefState) actiefState.style.display = 'none';
+    if (opgezegtState) opgezegtState.style.display = 'block';
 
     if (stopInfoEl) {
       if (data.stop_info.gestopt_door === 'klant') {
@@ -272,7 +275,8 @@ async function initializeStopSection(data) {
   // === ABONNEMENT IS NOG ACTIEF - TOON FORMULIER ===
   if (data.status === 'gestopt') {
     // Abonnement gestopt maar geen specifieke stop info
-    if (formElement) formElement.style.display = 'none';
+    if (actiefState) actiefState.style.display = 'none';
+    if (opgezegtState) opgezegtState.style.display = 'block';
     if (stopInfoEl) {
       stopInfoEl.innerHTML = '<strong>Status:</strong> Dit abonnement is gestopt';
       stopInfoEl.style.display = 'block';
@@ -280,8 +284,9 @@ async function initializeStopSection(data) {
     return;
   }
 
-  // Verberg stop info, toon formulier
-  if (stopInfoEl) stopInfoEl.style.display = 'none';
+  // Abonnement is actief - toon formulier
+  if (actiefState) actiefState.style.display = 'block';
+  if (opgezegtState) opgezegtState.style.display = 'none';
 
   if (!formElement) {
     console.warn('⚠️ [SM Abonnement Detail] Stop formulier niet gevonden in DOM');
