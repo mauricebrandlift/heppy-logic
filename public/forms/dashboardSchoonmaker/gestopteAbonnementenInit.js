@@ -117,6 +117,17 @@ function populateGestopteAbonnementen(items) {
       stopWeekEl.textContent = item.stopWeek || '-';
     }
 
+    // Status label
+    const statusEl = clone.querySelector('[data-abb-status]');
+    if (statusEl) {
+      if (item.gestopt_door === 'klant') {
+        statusEl.textContent = 'Gestopt door klant';
+      } else {
+        statusEl.textContent = 'Gestopt door jou';
+      }
+      statusEl.classList.add('is-unactive');
+    }
+
     parent.appendChild(clone);
   });
 
