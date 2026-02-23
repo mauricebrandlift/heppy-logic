@@ -7,6 +7,7 @@ import { initDashboardAuth } from '../utils/auth/dashboardAuth.js';
 import { initSchoonmakerOverview } from '../forms/dashboardSchoonmaker/overviewInit.js';
 import { initBeschikbaarheidOverview } from '../forms/dashboardSchoonmaker/beschikbaarheidInit.js';
 import { initAbonnementenOverview } from '../forms/dashboardSchoonmaker/abonnementenOverviewInit.js';
+import { initGestopteAbonnementen } from '../forms/dashboardSchoonmaker/gestopteAbonnementenInit.js';
 import { initEenmaligeAangenomen } from '../forms/dashboardSchoonmaker/eenmaligeAangenomenInit.js';
 import { initAccountBeheren } from '../forms/dashboardSchoonmaker/accountBeherenInit.js';
 import { initSchoonmakerAbonnementDetail } from '../forms/dashboardSchoonmaker/abonnementDetailInit.js';
@@ -42,6 +43,7 @@ function initSchoonmakerDashboardFuncties() {
     initSchoonmakerOverview();
     initBeschikbaarheidOverview();
     initAbonnementenOverview();
+    initGestopteAbonnementen();
     initEenmaligeAangenomen();
     return;
   }
