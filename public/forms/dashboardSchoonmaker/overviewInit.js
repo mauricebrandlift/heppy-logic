@@ -242,11 +242,8 @@ function populateAanvragen(aanvragen) {
     if (detailBtn) {
       detailBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        // Routering: abonnement → /schoonmaak-abonnement, eenmalig → /eenmalige-schoonmaak
-        const detailPagePath = aanvraag.type === 'abonnement' 
-          ? `/dashboard/schoonmaker/schoonmaak-abonnement?id=${aanvraag.match_id}`
-          : `/dashboard/schoonmaker/eenmalige-schoonmaak?id=${aanvraag.match_id}`;
-        window.location.href = detailPagePath;
+        // Routering naar schoonmaak-actie pagina waar schoonmaker kan accepteren/afwijzen
+        window.location.href = `/schoonmaak-actie?match_id=${aanvraag.match_id}`;
       });
     }
 
