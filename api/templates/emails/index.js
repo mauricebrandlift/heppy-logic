@@ -32,6 +32,10 @@ export { bankReinigingBevestigingKlant } from './bankReinigingBevestigingKlant.j
 export { nieuweTapijtReinigingAdmin } from './nieuweTapijtReinigingAdmin.js';
 export { tapijtReinigingBevestigingKlant } from './tapijtReinigingBevestigingKlant.js';
 
+// Offerte Flow Templates - Vloer Reiniging
+export { nieuweVloerReinigingAdmin } from './nieuweVloerReinigingAdmin.js';
+export { vloerReinigingBevestigingKlant } from './vloerReinigingBevestigingKlant.js';
+
 // Webshop Templates
 export { webshopBestellingKlant } from './webshopBestellingKlant.js';
 export { nieuweWebshopBestellingAdmin } from './nieuweWebshopBestellingAdmin.js';
@@ -101,6 +105,10 @@ export const templates = {
   // Offerte Flow - Tapijt Reiniging
   nieuweTapijtReinigingAdmin: (await import('./nieuweTapijtReinigingAdmin.js')).nieuweTapijtReinigingAdmin,
   tapijtReinigingBevestigingKlant: (await import('./tapijtReinigingBevestigingKlant.js')).tapijtReinigingBevestigingKlant,
+  
+  // Offerte Flow - Vloer Reiniging
+  nieuweVloerReinigingAdmin: (await import('./nieuweVloerReinigingAdmin.js')).nieuweVloerReinigingAdmin,
+  vloerReinigingBevestigingKlant: (await import('./vloerReinigingBevestigingKlant.js')).vloerReinigingBevestigingKlant,
   
   // Approve/Reject Flow
   matchGoedgekeurdKlant: (await import('./matchGoedgekeurdKlant.js')).matchGoedgekeurdKlant,

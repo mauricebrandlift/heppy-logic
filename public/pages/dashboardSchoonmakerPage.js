@@ -11,6 +11,7 @@ import { initGestopteAbonnementen } from '../forms/dashboardSchoonmaker/gestopte
 import { initEenmaligeAangenomen } from '../forms/dashboardSchoonmaker/eenmaligeAangenomenInit.js';
 import { initAccountBeheren } from '../forms/dashboardSchoonmaker/accountBeherenInit.js';
 import { initSchoonmakerAbonnementDetail } from '../forms/dashboardSchoonmaker/abonnementDetailInit.js';
+import { initEenmaligeDetail } from '../forms/dashboardSchoonmaker/eenmaligeDetailInit.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🧹 [SchoonmakerDashboard] Pagina geladen');
@@ -61,6 +62,14 @@ function initSchoonmakerDashboardFuncties() {
   if (abonnementDetailPage) {
     console.log('📋 [SchoonmakerDashboard] Abonnement detail pagina gedetecteerd');
     initSchoonmakerAbonnementDetail();
+    return;
+  }
+
+  const eenmaligeDetailPage = document.querySelector('[data-dashboard-page="eenmalige-detail"]');
+
+  if (eenmaligeDetailPage) {
+    console.log('🧹 [SchoonmakerDashboard] Eenmalige schoonmaak detail pagina gedetecteerd');
+    initEenmaligeDetail();
     return;
   }
   

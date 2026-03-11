@@ -51,7 +51,9 @@ import {
   nieuweBankReinigingAdmin, 
   bankReinigingBevestigingKlant,
   nieuweTapijtReinigingAdmin,
-  tapijtReinigingBevestigingKlant
+  tapijtReinigingBevestigingKlant,
+  nieuweVloerReinigingAdmin,
+  vloerReinigingBevestigingKlant
 } from '../templates/emails/index.js';
 
 export default async function handler(req, res) {
@@ -100,7 +102,10 @@ export default async function handler(req, res) {
       rt_opties,
       rt_opties_allergie,
       rt_opties_ontgeuren_urine,
-      rt_opties_ontgeuren_overig
+      rt_opties_ontgeuren_overig,
+      // Vloer reiniging velden
+      rv_oppervlakte_m2,
+      rv_vloer_types
     } = req.body;
 
     // Validatie
@@ -112,8 +117,8 @@ export default async function handler(req, res) {
       });
     }
 
-    // Alleen bankreiniging en tapijt types toegestaan voorlopig
-    if (type !== 'bankreiniging' && type !== 'tapijt') {
+    // Toegestane offerte types
+    if (!['bankreiniging', 'tapijt', 'vloer'].includes(type)) {
       console.error(`❌ [OfferteCreate] Unsupported type: ${type} [${correlationId}]`);
       return res.status(400).json({ 
         error: 'UNSUPPORTED_TYPE',
@@ -207,6 +212,12 @@ export default async function handler(req, res) {
           rt_opties_ontgeuren_urine: rt_opties_ontgeuren_urine || false,
           rt_opties_ontgeuren_overig: rt_opties_ontgeuren_overig || false
         };
+      } else if (type === 'vloer') {
+        gegevens = {
+          ...gegevens,
+          rv_oppervlakte_m2: parseInt(rv_oppervlakte_m2) || 0,
+          rv_vloer_types: rv_vloer_types || []
+        };
       }
 
       const opdrachtPayload = {
@@ -299,6 +310,24 @@ export default async function handler(req, res) {
       clientSubject = '✅ Offerte Aanvraag Ontvangen - Tapijt Reiniging';
       adminTemplate = nieuweTapijtReinigingAdmin;
       clientTemplate = tapijtReinigingBevestigingKlant;
+    } else if (type === 'vloer') {
+      emailData = {
+        klantNaam: `${voornaam} ${achternaam}`,
+        klantEmail: email,
+        klantTelefoon: telefoon || '—',
+        plaats: plaats,
+        adres: `${straat} ${huisnummer}${toevoeging ? toevoeging : ''}`,
+        postcode: postcode,
+        dagdelenVoorkeur: dagdelenVoorkeur,
+        geenVoorkeurDagdelen: geenVoorkeurDagdelen || false,
+        oppervlakteM2: parseInt(rv_oppervlakte_m2) || 0,
+        vloerTypes: rv_vloer_types || [],
+        opdrachtId: opdracht.id
+      };
+      adminSubject = '🆕 Nieuwe Vloer Reiniging Offerte Aanvraag';
+      clientSubject = '✅ Offerte Aanvraag Ontvangen - Vloer Reiniging';
+      adminTemplate = nieuweVloerReinigingAdmin;
+      clientTemplate = vloerReinigingBevestigingKlant;
     }
 
     // 4a. Admin notification email

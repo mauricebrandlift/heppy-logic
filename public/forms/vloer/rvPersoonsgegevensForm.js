@@ -197,7 +197,7 @@ export async function initrvPersoonsgegevensForm() {
         
         // Prepare request body
         const requestBody = {
-          type: 'vloerreinigen',
+          type: 'vloer',
           // Persoonsgegevens
           voornaam: flow.voornaam,
           achternaam: flow.achternaam,
@@ -213,12 +213,9 @@ export async function initrvPersoonsgegevensForm() {
           // Dagdelen voorkeur
           dagdelenVoorkeur: flow.dagdelenVoorkeur || null,
           geenVoorkeurDagdelen: flow.geenVoorkeurDagdelen || false,
-          // vloerreinigen reiniging specifieke data
-          rt_totaal_m2: flow.rt_totaal_m2,
-          rt_opties: flow.opties || [],
-          rt_opties_allergie: flow.rt_opties_allergie || false,
-          rt_opties_ontgeuren_urine: flow.rt_opties_ontgeuren_urine || false,
-          rt_opties_ontgeuren_overig: flow.rt_opties_ontgeuren_overig || false
+          // Vloer reiniging specifieke data
+          rv_oppervlakte_m2: flow.rv_oppervlakte_m2,
+          rv_vloer_types: flow.vloer_types || []
         };
         
         console.log('📋 [RtPersoonsgegevens] Request body:', requestBody);
