@@ -106,9 +106,12 @@ export async function initDashboardAuth(options = {}) {
  * Initialiseert logout knoppen
  */
 function initLogoutButtons() {
-  const logoutButtons = document.querySelectorAll('[data-action="logout"]');
+  const logoutButtons = document.querySelectorAll('[data-action="logout"], [data-dashboard-logout]');
   
   logoutButtons.forEach(button => {
+    if (button.dataset.logoutBound === 'true') return;
+    button.dataset.logoutBound = 'true';
+
     button.addEventListener('click', (e) => {
       e.preventDefault();
       console.log('👋 [DashboardAuth] Uitloggen geïnitieerd door gebruiker');
