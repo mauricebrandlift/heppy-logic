@@ -12,6 +12,7 @@ import { initEenmaligeAangenomen } from '../forms/dashboardSchoonmaker/eenmalige
 import { initAccountBeheren } from '../forms/dashboardSchoonmaker/accountBeherenInit.js';
 import { initSchoonmakerAbonnementDetail } from '../forms/dashboardSchoonmaker/abonnementDetailInit.js';
 import { initEenmaligeDetail } from '../forms/dashboardSchoonmaker/eenmaligeDetailInit.js';
+import { initBeschikbaarheidBeheren } from '../forms/dashboardSchoonmaker/beschikbaarheidBeherenInit.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🧹 [SchoonmakerDashboard] Pagina geladen');
@@ -70,6 +71,14 @@ function initSchoonmakerDashboardFuncties() {
   if (eenmaligeDetailPage) {
     console.log('🧹 [SchoonmakerDashboard] Eenmalige schoonmaak detail pagina gedetecteerd');
     initEenmaligeDetail();
+    return;
+  }
+
+  const beschikbaarheidBeherenPage = document.querySelector('[data-dashboard-page="beschikbaarheid-beheren"]');
+
+  if (beschikbaarheidBeherenPage) {
+    console.log('📅 [SchoonmakerDashboard] Beschikbaarheid beheren pagina gedetecteerd');
+    initBeschikbaarheidBeheren();
     return;
   }
   
