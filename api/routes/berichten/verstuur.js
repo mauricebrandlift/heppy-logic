@@ -3,6 +3,7 @@
 
 import { withAuth } from '../../utils/authMiddleware.js';
 import { verstuurBericht, markeerBerichtenAlsGelezen } from '../../services/berichtenService.js';
+import { notificeerNieuwBericht } from '../../services/notificatieService.js';
 
 export default withAuth(async (req, res) => {
   // CORS headers
@@ -54,17 +55,19 @@ export default withAuth(async (req, res) => {
       console.error('⚠️ Markeren als gelezen mislukt (niet-blokkerende fout):', markeerError.message);
     }
 
-    // 🔔 NOTIFICATIE: Nieuw bericht (toekomstig)
-    // Commented out for now - will be implemented in Phase 2 later
-    // try {
-    //   await notificeerNieuwBericht({
-    //     verzenderId: userId,
-    //     ontvangerId: ontvanger_id,
-    //     berichtPreview: inhoud.substring(0, 50)
-    //   });
-    // } catch (notifError) {
-    //   console.error('⚠️ Notificatie failed (niet-blokkerende fout):', notifError.message);
-    // }
+    // 🔔 NOTIFICATIE: Nieuw bericht
+    try {
+      // Gebruik de verzender naam uit het auth user profiel
+      const profile = req.user.profile || {};
+      const verzenderNaam = [profile.voornaam, profile.achternaam].filter(Boolean).join(' ') || 'Iemand';
+      await notificeerNieuwBericht({
+        ontvangerId: ontvanger_id,
+        verzenderNaam,
+        berichtPreview: inhoud.substring(0, 50)
+      });
+    } catch (notifError) {
+      console.error('⚠️ Notificatie failed (niet-blokkerende fout):', notifError.message);
+    }
 
     console.log(`✅ [ChatSend] Bericht verstuurd: ${bericht.id}`);
 

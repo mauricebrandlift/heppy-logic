@@ -496,6 +496,7 @@ export async function approveMatch(matchId, correlationId = 'no-correlation-id')
       await notificeerMatchGeaccepteerd({
         matchId: matchDetails.match_id,
         klantId,
+        schoonmakerId: matchDetails.schoonmaker?.id || null,
         abonnementId: matchDetails.aanvraag?.abonnement_id || null,
         opdrachtId: matchDetails.opdracht?.id || null
       });

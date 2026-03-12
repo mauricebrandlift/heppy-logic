@@ -207,7 +207,7 @@ export default async function managePauzesHandler(req, res) {
             // 🔔 NOTIFICATIE: Pauze beëindigd
             try {
               // Haal gebruiker_id op van abonnement
-              const abonnementDataUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${pauze.abonnement_id}&select=gebruiker_id,schoonmaak_aanvraag_id`;
+              const abonnementDataUrl = `${supabaseConfig.url}/rest/v1/abonnementen?id=eq.${pauze.abonnement_id}&select=gebruiker_id,schoonmaak_aanvraag_id,schoonmaker_id`;
               const abonnementDataResp = await httpClient(abonnementDataUrl, {
                 method: 'GET',
                 headers: {
@@ -221,6 +221,7 @@ export default async function managePauzesHandler(req, res) {
                 if (abonnementData?.gebruiker_id) {
                   await notificeerPauzeBeëindigd({
                     klantId: abonnementData.gebruiker_id,
+                    schoonmakerId: abonnementData.schoonmaker_id || null,
                     abonnementId: pauze.abonnement_id,
                     eersteSchoonmaakWeek: currentWeek,
                     eersteSchoonmaakJaar: currentYear

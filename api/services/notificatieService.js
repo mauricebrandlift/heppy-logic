@@ -144,10 +144,12 @@ export async function notificeerNieuweMatch({ matchId, klantId, schoonmakerId, a
 
 /**
  * Helper: Maak notificatie voor geaccepteerde match
+ * Notificeert zowel klant als schoonmaker (met beschikbaarheid herinnering)
  */
-export async function notificeerMatchGeaccepteerd({ matchId, klantId, abonnementId, opdrachtId }) {
+export async function notificeerMatchGeaccepteerd({ matchId, klantId, schoonmakerId, abonnementId, opdrachtId }) {
   const isAbonnement = !!abonnementId;
   
+  // Notificatie voor klant
   await maakNotificatie({
     gebruiker_id: klantId,
     type: 'match_geaccepteerd',
@@ -160,6 +162,21 @@ export async function notificeerMatchGeaccepteerd({ matchId, klantId, abonnement
     opdracht_id: opdrachtId || null,
     match_id: matchId
   });
+
+  // Notificatie voor schoonmaker (met beschikbaarheid herinnering)
+  if (schoonmakerId) {
+    const context = isAbonnement ? 'abonnement' : 'opdracht';
+    await maakNotificatie({
+      gebruiker_id: schoonmakerId,
+      type: 'match_geaccepteerd',
+      titel: 'Match bevestigd! Pas je beschikbaarheid aan ✅',
+      bericht: `Je hebt de ${context} geaccepteerd. Vergeet niet je beschikbaarheid bij te werken zodat je niet overboekt raakt.`,
+      link_url: '/dashboard/schoonmaker/beschikbaarheid',
+      abonnement_id: abonnementId || null,
+      opdracht_id: opdrachtId || null,
+      match_id: matchId
+    });
+  }
 }
 
 /**
@@ -292,8 +309,9 @@ export async function notificeerBetalingMislukt({ klantId, adminId, factuurId, b
 
 /**
  * Helper: Maak notificatie voor pauze beëindigd
+ * Notificeert zowel klant als schoonmaker
  */
-export async function notificeerPauzeBeëindigd({ klantId, abonnementId, eersteSchoonmaakWeek, eersteSchoonmaakJaar }) {
+export async function notificeerPauzeBeëindigd({ klantId, schoonmakerId, abonnementId, eersteSchoonmaakWeek, eersteSchoonmaakJaar }) {
   // Notificatie voor klant
   await maakNotificatie({
     gebruiker_id: klantId,
@@ -303,6 +321,18 @@ export async function notificeerPauzeBeëindigd({ klantId, abonnementId, eersteS
     link_url: `/dashboard/klant/schoonmaak-abonnement?id=${abonnementId}`,
     abonnement_id: abonnementId
   });
+
+  // Notificatie voor schoonmaker
+  if (schoonmakerId) {
+    await maakNotificatie({
+      gebruiker_id: schoonmakerId,
+      type: 'pauze_beeindigd',
+      titel: '▶️ Klant is terug - schoonmaak hervat',
+      bericht: `De pauze van een klant is afgelopen. De schoonmaak start weer in week ${eersteSchoonmaakWeek}, ${eersteSchoonmaakJaar}.`,
+      link_url: `/dashboard/schoonmaker/abonnement-detail?id=${abonnementId}`,
+      abonnement_id: abonnementId
+    });
+  }
 }
 
 /**
@@ -336,6 +366,65 @@ export async function notificeerBetalingGeslaagd({ klantId, bedragCents, betalin
     ...(entityType === 'abonnement' && { abonnement_id: entityId }),
     ...(entityType === 'opdracht' && { opdracht_id: entityId }),
     ...(entityType === 'bestelling' && { bestelling_id: entityId })
+  });
+}
+
+/**
+ * Helper: Maak notificatie voor nieuw bericht
+ * Stuurt notificatie naar de ontvanger van een chatbericht
+ * Bepaalt de juiste link op basis van de rol van de ontvanger
+ */
+export async function notificeerNieuwBericht({ ontvangerId, verzenderNaam, berichtPreview }) {
+  const preview = berichtPreview && berichtPreview.length > 50 
+    ? berichtPreview.substring(0, 50) + '...' 
+    : berichtPreview || '';
+
+  // Bepaal chat link op basis van rol
+  let chatLink = '/dashboard/klant/chat';
+  try {
+    const profileUrl = `${supabaseConfig.url}/rest/v1/user_profiles?id=eq.${ontvangerId}&select=rol`;
+    const profileResp = await httpClient(profileUrl, {
+      headers: {
+        'apikey': supabaseConfig.anonKey,
+        'Authorization': `Bearer ${supabaseConfig.serviceRoleKey}`
+      }
+    });
+    if (profileResp.ok) {
+      const profiles = await profileResp.json();
+      if (profiles[0]?.rol === 'schoonmaker') {
+        chatLink = '/dashboard/schoonmaker/chat';
+      }
+    }
+  } catch (e) {
+    // Fallback naar klant link
+  }
+
+  await maakNotificatie({
+    gebruiker_id: ontvangerId,
+    type: 'nieuw_bericht',
+    titel: `💬 Nieuw bericht van ${verzenderNaam || 'iemand'}`,
+    bericht: preview || 'Je hebt een nieuw bericht ontvangen.',
+    link_url: chatLink
+  });
+}
+
+/**
+ * Helper: Maak herinnering notificatie voor openstaande aanvraag
+ * Gebruikt type 'nieuwe_match' met ander bericht (zelfde kleur = geel/oranje)
+ */
+export async function notificeerAanvraagVerloopt({ schoonmakerId, matchId, abonnementId, opdrachtId }) {
+  const isAbonnement = !!abonnementId;
+  const context = isAbonnement ? 'abonnement' : 'opdracht';
+
+  await maakNotificatie({
+    gebruiker_id: schoonmakerId,
+    type: 'nieuwe_match',
+    titel: '⏰ Herinnering: reageer op je aanvraag!',
+    bericht: `Je hebt een openstaande ${context}-aanvraag die binnenkort verloopt. Reageer snel om de match niet te missen.`,
+    link_url: `/schoonmaak-actie?match_id=${matchId}`,
+    abonnement_id: abonnementId || null,
+    opdracht_id: opdrachtId || null,
+    match_id: matchId
   });
 }
 
