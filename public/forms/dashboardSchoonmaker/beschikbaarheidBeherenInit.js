@@ -249,10 +249,44 @@ function collectBeschikbaarheidData() {
   return result;
 }
 
-// === FEEDBACK UI ===
+// === LOADING / CONTENT / ERROR STATE ===
+
+function showLoading() {
+  const loadingState = document.querySelector('[data-loading-state]');
+  const contentState = document.querySelector('[data-content-state]');
+  const errorContainer = document.querySelector('[data-dashboard-error]');
+
+  if (loadingState) loadingState.style.display = 'block';
+  if (contentState) contentState.style.display = 'none';
+  if (errorContainer) errorContainer.style.display = 'none';
+}
+
+function hideLoading() {
+  const loadingState = document.querySelector('[data-loading-state]');
+  const contentState = document.querySelector('[data-content-state]');
+
+  if (loadingState) loadingState.style.display = 'none';
+  if (contentState) contentState.style.display = 'block';
+}
+
+function showDashboardError(message) {
+  const loadingState = document.querySelector('[data-loading-state]');
+  const contentState = document.querySelector('[data-content-state]');
+  const errorContainer = document.querySelector('[data-dashboard-error]');
+
+  if (loadingState) loadingState.style.display = 'none';
+  if (contentState) contentState.style.display = 'none';
+
+  if (errorContainer) {
+    errorContainer.textContent = message;
+    errorContainer.style.display = 'block';
+  }
+}
+
+// === INLINE FEEDBACK (voor opslaan acties) ===
 
 /**
- * Toon error feedback bericht (data-beschikbaarheid-feedback element)
+ * Toon inline error feedback (data-beschikbaarheid-feedback element)
  */
 function showError(message) {
   const feedbackEl = document.querySelector('[data-beschikbaarheid-feedback]');
@@ -384,7 +418,8 @@ export async function initBeschikbaarheidBeheren() {
   }
 
   try {
-    // Verberg success message bij init
+    // Toon loading, verberg content en errors
+    showLoading();
     hideSuccessMessage();
     hideError();
 
@@ -426,10 +461,13 @@ export async function initBeschikbaarheidBeheren() {
       console.warn('⚠️ [Beschikbaarheid Beheren] Opslaan button niet gevonden');
     }
 
+    // Verberg loading, toon content
+    hideLoading();
+
     console.log('✅ [Beschikbaarheid Beheren] Initialisatie voltooid');
 
   } catch (error) {
     console.error('❌ [Beschikbaarheid Beheren] Error:', error);
-    showError(error.message || 'Kon beschikbaarheid niet laden.');
+    showDashboardError(error.message || 'Kon beschikbaarheid niet laden.');
   }
 }
