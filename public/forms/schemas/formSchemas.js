@@ -1807,6 +1807,45 @@ export function getFormSchema(name) {
       )
     },
 
+    // DASHBOARD - BANKREKENING FORM (schoonmaker)
+    'account-bankrekening-form': {
+      name: 'account-bankrekening-form',
+      selector: '[data-form-name="account-bankrekening-form"]',
+      fields: {
+        iban: {
+          label: 'IBAN',
+          inputType: 'text',
+          sanitizers: ['trim', 'uppercase'],
+          validators: ['required', 'iban'],
+          persist: 'none',
+          messages: {
+            required: 'IBAN is verplicht',
+            iban: 'Voer een geldig IBAN in (bijv. NL91 ABNA 0417 1643 00)'
+          }
+        },
+        rekeninghouder: {
+          label: 'Naam rekeninghouder',
+          inputType: 'text',
+          sanitizers: ['trim'],
+          validators: ['required', 'name'],
+          persist: 'none',
+          messages: {
+            required: 'Naam rekeninghouder is verplicht',
+            name: 'Naam mag alleen letters, spaties, koppeltekens en apostrofs bevatten'
+          }
+        }
+      },
+      globalMessages: combineMessages(
+        commonMessages.general,
+        commonMessages.server,
+        {
+          NO_STRIPE_ACCOUNT: 'Er is geen Stripe account gekoppeld. Neem contact op met support.',
+          STRIPE_ERROR: 'Er ging iets mis bij het bijwerken van je bankrekening. Probeer het later opnieuw.',
+          INVALID_IBAN: 'Het opgegeven IBAN is ongeldig. Controleer het nummer.'
+        }
+      )
+    },
+
     'abb_change-form': {
       name: 'abb_change-form',
       selector: '[data-form-name="abb_change-form"]',

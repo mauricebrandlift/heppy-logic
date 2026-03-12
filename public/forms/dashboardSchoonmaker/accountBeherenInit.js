@@ -1,8 +1,7 @@
 // public/forms/dashboardSchoonmaker/accountBeherenInit.js
 /**
  * Account beheren initialisatie voor schoonmakers
- * Bevat 5 aparte formulieren: profiel, email, telefoon, adres, wachtwoord
- * + Stripe Connect button voor bankgegevens
+ * Bevat 6 aparte formulieren: profiel, email, telefoon, adres, wachtwoord, bankrekening
  * Gebruikt formHandler.init() zoals alle andere flows
  */
 import { formHandler } from '../logic/formHandler.js';
@@ -299,44 +298,87 @@ function initWachtwoordForm() {
 }
 
 // ============================================================================
-// 6. STRIPE CONNECT BUTTON
+// 6. BANKREKENING FORM
 // ============================================================================
 
-function initStripeConnectButton() {
-  const stripeBtn = document.querySelector('[data-stripe-connect-btn]');
-  if (!stripeBtn) {
-    console.warn('[Account Beheren Schoonmaker] Stripe Connect button niet gevonden');
-    return;
+async function initBankrekeningForm(userData) {
+  const schema = getFormSchema('account-bankrekening-form');
+  if (!schema) return;
+
+  // Haal huidige bankrekening info op en toon in data-current-iban element
+  try {
+    const authState = authClient.getAuthState();
+    const bankData = await apiClient('/routes/dashboard/schoonmaker/bank-account', {
+      method: 'GET',
+      headers: { 'Authorization': `Bearer ${authState.access_token}` }
+    });
+
+    const currentIbanEl = document.querySelector('[data-current-iban]');
+    if (currentIbanEl && bankData.hasBankAccount) {
+      const display = bankData.bankNaam
+        ? `${bankData.bankNaam} ••••${bankData.last4}`
+        : `••••${bankData.last4}`;
+      currentIbanEl.textContent = display;
+    } else if (currentIbanEl) {
+      currentIbanEl.textContent = 'Nog geen bankrekening ingesteld';
+    }
+
+    // Prefill rekeninghouder als we die hebben
+    if (bankData.rekeninghouder) {
+      userData = { ...userData, rekeninghouder: bankData.rekeninghouder };
+    }
+  } catch (error) {
+    console.warn('⚠️ [Account Beheren Schoonmaker] Kon bankrekening info niet ophalen:', error.message);
+    const currentIbanEl = document.querySelector('[data-current-iban]');
+    if (currentIbanEl) {
+      currentIbanEl.textContent = 'Kon bankrekening niet laden';
+    }
   }
 
-  stripeBtn.addEventListener('click', async (e) => {
-    e.preventDefault();
-    
-    try {
+  schema.submit = {
+    action: async (formData) => {
       const authState = authClient.getAuthState();
-      if (!authState?.access_token) {
-        console.error('❌ [Stripe Connect] Geen access token');
-        return;
-      }
-
-      console.log('🔗 [Stripe Connect] Ophalen login link...');
-
-      // Get Stripe Connect login link
-      const response = await apiClient('/routes/dashboard/schoonmaker/stripe-connect-link', {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${authState.access_token}` }
+      const response = await apiClient('/routes/dashboard/schoonmaker/bank-account', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${authState.access_token}` },
+        body: {
+          iban: formData.iban,
+          rekeninghouder: formData.rekeninghouder
+        }
       });
 
-      if (response.loginLink) {
-        // Redirect to Stripe
-        window.location.href = response.loginLink;
-      } else {
-        console.error('❌ [Stripe Connect] Geen login link ontvangen');
+      // Update het data-current-iban element met nieuwe info
+      const currentIbanEl = document.querySelector('[data-current-iban]');
+      if (currentIbanEl && response.last4) {
+        const display = response.bankNaam
+          ? `${response.bankNaam} ••••${response.last4}`
+          : `••••${response.last4}`;
+        currentIbanEl.textContent = display;
       }
-    } catch (error) {
-      console.error('❌ [Stripe Connect] Error:', error);
+
+      return { message: 'Bankrekening succesvol bijgewerkt' };
+    },
+    onSuccess: () => {
+      const formName = 'account-bankrekening-form';
+      formHandler.showSuccessState(formName, {
+        messageAttribute: formName,
+        hideForm: false,
+        scrollIntoView: false
+      });
+
+      // Clear IBAN veld na succes (veiligheid — niet laten staan)
+      const ibanField = document.querySelector('[data-field-name="iban"]');
+      if (ibanField) ibanField.value = '';
+
+      // Auto-hide success message after 5 seconds
+      setTimeout(() => {
+        const successEl = document.querySelector(`[data-success-message="${formName}"]`);
+        if (successEl) successEl.style.display = 'none';
+      }, 5000);
     }
-  });
+  };
+
+  formHandler.init(schema, userData);
 }
 
 // ============================================================================
@@ -364,15 +406,13 @@ export async function initAccountBeheren() {
     return;
   }
 
-  // Initialize all 5 forms (each isolated via formHandler)
+  // Initialize all 6 forms (each isolated via formHandler)
   initProfielForm(userData);
   initEmailForm(userData);
   initTelefoonForm(userData);
   initAdresForm(userData);
   initWachtwoordForm();
-
-  // Initialize Stripe Connect button
-  initStripeConnectButton();
+  await initBankrekeningForm(userData);
 
   console.log('✅ [Account Beheren Schoonmaker] Alle formulieren geïnitialiseerd');
 }

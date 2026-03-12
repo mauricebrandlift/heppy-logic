@@ -158,6 +158,35 @@ export const validators = {
     
     return null;
   },
+  // IBAN validator (Nederlands formaat: NL + 2 check digits + 4 bank code + 10 rekeningnummer = 18 tekens)
+  iban: (value) => {
+    // Lege waarde wordt afgehandeld door required validator
+    if (!value || value.trim() === '') return null;
+
+    // Verwijder spaties voor validatie
+    const cleaned = value.replace(/\s/g, '').toUpperCase();
+
+    // Basis format check: 2 letters + 2 cijfers + alfanumeriek (min 11, max 30 totaal per ISO 13616)
+    if (!/^[A-Z]{2}\d{2}[A-Z0-9]{8,30}$/.test(cleaned)) {
+      return 'Voer een geldig IBAN in (bijv. NL91 ABNA 0417 1643 00).';
+    }
+
+    // Mod97 check (IBAN checksum validatie)
+    // Verplaats eerste 4 tekens naar einde
+    const rearranged = cleaned.slice(4) + cleaned.slice(0, 4);
+    // Converteer letters naar getallen (A=10, B=11, ..., Z=35)
+    const numericString = rearranged.replace(/[A-Z]/g, (ch) => ch.charCodeAt(0) - 55);
+    // Bereken mod 97 in stukken (te groot voor Number)
+    let remainder = 0;
+    for (let i = 0; i < numericString.length; i++) {
+      remainder = (remainder * 10 + parseInt(numericString[i], 10)) % 97;
+    }
+    if (remainder !== 1) {
+      return 'Dit IBAN is ongeldig. Controleer het nummer.';
+    }
+
+    return null;
+  },
 };
 
 /**
