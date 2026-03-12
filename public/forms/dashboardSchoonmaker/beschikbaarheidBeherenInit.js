@@ -144,8 +144,11 @@ function populateBeschikbaarheidGrid(beschikbaarheidPerDag) {
     return;
   }
 
+  // Bewaar parent van dag template (kan genest zijn)
+  const dagParent = dagTemplate.parentNode;
+
   // Clear bestaande dag items (behalve template)
-  const existingDagen = container.querySelectorAll('[data-dag-item]:not(.dag-item-template)');
+  const existingDagen = dagParent.querySelectorAll('[data-dag-item]:not(.dag-item-template)');
   existingDagen.forEach(item => item.remove());
 
   // Render elke dag
@@ -170,8 +173,11 @@ function populateBeschikbaarheidGrid(beschikbaarheidPerDag) {
       return;
     }
 
+    // Bewaar parent van uur template (kan genest zijn)
+    const uurParent = uurTemplate.parentNode;
+
     // Clear bestaande uur items (behalve template)
-    const existingUren = urenContainer.querySelectorAll('[data-uur-item]:not(.uur-item-template)');
+    const existingUren = uurParent.querySelectorAll('[data-uur-item]:not(.uur-item-template)');
     existingUren.forEach(item => item.remove());
 
     // Maak een map van uur -> status voor snelle lookup
@@ -203,15 +209,15 @@ function populateBeschikbaarheidGrid(beschikbaarheidPerDag) {
       // Maak klikbaar (itereer door statussen)
       bindUurClick(uurClone);
 
-      // Voeg toe aan container (voor template)
-      urenContainer.insertBefore(uurClone, uurTemplate);
+      // Voeg toe aan parent (voor template)
+      uurParent.insertBefore(uurClone, uurTemplate);
     }
 
     // Verberg uur template
     uurTemplate.style.display = 'none';
 
-    // Voeg dag toe aan container (voor dag template)
-    container.insertBefore(dagClone, dagTemplate);
+    // Voeg dag toe aan parent (voor dag template)
+    dagParent.insertBefore(dagClone, dagTemplate);
   });
 
   // Verberg dag template

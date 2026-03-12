@@ -11,6 +11,7 @@
 import { withAuth } from '../../../utils/authMiddleware.js';
 import { httpClient } from '../../../utils/apiClient.js';
 import { supabaseConfig } from '../../../config/index.js';
+import { randomUUID } from 'crypto';
 
 // Toegestane statussen (moet overeenkomen met CHECK constraint in schema.sql)
 const VALID_STATUSES = ['beschikbaar', 'bezet', 'niet_beschikbaar'];
@@ -94,6 +95,7 @@ async function beschikbaarheidUpdateHandler(req, res) {
 
     // === STAP 2: INSERT alle nieuwe records ===
     const insertRows = beschikbaarheid.map(item => ({
+      id: randomUUID(),
       schoonmaker_id: schoonmakerId,
       dag: item.dag,
       uur: item.uur,
