@@ -440,7 +440,7 @@ function renderNestedEenmalig(clone, opdrachten) {
     if (typeEl) typeEl.textContent = formatEenmaligType(op.type);
 
     const urenEl = item.querySelector('[data-klant-eenmalig-uren]');
-    if (urenEl) urenEl.textContent = op.uren ? `${op.uren} uur` : '-';
+    if (urenEl) urenEl.textContent = op.uren != null ? `${op.uren} uur` : 'Onbekend';
 
     const statusEl = item.querySelector('[data-klant-eenmalig-status]');
     if (statusEl) {

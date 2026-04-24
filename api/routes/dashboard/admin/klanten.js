@@ -167,10 +167,23 @@ async function adminKlantenHandler(req, res) {
     const opdrByKlant = new Map();
     for (const o of opdrachten) {
       const list = opdrByKlant.get(o.gebruiker_id) || [];
-      // `uren` kan in `gegevens` jsonb staan; veilig uitpakken
+      // `uren` kan in `gegevens` jsonb onder verschillende keys staan:
+      //   - dieptereiniging: 'dr_uren'
+      //   - verhuis: 'verhuis_uren'
+      //   - generiek: 'uren'
+      // We pakken de eerste key die op 'uren' eindigt.
       let uren = null;
-      if (o.gegevens && typeof o.gegevens === 'object' && 'uren' in o.gegevens) {
-        uren = o.gegevens.uren;
+      if (o.gegevens && typeof o.gegevens === 'object') {
+        if (o.gegevens.uren != null) {
+          uren = o.gegevens.uren;
+        } else {
+          for (const [key, val] of Object.entries(o.gegevens)) {
+            if (key.endsWith('uren') && val != null) {
+              uren = val;
+              break;
+            }
+          }
+        }
       }
       list.push({
         id: o.id,
