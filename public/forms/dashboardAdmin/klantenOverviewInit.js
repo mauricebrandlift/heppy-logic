@@ -30,6 +30,27 @@ const LOG = '[Admin Klanten Overview]';
 const PAGE_SIZE = 20;
 const SEARCH_DEBOUNCE_MS = 250;
 
+// Mapping van Webflow filter-waardes → database status waardes.
+// Zo kun je in Webflow label-vriendelijke waardes gebruiken terwijl de filter
+// intern wel met de echte DB statussen werkt.
+const ABO_STATUS_MAP = {
+  actief: 'actief',
+  gepauzeerd: 'gepauzeerd',
+  opgezegd: 'gestopt',          // Webflow 'opgezegd' → DB 'gestopt'
+  gestopt: 'gestopt',
+  'in-afwachting': 'wachtrij',  // Webflow 'in-afwachting' → DB 'wachtrij'
+  wachtrij: 'wachtrij',
+};
+
+const EENMALIG_STATUS_MAP = {
+  nieuw: 'aangevraagd',         // Webflow 'nieuw' → DB 'aangevraagd'
+  aangevraagd: 'aangevraagd',
+  gepland: 'gepland',
+  afgerond: 'voltooid',         // Webflow 'afgerond' → DB 'voltooid'
+  voltooid: 'voltooid',
+  geannuleerd: 'geannuleerd',
+};
+
 // =============================================================================
 // STATE
 // =============================================================================
@@ -685,8 +706,9 @@ function bindFilterEvents() {
   found.aboStatus = aboStatusCbs.length;
   aboStatusCbs.forEach((cb) => {
     cb.addEventListener('change', () => {
-      const v = cb.getAttribute('data-klanten-filter-abo-status');
-      console.log(`${LOG} 🔘 Abo status filter: ${v} → ${cb.checked}`);
+      const raw = cb.getAttribute('data-klanten-filter-abo-status');
+      const v = ABO_STATUS_MAP[raw] || raw;
+      console.log(`${LOG} 🔘 Abo status filter: ${raw} → ${v} (${cb.checked})`);
       if (cb.checked) state.filters.aboStatus.add(v);
       else state.filters.aboStatus.delete(v);
       state.page = 1;
@@ -734,8 +756,9 @@ function bindFilterEvents() {
   found.eenmaligStatus = eenmaligStatusCbs.length;
   eenmaligStatusCbs.forEach((cb) => {
     cb.addEventListener('change', () => {
-      const v = cb.getAttribute('data-klanten-filter-eenmalig-status');
-      console.log(`${LOG} 🔘 Eenmalig status filter: ${v} → ${cb.checked}`);
+      const raw = cb.getAttribute('data-klanten-filter-eenmalig-status');
+      const v = EENMALIG_STATUS_MAP[raw] || raw;
+      console.log(`${LOG} 🔘 Eenmalig status filter: ${raw} → ${v} (${cb.checked})`);
       if (cb.checked) state.filters.eenmaligStatus.add(v);
       else state.filters.eenmaligStatus.delete(v);
       state.page = 1;
@@ -757,8 +780,14 @@ function bindFilterEvents() {
   }
 
   // --- Datum range ---
-  const datumVan = document.querySelector('[data-klanten-filter-datum-van]');
-  const datumTot = document.querySelector('[data-klanten-filter-datum-tot]');
+  // Webflow kan geen data-attributen op form inputs zetten via 'Custom attribute',
+  // dus we vallen terug op id-selector als het data-attribuut ontbreekt.
+  const datumVan =
+    document.querySelector('[data-klanten-filter-datum-van]') ||
+    document.getElementById('data-klanten-filter-datum-van');
+  const datumTot =
+    document.querySelector('[data-klanten-filter-datum-tot]') ||
+    document.getElementById('data-klanten-filter-datum-tot');
   if (datumVan) {
     found.datumVan = 1;
     const handler = () => {
@@ -888,8 +917,12 @@ function resetAllFilters() {
     .querySelectorAll('[data-klanten-filter-eenmalig-status]')
     .forEach((cb) => (cb.checked = false));
 
-  const datumVan = document.querySelector('[data-klanten-filter-datum-van]');
-  const datumTot = document.querySelector('[data-klanten-filter-datum-tot]');
+  const datumVan =
+    document.querySelector('[data-klanten-filter-datum-van]') ||
+    document.getElementById('data-klanten-filter-datum-van');
+  const datumTot =
+    document.querySelector('[data-klanten-filter-datum-tot]') ||
+    document.getElementById('data-klanten-filter-datum-tot');
   if (datumVan) datumVan.value = '';
   if (datumTot) datumTot.value = '';
 
