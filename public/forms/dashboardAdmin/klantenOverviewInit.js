@@ -47,6 +47,13 @@ const state = {
     datumVan: '',
     datumTot: '',
   },
+  // Gecachte template nodes (detached uit DOM na init, clone per render)
+  templates: {
+    klantItem: null,            // HTMLElement (detached)
+    klantItemParent: null,      // HTMLElement waar klant clones in geappend worden
+    plaatsOption: null,         // HTMLElement (detached)
+    plaatsOptionParent: null,   // HTMLElement waar plaats option clones in geappend worden
+  },
   sort: 'aangemaakt-desc',
   page: 1,
 };
@@ -304,24 +311,53 @@ function renderSortActive() {
   });
 }
 
+// =============================================================================
+// TEMPLATE CACHING
+// =============================================================================
+// We cachen templates éénmalig bij init. We halen de originele template-nodes
+// uit de DOM zodat elke render gewoon vers kan clonen vanuit de cache. Dit is
+// robuust t.o.v. combo-class namen op de Webflow kant.
+
+function cacheTemplates() {
+  // Outer klant template
+  const klantEl = document.querySelector('[data-klant-item]');
+  if (!klantEl) {
+    console.error(`${LOG} ❌ Klant template [data-klant-item] niet gevonden bij init`);
+    return false;
+  }
+  state.templates.klantItemParent = klantEl.parentElement;
+  state.templates.klantItem = klantEl.cloneNode(true); // pristine deep clone
+  klantEl.remove();
+  console.log(`${LOG} ✅ Klant template gecacht`);
+
+  // Plaats option template (optioneel)
+  const plaatsEl = document.querySelector('[data-klanten-plaats-option]');
+  if (plaatsEl) {
+    state.templates.plaatsOptionParent = plaatsEl.parentElement;
+    state.templates.plaatsOption = plaatsEl.cloneNode(true);
+    plaatsEl.remove();
+    console.log(`${LOG} ✅ Plaats option template gecacht`);
+  } else {
+    console.warn(`${LOG} ℹ️ Geen [data-klanten-plaats-option] gevonden - plaats filter niet beschikbaar`);
+  }
+
+  return true;
+}
+
 function renderNestedAbos(clone, abos) {
   const stateHas = clone.querySelector('[data-klant-abos-state="heeft-items"]');
   const stateNone = clone.querySelector('[data-klant-abos-state="geen-items"]');
-  const template = clone.querySelector('[data-klant-abo-item]');
+  const nestedTpl = clone.querySelector('[data-klant-abo-item]');
 
-  if (!template) return; // geen nested template in Webflow - skip
+  if (!nestedTpl) return; // geen nested template - skip
 
-  const parent = template.parentElement;
-
-  // Verwijder eventuele eerder gerenderde items behalve template
-  parent
-    .querySelectorAll('[data-klant-abo-item]:not(.klant-abo-item-template)')
-    .forEach((el) => el.remove());
+  const nestedParent = nestedTpl.parentElement;
+  // Haal de originele template uit de outer clone; we renderen clones in zijn plaats
+  nestedTpl.remove();
 
   if (!abos || abos.length === 0) {
     if (stateHas) stateHas.style.display = 'none';
     if (stateNone) stateNone.style.display = 'block';
-    template.style.display = 'none';
     return;
   }
 
@@ -329,8 +365,7 @@ function renderNestedAbos(clone, abos) {
   if (stateNone) stateNone.style.display = 'none';
 
   abos.forEach((abo) => {
-    const item = template.cloneNode(true);
-    item.classList.remove('klant-abo-item-template');
+    const item = nestedTpl.cloneNode(true);
     item.setAttribute('data-klant-abo-item-id', abo.id);
     item.style.display = '';
 
@@ -349,35 +384,23 @@ function renderNestedAbos(clone, abos) {
       addStatusClass(statusEl, abo.status, 'abo');
     }
 
-    parent.appendChild(item);
+    nestedParent.appendChild(item);
   });
-
-  template.style.display = 'none';
 }
 
 function renderNestedEenmalig(clone, opdrachten) {
-  const stateHas = clone.querySelector(
-    '[data-klant-eenmalig-state="heeft-items"]'
-  );
-  const stateNone = clone.querySelector(
-    '[data-klant-eenmalig-state="geen-items"]'
-  );
-  const template = clone.querySelector('[data-klant-eenmalig-item]');
+  const stateHas = clone.querySelector('[data-klant-eenmalig-state="heeft-items"]');
+  const stateNone = clone.querySelector('[data-klant-eenmalig-state="geen-items"]');
+  const nestedTpl = clone.querySelector('[data-klant-eenmalig-item]');
 
-  if (!template) return;
+  if (!nestedTpl) return;
 
-  const parent = template.parentElement;
-
-  parent
-    .querySelectorAll(
-      '[data-klant-eenmalig-item]:not(.klant-eenmalig-item-template)'
-    )
-    .forEach((el) => el.remove());
+  const nestedParent = nestedTpl.parentElement;
+  nestedTpl.remove();
 
   if (!opdrachten || opdrachten.length === 0) {
     if (stateHas) stateHas.style.display = 'none';
     if (stateNone) stateNone.style.display = 'block';
-    template.style.display = 'none';
     return;
   }
 
@@ -385,8 +408,7 @@ function renderNestedEenmalig(clone, opdrachten) {
   if (stateNone) stateNone.style.display = 'none';
 
   opdrachten.forEach((op) => {
-    const item = template.cloneNode(true);
-    item.classList.remove('klant-eenmalig-item-template');
+    const item = nestedTpl.cloneNode(true);
     item.setAttribute('data-klant-eenmalig-item-id', op.id);
     item.style.display = '';
 
@@ -405,28 +427,23 @@ function renderNestedEenmalig(clone, opdrachten) {
       addStatusClass(statusEl, op.status, 'opdracht');
     }
 
-    parent.appendChild(item);
+    nestedParent.appendChild(item);
   });
-
-  template.style.display = 'none';
 }
 
 function renderKlantenList() {
   const listHas = document.querySelector('[data-klanten-state="heeft-items"]');
   const listNone = document.querySelector('[data-klanten-state="geen-items"]');
-  const template = document.querySelector('[data-klant-item]');
+  const tpl = state.templates.klantItem;
+  const parent = state.templates.klantItemParent;
 
-  if (!template) {
-    console.error(`${LOG} ❌ Klant template [data-klant-item] niet gevonden`);
+  if (!tpl || !parent) {
+    console.error(`${LOG} ❌ Klant template niet gecacht - kan niet renderen`);
     return;
   }
 
-  const parent = template.parentElement;
-
-  // Verwijder eerdere clones behalve template
-  parent
-    .querySelectorAll('[data-klant-item]:not(.klant-item-template)')
-    .forEach((el) => el.remove());
+  // Verwijder alle eerder gerenderde klant items uit de parent
+  parent.querySelectorAll('[data-klant-item]').forEach((el) => el.remove());
 
   // Paginatie slicen
   const filtered = state.filtered;
@@ -438,7 +455,6 @@ function renderKlantenList() {
   if (pageItems.length === 0) {
     if (listHas) listHas.style.display = 'none';
     if (listNone) listNone.style.display = 'block';
-    template.style.display = 'none';
     renderPagination(totalPages);
     return;
   }
@@ -447,8 +463,7 @@ function renderKlantenList() {
   if (listNone) listNone.style.display = 'none';
 
   pageItems.forEach((klant) => {
-    const clone = template.cloneNode(true);
-    clone.classList.remove('klant-item-template');
+    const clone = tpl.cloneNode(true);
     clone.setAttribute('data-klant-item-id', klant.id);
     clone.style.display = '';
 
@@ -484,12 +499,11 @@ function renderKlantenList() {
     renderNestedAbos(clone, klant.abonnementen);
     renderNestedEenmalig(clone, klant.opdrachten);
 
-    // Het klant-item is tegelijk de "detail button":
-    // element met zowel data-klant-item als data-klant-detail-btn.
+    // Klant-item = detail button (element heeft zelf data-klant-detail-btn),
+    // of er zit een los data-klant-detail-btn element in.
     if (clone.hasAttribute('data-klant-detail-btn')) {
       clone.style.cursor = 'pointer';
       clone.addEventListener('click', (e) => {
-        // Voorkom dat clicks op interne knoppen meteen naar detail gaan
         if (
           e.target.closest('button, a, input, label') &&
           !e.target.closest('[data-klant-detail-btn]')
@@ -512,7 +526,6 @@ function renderKlantenList() {
     parent.appendChild(clone);
   });
 
-  template.style.display = 'none';
   renderPagination(totalPages);
 }
 
@@ -545,22 +558,12 @@ function rerender() {
 // PLAATS FILTER - dynamische checkbox opties
 // =============================================================================
 function renderPlaatsOptions() {
-  const template = document.querySelector('[data-klanten-plaats-option]');
-  if (!template) {
-    console.warn(
-      `${LOG} ℹ️ Geen [data-klanten-plaats-option] template gevonden - plaats filter niet gerenderd`
-    );
-    return;
-  }
+  const tpl = state.templates.plaatsOption;
+  const parent = state.templates.plaatsOptionParent;
+  if (!tpl || !parent) return; // geen plaats filter op deze pagina
 
-  const parent = template.parentElement;
-
-  // Verwijder eerdere clones
-  parent
-    .querySelectorAll(
-      '[data-klanten-plaats-option]:not(.klanten-plaats-option-template)'
-    )
-    .forEach((el) => el.remove());
+  // Verwijder eerder gerenderde opties uit parent
+  parent.querySelectorAll('[data-klanten-plaats-option]').forEach((el) => el.remove());
 
   // Unieke plaatsen uit klantenlijst
   const set = new Set();
@@ -569,14 +572,14 @@ function renderPlaatsOptions() {
     if (p) set.add(p);
   });
   state.plaatsOptions = [...set].sort((a, b) => a.localeCompare(b, 'nl'));
+  console.log(`${LOG} 📍 ${state.plaatsOptions.length} unieke plaatsen gevonden`);
 
   state.plaatsOptions.forEach((plaats) => {
-    const item = template.cloneNode(true);
-    item.classList.remove('klanten-plaats-option-template');
+    const item = tpl.cloneNode(true);
     item.style.display = '';
 
     const input = item.querySelector('input[type="checkbox"]');
-    const label = item.querySelector('span, [data-klanten-plaats-label]');
+    const label = item.querySelector('[data-klanten-plaats-label], span');
 
     if (input) {
       input.value = plaats;
@@ -592,8 +595,6 @@ function renderPlaatsOptions() {
 
     parent.appendChild(item);
   });
-
-  template.style.display = 'none';
 }
 
 // =============================================================================
@@ -608,9 +609,21 @@ function debounce(fn, ms) {
 }
 
 function bindFilterEvents() {
+  const found = {
+    search: 0, searchClear: 0,
+    plaatsClear: 0,
+    heeftAbo: 0, heeftAboClear: 0,
+    aboStatus: 0, aboStatusClear: 0,
+    heeftEenmalig: 0, heeftEenmaligClear: 0,
+    eenmaligStatus: 0, eenmaligStatusClear: 0,
+    datumVan: 0, datumTot: 0, datumClear: 0,
+    resetAll: 0, sort: 0, pagePrev: 0, pageNext: 0,
+  };
+
   // --- Zoekveld ---
   const searchInput = document.querySelector('[data-klanten-search-input]');
   if (searchInput) {
+    found.search = 1;
     const handler = debounce(() => {
       state.filters.search = searchInput.value || '';
       state.page = 1;
@@ -620,6 +633,7 @@ function bindFilterEvents() {
   }
   const searchClear = document.querySelector('[data-klanten-search-clear]');
   if (searchClear) {
+    found.searchClear = 1;
     searchClear.addEventListener('click', (e) => {
       e.preventDefault();
       if (searchInput) searchInput.value = '';
@@ -632,13 +646,12 @@ function bindFilterEvents() {
   // --- Plaats clear ---
   const plaatsClear = document.querySelector('[data-klanten-plaats-clear]');
   if (plaatsClear) {
+    found.plaatsClear = 1;
     plaatsClear.addEventListener('click', (e) => {
       e.preventDefault();
       state.filters.plaatsen.clear();
       document
-        .querySelectorAll(
-          '[data-klanten-plaats-option] input[type="checkbox"]'
-        )
+        .querySelectorAll('[data-klanten-plaats-option] input[type="checkbox"]')
         .forEach((cb) => (cb.checked = false));
       state.page = 1;
       rerender();
@@ -646,20 +659,18 @@ function bindFilterEvents() {
   }
 
   // --- Heeft abonnement ---
-  const heeftAboCb = document.querySelector(
-    '[data-klanten-filter-heeft-abo]'
-  );
+  const heeftAboCb = document.querySelector('[data-klanten-filter-heeft-abo]');
   if (heeftAboCb) {
+    found.heeftAbo = 1;
     heeftAboCb.addEventListener('change', () => {
       state.filters.heeftAbo = !!heeftAboCb.checked;
       state.page = 1;
       rerender();
     });
   }
-  const heeftAboClear = document.querySelector(
-    '[data-klanten-filter-heeft-abo-clear]'
-  );
+  const heeftAboClear = document.querySelector('[data-klanten-filter-heeft-abo-clear]');
   if (heeftAboClear) {
+    found.heeftAboClear = 1;
     heeftAboClear.addEventListener('click', (e) => {
       e.preventDefault();
       state.filters.heeftAbo = false;
@@ -670,21 +681,21 @@ function bindFilterEvents() {
   }
 
   // --- Abonnement status (meerdere checkboxes) ---
-  document
-    .querySelectorAll('[data-klanten-filter-abo-status]')
-    .forEach((cb) => {
-      cb.addEventListener('change', () => {
-        const v = cb.getAttribute('data-klanten-filter-abo-status');
-        if (cb.checked) state.filters.aboStatus.add(v);
-        else state.filters.aboStatus.delete(v);
-        state.page = 1;
-        rerender();
-      });
+  const aboStatusCbs = document.querySelectorAll('[data-klanten-filter-abo-status]');
+  found.aboStatus = aboStatusCbs.length;
+  aboStatusCbs.forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const v = cb.getAttribute('data-klanten-filter-abo-status');
+      console.log(`${LOG} 🔘 Abo status filter: ${v} → ${cb.checked}`);
+      if (cb.checked) state.filters.aboStatus.add(v);
+      else state.filters.aboStatus.delete(v);
+      state.page = 1;
+      rerender();
     });
-  const aboStatusClear = document.querySelector(
-    '[data-klanten-filter-abo-status-clear]'
-  );
+  });
+  const aboStatusClear = document.querySelector('[data-klanten-filter-abo-status-clear]');
   if (aboStatusClear) {
+    found.aboStatusClear = 1;
     aboStatusClear.addEventListener('click', (e) => {
       e.preventDefault();
       state.filters.aboStatus.clear();
@@ -697,20 +708,18 @@ function bindFilterEvents() {
   }
 
   // --- Heeft eenmalig ---
-  const heeftEenmaligCb = document.querySelector(
-    '[data-klanten-filter-heeft-eenmalig]'
-  );
+  const heeftEenmaligCb = document.querySelector('[data-klanten-filter-heeft-eenmalig]');
   if (heeftEenmaligCb) {
+    found.heeftEenmalig = 1;
     heeftEenmaligCb.addEventListener('change', () => {
       state.filters.heeftEenmalig = !!heeftEenmaligCb.checked;
       state.page = 1;
       rerender();
     });
   }
-  const heeftEenmaligClear = document.querySelector(
-    '[data-klanten-filter-heeft-eenmalig-clear]'
-  );
+  const heeftEenmaligClear = document.querySelector('[data-klanten-filter-heeft-eenmalig-clear]');
   if (heeftEenmaligClear) {
+    found.heeftEenmaligClear = 1;
     heeftEenmaligClear.addEventListener('click', (e) => {
       e.preventDefault();
       state.filters.heeftEenmalig = false;
@@ -721,21 +730,21 @@ function bindFilterEvents() {
   }
 
   // --- Eenmalig status ---
-  document
-    .querySelectorAll('[data-klanten-filter-eenmalig-status]')
-    .forEach((cb) => {
-      cb.addEventListener('change', () => {
-        const v = cb.getAttribute('data-klanten-filter-eenmalig-status');
-        if (cb.checked) state.filters.eenmaligStatus.add(v);
-        else state.filters.eenmaligStatus.delete(v);
-        state.page = 1;
-        rerender();
-      });
+  const eenmaligStatusCbs = document.querySelectorAll('[data-klanten-filter-eenmalig-status]');
+  found.eenmaligStatus = eenmaligStatusCbs.length;
+  eenmaligStatusCbs.forEach((cb) => {
+    cb.addEventListener('change', () => {
+      const v = cb.getAttribute('data-klanten-filter-eenmalig-status');
+      console.log(`${LOG} 🔘 Eenmalig status filter: ${v} → ${cb.checked}`);
+      if (cb.checked) state.filters.eenmaligStatus.add(v);
+      else state.filters.eenmaligStatus.delete(v);
+      state.page = 1;
+      rerender();
     });
-  const eenmaligStatusClear = document.querySelector(
-    '[data-klanten-filter-eenmalig-status-clear]'
-  );
+  });
+  const eenmaligStatusClear = document.querySelector('[data-klanten-filter-eenmalig-status-clear]');
   if (eenmaligStatusClear) {
+    found.eenmaligStatusClear = 1;
     eenmaligStatusClear.addEventListener('click', (e) => {
       e.preventDefault();
       state.filters.eenmaligStatus.clear();
@@ -751,21 +760,30 @@ function bindFilterEvents() {
   const datumVan = document.querySelector('[data-klanten-filter-datum-van]');
   const datumTot = document.querySelector('[data-klanten-filter-datum-tot]');
   if (datumVan) {
-    datumVan.addEventListener('change', () => {
+    found.datumVan = 1;
+    const handler = () => {
       state.filters.datumVan = datumVan.value || '';
+      console.log(`${LOG} 📅 Datum van: ${state.filters.datumVan}`);
       state.page = 1;
       rerender();
-    });
+    };
+    datumVan.addEventListener('change', handler);
+    datumVan.addEventListener('input', handler);
   }
   if (datumTot) {
-    datumTot.addEventListener('change', () => {
+    found.datumTot = 1;
+    const handler = () => {
       state.filters.datumTot = datumTot.value || '';
+      console.log(`${LOG} 📅 Datum tot: ${state.filters.datumTot}`);
       state.page = 1;
       rerender();
-    });
+    };
+    datumTot.addEventListener('change', handler);
+    datumTot.addEventListener('input', handler);
   }
   const datumClear = document.querySelector('[data-klanten-filter-datum-clear]');
   if (datumClear) {
+    found.datumClear = 1;
     datumClear.addEventListener('click', (e) => {
       e.preventDefault();
       state.filters.datumVan = '';
@@ -780,6 +798,7 @@ function bindFilterEvents() {
   // --- Reset all ---
   const resetAll = document.querySelector('[data-klanten-filter-reset-all]');
   if (resetAll) {
+    found.resetAll = 1;
     resetAll.addEventListener('click', (e) => {
       e.preventDefault();
       resetAllFilters();
@@ -787,7 +806,9 @@ function bindFilterEvents() {
   }
 
   // --- Sort buttons ---
-  document.querySelectorAll('[data-klanten-sort]').forEach((btn) => {
+  const sortBtns = document.querySelectorAll('[data-klanten-sort]');
+  found.sort = sortBtns.length;
+  sortBtns.forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       const value = btn.getAttribute('data-klanten-sort');
@@ -801,6 +822,7 @@ function bindFilterEvents() {
   // --- Pagination ---
   const prev = document.querySelector('[data-klanten-page-prev]');
   if (prev) {
+    found.pagePrev = 1;
     prev.addEventListener('click', (e) => {
       e.preventDefault();
       if (state.page > 1) {
@@ -812,18 +834,22 @@ function bindFilterEvents() {
   }
   const next = document.querySelector('[data-klanten-page-next]');
   if (next) {
+    found.pageNext = 1;
     next.addEventListener('click', (e) => {
       e.preventDefault();
-      const totalPages = Math.max(
-        1,
-        Math.ceil(state.filtered.length / PAGE_SIZE)
-      );
+      const totalPages = Math.max(1, Math.ceil(state.filtered.length / PAGE_SIZE));
       if (state.page < totalPages) {
         state.page += 1;
         renderKlantenList();
         scrollTopOfList();
       }
     });
+  }
+
+  console.log(`${LOG} 🔗 Filter elements bound:`, found);
+  const missing = Object.entries(found).filter(([, v]) => v === 0).map(([k]) => k);
+  if (missing.length) {
+    console.warn(`${LOG} ⚠️ Niet gevonden filter elementen:`, missing);
   }
 }
 
@@ -910,9 +936,19 @@ export async function initAdminKlantenOverview() {
   showLoading();
 
   try {
+    // 1. Cache templates VOOR data loading - originelen gaan uit DOM
+    if (!cacheTemplates()) {
+      throw new Error('Template caching mislukt - check of [data-klant-item] op de pagina staat');
+    }
+
+    // 2. Data ophalen
     await loadKlanten();
+
+    // 3. Plaats opties renderen + filter events binden
     renderPlaatsOptions();
     bindFilterEvents();
+
+    // 4. Eerste render
     rerender();
     showContent();
     console.log(`${LOG} ✅ Klaar`);
